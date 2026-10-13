@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+CONTAINER_LOG_PATH="/var/www/html/var/log/";
+
+display_help() {
+  echo -e "Description:
+  Tail logs from the Magento var/log folder all and specific logs
+
+Usage:
+  bin/log <specific_log_files>
+
+Arguments:
+  specific_log_files  If specific_log_files are NOT provided, show all logs. Ex: bin/log system.log cache.log
+
+Options:
+  -h, --help          Display help message"
+}
+
+get_all_logs_file_path() {
+  local logs_location="$1"
+
+  bin/docker-compose exec phpfpm ls -p "$logs_location" | grep -v '/$' | sed "s|^|$logs_location|"
+}
+
+if [[ $1 == "-h" || $1 == "--help" ]]; then
+  display_help
+elif [[ -z $1 ]]; then
+  all_logs_file_path=()
+  while IFS= read -r line; do
+    all_logs_file_path+=("$line")
+  done < <(get_all_logs_file_path "$CONTAINER_LOG_PATH")
+
+  bin/docker-compose exec phpfpm tail -f "${all_logs_file_path[@]}"
+else
+  logs_file_path=()
+  for file in "$@"; do
+    logs_file_path+=("${CONTAINER_LOG_PATH}${file}")
+  done
+
+  bin/docker-compose exec phpfpm tail -f "${logs_file_path[@]}"
+fi

@@ -1,0 +1,69 @@
+# Ignore everything by default
+*
+
+# Repository files
+!/.gitignore
+!/README.md
+!/compose.yaml
+!/Makefile
+!/composer.json
+
+# Scripts
+!/bin/
+!/bin/**
+
+# Documentation
+!/docs/
+!/docs/**
+
+# Custom Magento code
+!/src/
+!/src/app/
+!/src/app/*/
+!/src/app/code/
+!/src/app/code/**
+!/src/app/design/
+!/src/app/design/**
+!/src/app/etc/
+!/src/app/etc/config.php
+
+# Local / environment files
+.env
+.env.*
+!.env.example
+
+/env/
+/src/auth.json
+/src/app/etc/env.php
+
+# Local setup artifacts
+compose.versions.yaml
+compose.healthcheck.yaml.bak
+docker-magento-rootCA.pem
+rootCA.pem
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+.phpunit.result.cache
+.phpunit.cache/
+.php-cs-fixer.cache
+.phpstan.cache/
+coverage/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
