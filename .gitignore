@@ -27,6 +27,10 @@
 !/src/app/etc/
 !/src/app/etc/config.php
 
+# Composer (versão exata do Magento e da sample data)
+!/src/composer.json
+!/src/composer.lock
+
 # Local / environment files
 .env
 .env.*
