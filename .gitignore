@@ -41,7 +41,11 @@
 /src/app/etc/env.php
 
 # Local setup artifacts
-compose.versions.yaml
+!/compose.versions.yaml
+!/compose.dev.yaml
+!/compose.healthcheck.yaml
+!/compose.dev-linux.yaml
+!/compose.dev-ssh.yaml
 compose.healthcheck.yaml.bak
 docker-magento-rootCA.pem
 rootCA.pem
