@@ -35,8 +35,11 @@
 .env
 .env.*
 !.env.example
+!/env/
+!/env/**
+!/lib/
+!/lib/**
 
-/env/
 /src/auth.json
 /src/app/etc/env.php
 
