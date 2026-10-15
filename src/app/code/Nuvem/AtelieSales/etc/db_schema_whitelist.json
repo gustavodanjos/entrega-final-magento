@@ -1,0 +1,23 @@
+{
+    "nuvem_atelie_movimentacao": {
+        "column": {
+            "movimentacao_id": true,
+            "componente_id": true,
+            "tipo": true,
+            "quantidade": true,
+            "quote_id": true,
+            "order_id": true,
+            "order_item_id": true,
+            "observacao": true,
+            "created_at": true
+        },
+        "index": {
+            "NUVEM_ATELIE_MOVIMENTACAO_COMPONENTE_ID": true,
+            "NUVEM_ATELIE_MOVIMENTACAO_ORDER_ID": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "FK_0DA222CCE04E26BED21430EB4DEDB616": true
+        }
+    }
+}
