@@ -1,0 +1,60 @@
+{
+    "nuvem_atelie_grupo": {
+        "column": {
+            "grupo_id": true,
+            "codigo": true,
+            "nome": true,
+            "ordem": true,
+            "camada_svg": true,
+            "ativo": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "NUVEM_ATELIE_GRUPO_CODIGO": true
+        }
+    },
+    "nuvem_atelie_componente": {
+        "column": {
+            "componente_id": true,
+            "grupo_id": true,
+            "codigo": true,
+            "nome": true,
+            "cor_hex": true,
+            "acabamento": true,
+            "preco_adicional": true,
+            "estoque": true,
+            "padrao": true,
+            "ativo": true,
+            "ordem": true,
+            "updated_at": true
+        },
+        "index": {
+            "NUVEM_ATELIE_COMPONENTE_GRUPO_ID": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "NUVEM_ATELIE_COMPONENTE_CODIGO": true,
+            "NUVEM_ATELIE_COMPONENTE_GRUPO_ID_NUVEM_ATELIE_GRUPO_GRUPO_ID": true
+        }
+    },
+    "nuvem_atelie_regra": {
+        "column": {
+            "regra_id": true,
+            "codigo": true,
+            "tipo": true,
+            "origem_componente_id": true,
+            "alvo_tipo": true,
+            "alvo": true,
+            "mensagem": true,
+            "ativo": true
+        },
+        "index": {
+            "NUVEM_ATELIE_REGRA_ORIGEM_COMPONENTE_ID": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "NUVEM_ATELIE_REGRA_CODIGO": true,
+            "FK_9D702CBC481FECC36A9FFF85385711D8": true
+        }
+    }
+}
