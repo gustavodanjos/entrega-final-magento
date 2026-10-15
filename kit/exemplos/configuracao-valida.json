@@ -1,0 +1,39 @@
+{
+  "sku": "NUVEM-RUNNER",
+  "qty": 1,
+  "configuracao": {
+    "tamanho": 38,
+    "gravacao": "LUIZ",
+    "selecoes": [
+      {
+        "grupo": "cabedal",
+        "componente": "CAB-TRICO-LAVANDA"
+      },
+      {
+        "grupo": "biqueira",
+        "componente": "BIQ-LISA-CEU"
+      },
+      {
+        "grupo": "calcanhar",
+        "componente": "CAL-ACOLCHOADO-CEU"
+      },
+      {
+        "grupo": "cadarco",
+        "componente": "CAD-ELASTICO-MENTA"
+      },
+      {
+        "grupo": "emblema",
+        "componente": "EMB-NUVEM-PESSEGO"
+      },
+      {
+        "grupo": "entressola",
+        "componente": "ENT-EVA-NUVEM"
+      },
+      {
+        "grupo": "solado",
+        "componente": "SOL-TRANSLUCIDO-GELO"
+      }
+    ]
+  },
+  "preco_esperado": 589.4
+}

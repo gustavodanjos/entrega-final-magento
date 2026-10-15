@@ -1,0 +1,185 @@
+# =====================================================================
+#  Ateliê Nuvem · Contrato GraphQL (módulo Nuvem_AtelieGraphQl)
+#
+#  Este arquivo é o CONTRATO combinado na Frente 0. Ele vai para
+#  app/code/Nuvem/AtelieGraphQl/etc/schema.graphqls e só muda com PR
+#  aprovado por todo o time. Os resolvers ainda não existem: escrevê-los
+#  é trabalho da Frente 5. As classes abaixo são os nomes combinados.
+#
+#  Antes de mexer, leiam como o core declara o SimpleProduct no
+#  Magento/CatalogGraphQl/etc/schema.graphqls da versão de vocês e
+#  confiram se a lista de interfaces do AtelieProduct bate.
+# =====================================================================
+
+type Query {
+    atelieConfigurador(sku: String! @doc(description: "SKU de um produto do tipo atelie"))
+        : AtelieConfigurador
+        @resolver(class: "Nuvem\\AtelieGraphQl\\Model\\Resolver\\Configurador")
+        @cache(cacheIdentity: "Nuvem\\AtelieGraphQl\\Model\\Resolver\\Configurador\\Identity")
+        @doc(description: "Tudo que o estúdio precisa para montar a tela: grupos, componentes, preços e regras.")
+
+    atelieDisponibilidade(sku: String!)
+        : [AtelieDisponibilidade!]!
+        @resolver(class: "Nuvem\\AtelieGraphQl\\Model\\Resolver\\Disponibilidade")
+        @cache(cacheable: false)
+        @doc(description: "Quais componentes estão disponíveis agora. Nunca devolve a quantidade em estoque.")
+
+    atelieGaleria(
+        pageSize: Int = 12
+        currentPage: Int = 1
+        ordem: AtelieOrdemGaleria = RECENTES
+    ): AtelieGaleria
+        @resolver(class: "Nuvem\\AtelieGraphQl\\Model\\Resolver\\Galeria")
+        @cache(cacheIdentity: "Nuvem\\AtelieGraphQl\\Model\\Resolver\\Galeria\\Identity")
+        @doc(description: "Criações públicas da galeria.")
+}
+
+type Mutation {
+    addAtelieProductToCart(input: AddAtelieProductToCartInput!): AddAtelieProductToCartOutput
+        @resolver(class: "Nuvem\\AtelieGraphQl\\Model\\Resolver\\AddToCart")
+        @doc(description: "Adiciona um tênis configurado ao carrinho. Valida tudo no servidor.")
+
+    atelieValidarConfiguracao(sku: String!, configuracao: AtelieConfiguracaoInput!): AtelieResultadoValidacao
+        @resolver(class: "Nuvem\\AtelieGraphQl\\Model\\Resolver\\Validar")
+        @doc(description: "Valida e precifica sem mexer em carrinho nenhum.")
+}
+
+# ------------------------------------------------------------- entrada
+input AddAtelieProductToCartInput {
+    cart_id: String!
+    sku: String!
+    quantity: Float = 1
+    configuracao: AtelieConfiguracaoInput!
+}
+
+input AtelieConfiguracaoInput {
+    tamanho: Int!
+    gravacao: String
+    selecoes: [AtelieSelecaoInput!]!
+}
+
+input AtelieSelecaoInput {
+    grupo: String!
+    componente: String!
+}
+
+# ------------------------------------------------------------- saída
+type AddAtelieProductToCartOutput {
+    cart: Cart!
+}
+
+type AtelieConfigurador {
+    sku: String!
+    nome: String!
+    preco_base: Money!
+    tamanho_min: Int!
+    tamanho_max: Int!
+    prazo_producao_dias: Int!
+    gravacao: AtelieRegrasGravacao @doc(description: "Nulo quando o modelo não aceita gravação.")
+    grupos: [AtelieGrupo!]!
+    regras: [AtelieRegra!]!
+}
+
+type AtelieRegrasGravacao {
+    preco: Money!
+    limite: Int!
+}
+
+type AtelieGrupo {
+    codigo: String!
+    nome: String!
+    ordem: Int!
+    camada_svg: String!
+    componentes: [AtelieComponente!]!
+}
+
+type AtelieComponente {
+    codigo: String!
+    nome: String!
+    cor_hex: String!
+    acabamento: String!
+    preco_adicional: Money!
+    padrao: Boolean!
+}
+
+type AtelieDisponibilidade {
+    componente: String!
+    disponivel: Boolean!
+    ultimas_unidades: Boolean!
+}
+
+enum AtelieTipoRegra {
+    BLOQUEIA
+    EXIGE
+}
+
+enum AtelieAlvoRegra {
+    COMPONENTE
+    ACABAMENTO
+    GRAVACAO
+}
+
+type AtelieRegra {
+    codigo: String!
+    tipo: AtelieTipoRegra!
+    origem: String!
+    alvo_tipo: AtelieAlvoRegra!
+    alvo: String!
+    mensagem: String!
+}
+
+type AtelieResultadoValidacao {
+    valido: Boolean!
+    preco: Money
+    erros: [AtelieErro!]!
+}
+
+type AtelieErro {
+    regra: String
+    grupo: String
+    mensagem: String!
+}
+
+enum AtelieOrdemGaleria {
+    RECENTES
+    MAIS_CURTIDAS
+}
+
+type AtelieGaleria {
+    items: [AtelieCriacao!]!
+    total_count: Int!
+    page_info: SearchResultPageInfo
+}
+
+type AtelieCriacao {
+    hash: String!
+    nome: String!
+    sku: String!
+    preview_url: String!
+    autor: String @doc(description: "Só o primeiro nome. Nunca e-mail.")
+    curtidas: Int!
+    configuracao: AtelieConfiguracao!
+}
+
+type AtelieConfiguracao {
+    tamanho: Int
+    gravacao: String
+    selecoes: [AtelieSelecao!]!
+}
+
+type AtelieSelecao {
+    grupo: String!
+    componente: String!
+}
+
+# ------------------------------------------------------------- tipos do catálogo e do carrinho
+# Precisam de type resolver registrado em di.xml (ver guia da semana 19).
+type AtelieProduct implements ProductInterface, RoutableInterface, PhysicalProductInterface, CustomizableProductInterface
+    @doc(description: "Produto configurável no Ateliê.") {
+    atelie_prazo_producao: Int
+}
+
+type AtelieCartItem implements CartItemInterface @doc(description: "Item de carrinho com a configuração do tênis.") {
+    atelie_configuracao: AtelieConfiguracao!
+    preview_url: String!
+}

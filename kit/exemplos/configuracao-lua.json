@@ -1,0 +1,39 @@
+{
+  "sku": "NUVEM-RUNNER",
+  "qty": 1,
+  "configuracao": {
+    "tamanho": 40,
+    "gravacao": null,
+    "selecoes": [
+      {
+        "grupo": "cabedal",
+        "componente": "CAB-TELA-CEU"
+      },
+      {
+        "grupo": "biqueira",
+        "componente": "BIQ-LISA-NUVEM"
+      },
+      {
+        "grupo": "calcanhar",
+        "componente": "CAL-LISO-LAVANDA"
+      },
+      {
+        "grupo": "cadarco",
+        "componente": "CAD-ALGODAO-NUVEM"
+      },
+      {
+        "grupo": "emblema",
+        "componente": "EMB-NUVEM-BAUNILHA"
+      },
+      {
+        "grupo": "entressola",
+        "componente": "ENT-EVA-NUVEM"
+      },
+      {
+        "grupo": "solado",
+        "componente": "SOL-LUA-HOLO"
+      }
+    ]
+  },
+  "preco_esperado": 539.8
+}

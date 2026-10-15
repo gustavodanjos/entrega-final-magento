@@ -16,6 +16,14 @@
 !/docs/
 !/docs/**
 
+# Kit de marca e materiais
+!/kit/
+!/kit/**
+
+# Regras do GitHub (CODEOWNERS, template de PR)
+!/.github/
+!/.github/**
+
 # Custom Magento code
 !/src/
 !/src/app/
