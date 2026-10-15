@@ -1,4 +1,4 @@
-# Entrega Final — Magento Open Source
+# Nuvem — Magento Open Source Setup - Entrega Final
 
 Ambiente local do projeto da equipe, executado com Docker.
 
