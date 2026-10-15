@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
+-->
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="nuvem_atelie_grupo" resource="default" engine="innodb" comment="Tabela de Grupos de Componentes do Atelie">
+        <column xsi:type="int" name="grupo_id" unsigned="true" nullable="false" identity="true" comment="Grupo ID"/>
+        <column xsi:type="varchar" name="codigo" nullable="false" length="32" comment="Codigo do Grupo"/>
+        <column xsi:type="varchar" name="nome" nullable="false" length="64" comment="Nome do Grupo para o Cliente"/>
+        <column xsi:type="smallint" name="ordem" unsigned="false" nullable="false" default="0" comment="Ordem das abas no estudio"/>
+        <column xsi:type="varchar" name="camada_svg" nullable="false" length="64" comment="ID da camada SVG (ex: camada-cabedal)"/>
+        <column xsi:type="boolean" name="ativo" nullable="false" default="true" comment="Status de ativacao do grupo"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="grupo_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="NUVEM_ATELIE_GRUPO_CODIGO">
+            <column name="codigo"/>
+        </constraint>
+    </table>
+
+    <table name="nuvem_atelie_componente" resource="default" engine="innodb" comment="Tabela de Componentes do Atelie">
+        <column xsi:type="int" name="componente_id" unsigned="true" nullable="false" identity="true" comment="Componente ID"/>
+        <column xsi:type="int" name="grupo_id" unsigned="true" nullable="false" comment="Grupo ID"/>
+        <column xsi:type="varchar" name="codigo" nullable="false" length="40" comment="Codigo do Componente"/>
+        <column xsi:type="varchar" name="nome" nullable="false" length="80" comment="Nome do Componente"/>
+        <column xsi:type="varchar" name="cor_hex" nullable="false" length="7" comment="Codigo Hexadecimal da Cor"/>
+        <column xsi:type="varchar" name="acabamento" nullable="false" length="32" comment="Acabamento"/>
+        <column xsi:type="decimal" name="preco_adicional" scale="4" precision="12" unsigned="false" nullable="false" default="0.0000" comment="Preco Adicional"/>
+        <column xsi:type="int" name="estoque" unsigned="true" nullable="false" default="0" comment="Quantidade em Estoque"/>
+        <column xsi:type="boolean" name="padrao" nullable="false" default="false" comment="Componente padrao do grupo"/>
+        <column xsi:type="boolean" name="ativo" nullable="false" default="true" comment="Status de ativacao do componente"/>
+        <column xsi:type="smallint" name="ordem" unsigned="false" nullable="false" default="0" comment="Ordem de exibicao"/>
+        <column xsi:type="timestamp" name="updated_at" on_update="true" nullable="false" default="CURRENT_TIMESTAMP" comment="Data de Atualizacao"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="componente_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="NUVEM_ATELIE_COMPONENTE_CODIGO">
+            <column name="codigo"/>
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="NUVEM_ATELIE_COMPONENTE_GRUPO_ID_NUVEM_ATELIE_GRUPO_GRUPO_ID"
+                    table="nuvem_atelie_componente" column="grupo_id" referenceTable="nuvem_atelie_grupo"
+                    referenceColumn="grupo_id" onDelete="NO ACTION"/>
+        <index referenceId="NUVEM_ATELIE_COMPONENTE_GRUPO_ID" indexType="btree">
+            <column name="grupo_id"/>
+        </index>
+    </table>
+
+    <table name="nuvem_atelie_regra" resource="default" engine="innodb" comment="Tabela de Regras de Validacao do Atelie">
+        <column xsi:type="int" name="regra_id" unsigned="true" nullable="false" identity="true" comment="Regra ID"/>
+        <column xsi:type="varchar" name="codigo" nullable="false" length="16" comment="Codigo da Regra"/>
+        <column xsi:type="varchar" name="tipo" nullable="false" length="16" comment="Tipo da Regra (bloqueia ou exige)"/>
+        <column xsi:type="int" name="origem_componente_id" unsigned="true" nullable="false" comment="Componente de Origem ID"/>
+        <column xsi:type="varchar" name="alvo_tipo" nullable="false" length="16" comment="Tipo do Alvo (componente, acabamento ou gravacao)"/>
+        <column xsi:type="varchar" name="alvo" nullable="false" length="40" comment="Codigo do componente, nome do acabamento ou *"/>
+        <column xsi:type="varchar" name="mensagem" nullable="false" length="255" comment="Mensagem da Regra"/>
+        <column xsi:type="boolean" name="ativo" nullable="false" default="true" comment="Status de ativacao da regra"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="regra_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="NUVEM_ATELIE_REGRA_CODIGO">
+            <column name="codigo"/>
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="NUVEM_ATELIE_REGRA_ORIGEM_COMP_ID_NUVEM_ATELIE_COMP_COMP_ID"
+                    table="nuvem_atelie_regra" column="origem_componente_id" referenceTable="nuvem_atelie_componente"
+                    referenceColumn="componente_id" onDelete="CASCADE"/>
+        <index referenceId="NUVEM_ATELIE_REGRA_ORIGEM_COMPONENTE_ID" indexType="btree">
+            <column name="origem_componente_id"/>
+        </index>
+    </table>
+</schema>
