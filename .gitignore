@@ -86,3 +86,5 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+docs/briefing.md
+docs/Frentes.md

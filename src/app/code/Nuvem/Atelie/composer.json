@@ -1,0 +1,21 @@
+{
+    "name": "nuvem/module-atelie",
+    "description": "Nuvem Atelie core module",
+    "type": "magento2-module",
+    "version": "1.0.0",
+    "license": [
+        "proprietary"
+    ],
+    "require": {
+        "php": "~8.2.0||~8.3.0||~8.4.0",
+        "magento/framework": "*"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "Nuvem\\Atelie\\": ""
+        }
+    }
+}
