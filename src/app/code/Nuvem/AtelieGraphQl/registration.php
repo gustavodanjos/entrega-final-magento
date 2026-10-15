@@ -7,6 +7,6 @@ use Magento\Framework\Component\ComponentRegistrar;
 
 ComponentRegistrar::register(
     ComponentRegistrar::MODULE,
-    'Nuvem_AtelieGraphQL',
+    'Nuvem_AtelieGraphQl',
     __DIR__
 );

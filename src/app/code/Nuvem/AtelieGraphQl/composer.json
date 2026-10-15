@@ -1,6 +1,6 @@
 {
-    "name": "nuvem/module-atelie-graphql",
-    "description": "Nuvem Atelie GraphQL module",
+    "name": "nuvem/module-atelie-graph-ql",
+    "description": "Nuvem Atelie GraphQl module",
     "type": "magento2-module",
     "version": "1.0.0",
     "license": [
@@ -18,7 +18,7 @@
             "registration.php"
         ],
         "psr-4": {
-            "Nuvem\\AtelieGraphQL\\": ""
+            "Nuvem\\AtelieGraphQl\\": ""
         }
     }
 }

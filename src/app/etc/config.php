@@ -379,7 +379,7 @@ return [
         'Magento_WishlistSampleData' => 1,
         'Nuvem_Atelie' => 1,
         'Nuvem_AtelieAdmin' => 1,
-        'Nuvem_AtelieGraphQL' => 1,
+        'Nuvem_AtelieGraphQl' => 1,
         'Nuvem_AtelieSales' => 1,
         'Nuvem_AtelieStudio' => 1,
         'Nuvem_AtelieVitrine' => 1,
