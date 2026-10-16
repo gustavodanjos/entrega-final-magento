@@ -1,0 +1,24 @@
+{
+    "nuvem_atelie_criacao": {
+        "column": {
+            "criacao_id": true,
+            "hash": true,
+            "customer_id": true,
+            "sku": true,
+            "nome": true,
+            "configuracao": true,
+            "publica": true,
+            "curtidas": true,
+            "created_at": true,
+            "updated_at": true
+        },
+        "index": {
+            "NUVEM_ATELIE_CRIACAO_PUBLICA_CREATED_AT": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "NUVEM_ATELIE_CRIACAO_HASH": true,
+            "NUVEM_ATELIE_CRIACAO_CUSTOMER_ID_CUSTOMER_ENTITY_ENTITY_ID": true
+        }
+    }
+}
