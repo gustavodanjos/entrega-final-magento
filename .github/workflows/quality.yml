@@ -25,10 +25,8 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Create auth.json
-        working-directory: ${{ github.workspace }}/src
-        run: |
-          echo '{"http-basic":{"repo.magento.com":{"username":"${{ secrets.MAGENTO_PUBLIC_KEY }}","password":"${{ secrets.MAGENTO_PRIVATE_KEY }}"}}}' > auth.json
+      - name: Configure Magento repo auth
+        run: composer config --global http-basic.repo.magento.com "${{ secrets.MAGENTO_PUBLIC_KEY }}" "${{ secrets.MAGENTO_PRIVATE_KEY }}"
 
       - name: Cache composer
         uses: actions/cache@v4
