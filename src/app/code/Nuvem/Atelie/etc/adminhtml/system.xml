@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="nuvem" translate="label" sortOrder="900">
+            <label>Nuvem</label>
+        </tab>
+        <section id="nuvem_atelie" translate="label" type="text" sortOrder="900" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Ateliê</label>
+            <tab>nuvem</tab>
+            <resource>Nuvem_Atelie::config</resource>
+            <group id="engraving" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Gravação</label>
+                <field id="price" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Preço da gravação</label>
+                    <validate>validate-number</validate>
+                    <config_path>nuvem_atelie/engraving/price</config_path>
+                </field>
+                <field id="limit" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Limite de caracteres</label>
+                    <validate>validate-digits</validate>
+                    <config_path>nuvem_atelie/engraving/limit</config_path>
+                </field>
+            </group>
+            <group id="stock" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Estoque</label>
+                <field id="last_units" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Limite de últimas unidades</label>
+                    <validate>validate-digits</validate>
+                    <config_path>nuvem_atelie/stock/last_units</config_path>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>
