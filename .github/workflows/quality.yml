@@ -44,4 +44,4 @@ jobs:
         run: |
           vendor/bin/phpunit \
             -c dev/tests/unit/phpunit.xml.dist \
-            app/code/Nuvem/Atelie/Test/Unit
+            app/code/Nuvem
