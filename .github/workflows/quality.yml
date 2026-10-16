@@ -44,7 +44,7 @@ jobs:
           <?php
           declare(strict_types=1);
 
-          $paths = glob(__DIR__ . '/../app/code/*/*/registration.php');
+          $paths = glob(__DIR__ . '/../code/*/*/registration.php');
           foreach ($paths ?: [] as $file) {
               include $file;
           }
