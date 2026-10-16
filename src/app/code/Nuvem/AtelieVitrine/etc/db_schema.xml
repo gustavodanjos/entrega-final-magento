@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="nuvem_atelie_criacao" resource="default" engine="innodb" comment="Saved client creations in Atelie Nuvem">
+        <column xsi:type="int" name="criacao_id" unsigned="true" nullable="false" identity="true"
+                comment="Internal primary key of the creation"/>
+        <column xsi:type="varchar" name="hash" length="32" nullable="false"
+                comment="Public 32-character hash (used in URL and sharing)"/>
+        <column xsi:type="int" name="customer_id" unsigned="true" nullable="true"
+                comment="Customer entity ID (FK to customer_entity)"/>
+        <column xsi:type="varchar" name="sku" length="64" nullable="false"
+                comment="Base product SKU (e.g. NUVEM-RUNNER)"/>
+        <column xsi:type="varchar" name="nome" length="80" nullable="false"
+                comment="Creation display name"/>
+        <column xsi:type="text" name="configuracao" nullable="false"
+                comment="Normalized JSON configuration"/>
+        <column xsi:type="boolean" name="publica" nullable="false" default="0"
+                comment="Flag indicating if the creation is public"/>
+        <column xsi:type="int" name="curtidas" unsigned="true" nullable="false" default="0"
+                comment="Total likes count"/>
+        <column xsi:type="timestamp" name="created_at" on_update="false" nullable="false" default="CURRENT_TIMESTAMP"
+                comment="Creation timestamp"/>
+        <column xsi:type="timestamp" name="updated_at" on_update="true" nullable="false" default="CURRENT_TIMESTAMP"
+                comment="Last modification timestamp"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="criacao_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="NUVEM_ATELIE_CRIACAO_HASH">
+            <column name="hash"/>
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="NUVEM_ATELIE_CRIACAO_CUSTOMER_ID_CUSTOMER_ENTITY_ENTITY_ID"
+                    table="nuvem_atelie_criacao" column="customer_id"
+                    referenceTable="customer_entity" referenceColumn="entity_id"
+                    onDelete="SET NULL"/>
+
+        <index referenceId="NUVEM_ATELIE_CRIACAO_PUBLICA_CREATED_AT" indexType="btree">
+            <column name="publica"/>
+            <column name="created_at"/>
+        </index>
+    </table>
+</schema>
