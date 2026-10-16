@@ -37,6 +37,15 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Create NonComposerComponentRegistration placeholder
+        run: |
+          mkdir -p app/etc
+          cat > app/etc/NonComposerComponentRegistration.php <<'PHP'
+          <?php
+          // Placeholder for CI: prevents fatal error when vendor/autoload requires this file.
+          return;
+          PHP
+
       - name: PHPCS (Magento2)
         run: vendor/bin/phpcs app/code/Nuvem
 
