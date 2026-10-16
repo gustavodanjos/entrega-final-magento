@@ -43,6 +43,8 @@
 !/src/.phpcs.xml.dist
 !/src/phpcs.xml
 !/src/phpunit.xml*
+!/src/allure/
+!/src/allure/**
 
 # Local / environment files
 .env
