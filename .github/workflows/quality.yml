@@ -38,7 +38,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: PHPCS (Magento2)
-        run: vendor/bin/phpcs --standard=${{ github.workspace }}/src/phpcs.xml app/code/Nuvem
+        run: vendor/bin/phpcs app/code/Nuvem
 
       - name: PHPUnit (Nuvem)
         run: |
