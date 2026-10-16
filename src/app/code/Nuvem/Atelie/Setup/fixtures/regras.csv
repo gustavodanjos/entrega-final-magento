@@ -1,0 +1,6 @@
+codigo,tipo,origem,alvo_tipo,alvo,mensagem
+R01,bloqueia,CAB-CAMURCA-BAUNILHA,componente,SOL-LUA-HOLO,A cola do solado holográfico mancha a camurça. Escolha outro solado ou outro cabedal.
+R02,exige,CAD-ELASTICO-MENTA,acabamento,trico,O cadarço elástico só segura em cabedal de tricô.
+R03,bloqueia,EMB-NUVEM-GLITTER,componente,BIQ-VERNIZ-ROSA,Glitter com verniz pesa no visual. Fique com um dos dois.
+R04,exige,ENT-AR-VISIVEL,componente,SOL-TRANSLUCIDO-GELO,A câmara de ar só aparece com o solado translúcido.
+R05,bloqueia,ENT-AR-VISIVEL,gravacao,*,Não dá para gravar sobre a câmara de ar.

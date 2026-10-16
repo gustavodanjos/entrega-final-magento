@@ -1,0 +1,32 @@
+codigo,grupo,nome,cor_hex,acabamento,preco_adicional,estoque,padrao
+CAB-TELA-MENTA,cabedal,Tela Menta,#C6F0DC,tela,0.00,200,1
+CAB-TELA-CEU,cabedal,Tela Céu,#BEE3F8,tela,0.00,200,0
+CAB-TELA-ROSA,cabedal,Tela Rosa Magenta,#F7C6E4,tela,0.00,200,0
+CAB-TRICO-LAVANDA,cabedal,Tricô Lavanda,#DCCFF7,trico,39.90,80,0
+CAB-TRICO-PESSEGO,cabedal,Tricô Pêssego,#FFD8C2,trico,39.90,80,0
+CAB-CAMURCA-BAUNILHA,cabedal,Camurça Baunilha,#FFF1B8,camurca,59.90,40,0
+BIQ-LISA-CEU,biqueira,Lisa Céu,#BEE3F8,liso,0.00,200,1
+BIQ-LISA-MENTA,biqueira,Lisa Menta,#C6F0DC,liso,0.00,200,0
+BIQ-LISA-NUVEM,biqueira,Lisa Nuvem,#FBFAFF,liso,0.00,200,0
+BIQ-VERNIZ-ROSA,biqueira,Verniz Rosa,#F2A7D3,verniz,24.90,60,0
+CAL-LISO-ROSA,calcanhar,Liso Rosa Magenta,#F7C6E4,liso,0.00,200,1
+CAL-LISO-LAVANDA,calcanhar,Liso Lavanda,#DCCFF7,liso,0.00,200,0
+CAL-LISO-MENTA,calcanhar,Liso Menta,#C6F0DC,liso,0.00,200,0
+CAL-ACOLCHOADO-CEU,calcanhar,Acolchoado Céu,#A9D6F2,acolchoado,19.90,70,0
+CAD-ALGODAO-NUVEM,cadarco,Algodão Nuvem,#FFFFFF,algodao,0.00,300,1
+CAD-ALGODAO-ROSA,cadarco,Algodão Rosa,#F7C6E4,algodao,0.00,300,0
+CAD-ALGODAO-CEU,cadarco,Algodão Céu,#BEE3F8,algodao,0.00,300,0
+CAD-ELASTICO-MENTA,cadarco,Elástico Menta,#9EDFC0,elastico,14.90,120,0
+EMB-NUVEM-PESSEGO,emblema,Nuvem Pêssego,#FFD8C2,liso,0.00,300,1
+EMB-NUVEM-BAUNILHA,emblema,Nuvem Baunilha,#FFF1B8,liso,0.00,300,0
+EMB-NUVEM-LAVANDA,emblema,Nuvem Lavanda,#DCCFF7,liso,0.00,300,0
+EMB-NUVEM-GLITTER,emblema,Nuvem Glitter,#F5E6FF,glitter,29.90,50,0
+ENT-EVA-NUVEM,entressola,EVA Nuvem,#FBFAFF,eva,0.00,200,1
+ENT-EVA-BAUNILHA,entressola,EVA Baunilha,#FFF1B8,eva,0.00,200,0
+ENT-EVA-CEU,entressola,EVA Céu,#BEE3F8,eva,0.00,200,0
+ENT-AR-VISIVEL,entressola,Câmara de Ar Visível,#E8F6FF,ar,49.90,30,0
+SOL-BORRACHA-LAVANDA,solado,Borracha Lavanda,#DCCFF7,borracha,0.00,200,1
+SOL-BORRACHA-MENTA,solado,Borracha Menta,#C6F0DC,borracha,0.00,200,0
+SOL-BORRACHA-GRAFITE,solado,Borracha Grafite,#4A4458,borracha,0.00,200,0
+SOL-TRANSLUCIDO-GELO,solado,Translúcido Gelo,#EAF4FB,translucido,34.90,60,0
+SOL-LUA-HOLO,solado,Lua Holográfico (edição limitada),#E9E4FF,holografico,89.90,10,0
