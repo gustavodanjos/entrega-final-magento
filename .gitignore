@@ -39,6 +39,13 @@
 !/src/composer.json
 !/src/composer.lock
 
+# PHPCS / PHPUnit configs na raiz do Magento
+!/src/.phpcs.xml.dist
+!/src/phpcs.xml
+!/src/phpunit.xml*
+!/src/allure/
+!/src/allure/**
+
 # Local / environment files
 .env
 .env.*
