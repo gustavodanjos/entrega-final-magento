@@ -366,7 +366,7 @@ Esse payload unifica:
     "adicionar_carrinho": "/checkout/cart/add",
     "disponibilidade": "/rest/default/V1/atelie/disponibilidade/NUVEM-RUNNER",
     "validar": "/rest/default/V1/atelie/validar",
-    "preview": "/atelie/preview/render"
+    "preview": "/atelie/preview/svg"
   }
 }
 ```
