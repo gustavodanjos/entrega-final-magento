@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="Nuvem\Atelie\Api\AtelieCatalogInterface"
+                type="Nuvem\Atelie\Model\ProvisionalAtelieCatalog"/>
+    <preference for="Nuvem\Atelie\Api\ConfigurationValidatorInterface"
+                type="Nuvem\Atelie\Model\ProvisionalConfigurationValidator"/>
+    <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
+                type="Nuvem\Atelie\Model\ProvisionalPriceCalculator"/>
+    <preference for="Nuvem\Atelie\Api\Data\ConfigurationInterface"
+                type="Nuvem\Atelie\Model\Configuration"/>
+    <preference for="Nuvem\Atelie\Api\Data\SelectionInterface"
+                type="Nuvem\Atelie\Model\Selection"/>
+    <preference for="Nuvem\Atelie\Api\Data\ValidationResultInterface"
+                type="Nuvem\Atelie\Model\ValidationResult"/>
+</config>
