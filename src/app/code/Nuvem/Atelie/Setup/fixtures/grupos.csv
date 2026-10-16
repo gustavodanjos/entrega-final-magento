@@ -1,0 +1,8 @@
+codigo,nome,ordem,camada_svg
+cabedal,Cabedal,10,camada-cabedal
+biqueira,Biqueira,20,camada-biqueira
+calcanhar,Calcanhar,30,camada-calcanhar
+cadarco,Cadarço,40,camada-cadarco
+emblema,Emblema Nuvem,50,camada-emblema
+entressola,Entressola,60,camada-entressola
+solado,Solado,70,camada-solado
