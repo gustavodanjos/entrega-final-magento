@@ -5,16 +5,17 @@ namespace Nuvem\Atelie\Model;
 
 use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
 use Magento\Framework\Api\SearchCriteriaInterface;
-use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\CouldNotDeleteException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Nuvem\Atelie\Api\Data\RuleInterface;
 use Nuvem\Atelie\Api\Data\RuleSearchResultsInterface;
-use Nuvem\Atelie\Api\Data\RuleSearchResultsInterfaceFactory;
 use Nuvem\Atelie\Api\RuleRepositoryInterface;
 use Nuvem\Atelie\Model\ResourceModel\Rule as RuleResource;
 use Nuvem\Atelie\Model\ResourceModel\Rule\CollectionFactory as RuleCollectionFactory;
+use Nuvem\Atelie\Model\Rule;
+use Nuvem\Atelie\Model\RuleFactory;
+use Nuvem\Atelie\Model\RuleSearchResultsFactory;
 
 /**
  * Class RuleRepository
@@ -39,9 +40,9 @@ class RuleRepository implements RuleRepositoryInterface
     private RuleCollectionFactory $collectionFactory;
 
     /**
-     * @var RuleSearchResultsInterfaceFactory
+     * @var RuleSearchResultsFactory
      */
-    private RuleSearchResultsInterfaceFactory $searchResultsFactory;
+    private RuleSearchResultsFactory $searchResultsFactory;
 
     /**
      * @var CollectionProcessorInterface
@@ -52,22 +53,21 @@ class RuleRepository implements RuleRepositoryInterface
      * @param RuleResource $resource
      * @param RuleFactory $ruleFactory
      * @param RuleCollectionFactory $collectionFactory
-     * @param RuleSearchResultsInterfaceFactory $searchResultsFactory
-     * @param CollectionProcessorInterface|null $collectionProcessor
+     * @param RuleSearchResultsFactory $searchResultsFactory
+     * @param CollectionProcessorInterface $collectionProcessor
      */
     public function __construct(
         RuleResource $resource,
         RuleFactory $ruleFactory,
         RuleCollectionFactory $collectionFactory,
-        RuleSearchResultsInterfaceFactory $searchResultsFactory,
-        ?CollectionProcessorInterface $collectionProcessor = null
+        RuleSearchResultsFactory $searchResultsFactory,
+        CollectionProcessorInterface $collectionProcessor
     ) {
         $this->resource = $resource;
         $this->ruleFactory = $ruleFactory;
         $this->collectionFactory = $collectionFactory;
         $this->searchResultsFactory = $searchResultsFactory;
-        $this->collectionProcessor = $collectionProcessor
-            ?: ObjectManager::getInstance()->get(CollectionProcessorInterface::class);
+        $this->collectionProcessor = $collectionProcessor;
     }
 
     /**

@@ -28,14 +28,65 @@ use PHPUnit\Framework\TestCase;
 
 class AtelieCatalogTest extends TestCase
 {
-    private GroupRepositoryInterface&MockObject $groupRepositoryMock;
-    private ComponentRepositoryInterface&MockObject $componentRepositoryMock;
-    private RuleRepositoryInterface&MockObject $ruleRepositoryMock;
-    private SearchCriteriaBuilder&MockObject $searchCriteriaBuilderMock;
-    private SortOrderBuilder&MockObject $sortOrderBuilderMock;
-    private ProductRepositoryInterface&MockObject $productRepositoryMock;
-    private ScopeConfigInterface&MockObject $scopeConfigMock;
+    /**
+     * @var GroupRepositoryInterface|MockObject
+     */
+    private MockObject $groupRepositoryMock;
+
+    /**
+     * @var ComponentRepositoryInterface|MockObject
+     */
+    private MockObject $componentRepositoryMock;
+
+    /**
+     * @var RuleRepositoryInterface|MockObject
+     */
+    private MockObject $ruleRepositoryMock;
+
+    /**
+     * @var SearchCriteriaBuilder|MockObject
+     */
+    private MockObject $searchCriteriaBuilderMock;
+
+    /**
+     * @var SortOrderBuilder|MockObject
+     */
+    private MockObject $sortOrderBuilderMock;
+
+    /**
+     * @var ProductRepositoryInterface|MockObject
+     */
+    private MockObject $productRepositoryMock;
+
+    /**
+     * @var ScopeConfigInterface|MockObject
+     */
+    private MockObject $scopeConfigMock;
+
+    /**
+     * @var AtelieCatalog
+     */
     private AtelieCatalog $catalog;
+
+    public static function setUpBeforeClass(): void
+    {
+        if (class_exists(\Magento\Framework\TestFramework\Unit\Autoloader\GeneratedClassesAutoloader::class)) {
+            $generatorIo = new \Magento\Framework\Code\Generator\Io(
+                new \Magento\Framework\Filesystem\Driver\File(),
+                sys_get_temp_dir() . '/generated/code'
+            );
+            $generatedCodeAutoloader = new \Magento\Framework\TestFramework\Unit\Autoloader\GeneratedClassesAutoloader(
+                [
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ExtensionAttributesGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ExtensionAttributesInterfaceGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\FactoryGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ProxyGenerator()
+                ],
+                $generatorIo
+            );
+            spl_autoload_register([$generatedCodeAutoloader, 'load']);
+        }
+    }
 
     protected function setUp(): void
     {
@@ -211,5 +262,61 @@ class AtelieCatalogTest extends TestCase
         $this->expectExceptionMessage('Product with SKU "UNKNOWN-SKU" does not exist.');
 
         $this->catalog->getBySku('UNKNOWN-SKU');
+    }
+
+    public function testEngravingConfigUsesScopeConfigValues(): void
+    {
+        $this->productRepositoryMock->method('get')
+            ->with('NUVEM-RUNNER')
+            ->willThrowException(new NoSuchEntityException(__('Not in DB')));
+
+        $groupResultsMock = $this->createMock(GroupSearchResultsInterface::class);
+        $groupResultsMock->method('getItems')->willReturn([]);
+        $this->groupRepositoryMock->method('getList')->willReturn($groupResultsMock);
+
+        $compResultsMock = $this->createMock(ComponentSearchResultsInterface::class);
+        $compResultsMock->method('getItems')->willReturn([]);
+        $this->componentRepositoryMock->method('getList')->willReturn($compResultsMock);
+
+        $ruleResultsMock = $this->createMock(RuleSearchResultsInterface::class);
+        $ruleResultsMock->method('getItems')->willReturn([]);
+        $this->ruleRepositoryMock->method('getList')->willReturn($ruleResultsMock);
+
+        $this->scopeConfigMock->expects($this->exactly(2))
+            ->method('getValue')
+            ->willReturnCallback(
+                fn(string $path) => match ($path) {
+                    Config::XML_PATH_ENGRAVING_PRICE => '19.90',
+                    Config::XML_PATH_ENGRAVING_LIMIT => '8',
+                    default => null,
+                }
+            );
+
+        $result = $this->catalog->getBySku('NUVEM-RUNNER');
+        $this->assertSame(['preco' => 19.90, 'limite' => 8], $result['gravacao']);
+    }
+
+    public function testEngravingConfigFallbackWhenScopeConfigReturnsNull(): void
+    {
+        $this->productRepositoryMock->method('get')
+            ->with('NUVEM-RUNNER')
+            ->willThrowException(new NoSuchEntityException(__('Not in DB')));
+
+        $groupResultsMock = $this->createMock(GroupSearchResultsInterface::class);
+        $groupResultsMock->method('getItems')->willReturn([]);
+        $this->groupRepositoryMock->method('getList')->willReturn($groupResultsMock);
+
+        $compResultsMock = $this->createMock(ComponentSearchResultsInterface::class);
+        $compResultsMock->method('getItems')->willReturn([]);
+        $this->componentRepositoryMock->method('getList')->willReturn($compResultsMock);
+
+        $ruleResultsMock = $this->createMock(RuleSearchResultsInterface::class);
+        $ruleResultsMock->method('getItems')->willReturn([]);
+        $this->ruleRepositoryMock->method('getList')->willReturn($ruleResultsMock);
+
+        $this->scopeConfigMock->method('getValue')->willReturn(null);
+
+        $result = $this->catalog->getBySku('NUVEM-RUNNER');
+        $this->assertSame(['preco' => 29.90, 'limite' => 12], $result['gravacao']);
     }
 }

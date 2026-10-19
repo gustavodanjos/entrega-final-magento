@@ -5,14 +5,15 @@ namespace Nuvem\Atelie\Model;
 
 use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
 use Magento\Framework\Api\SearchCriteriaInterface;
-use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\CouldNotDeleteException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Nuvem\Atelie\Api\Data\GroupInterface;
 use Nuvem\Atelie\Api\Data\GroupSearchResultsInterface;
-use Nuvem\Atelie\Api\Data\GroupSearchResultsInterfaceFactory;
 use Nuvem\Atelie\Api\GroupRepositoryInterface;
+use Nuvem\Atelie\Model\Group;
+use Nuvem\Atelie\Model\GroupFactory;
+use Nuvem\Atelie\Model\GroupSearchResultsFactory;
 use Nuvem\Atelie\Model\ResourceModel\Group as GroupResource;
 use Nuvem\Atelie\Model\ResourceModel\Group\CollectionFactory as GroupCollectionFactory;
 
@@ -39,9 +40,9 @@ class GroupRepository implements GroupRepositoryInterface
     private GroupCollectionFactory $collectionFactory;
 
     /**
-     * @var GroupSearchResultsInterfaceFactory
+     * @var GroupSearchResultsFactory
      */
-    private GroupSearchResultsInterfaceFactory $searchResultsFactory;
+    private GroupSearchResultsFactory $searchResultsFactory;
 
     /**
      * @var CollectionProcessorInterface
@@ -52,22 +53,21 @@ class GroupRepository implements GroupRepositoryInterface
      * @param GroupResource $resource
      * @param GroupFactory $groupFactory
      * @param GroupCollectionFactory $collectionFactory
-     * @param GroupSearchResultsInterfaceFactory $searchResultsFactory
-     * @param CollectionProcessorInterface|null $collectionProcessor
+     * @param GroupSearchResultsFactory $searchResultsFactory
+     * @param CollectionProcessorInterface $collectionProcessor
      */
     public function __construct(
         GroupResource $resource,
         GroupFactory $groupFactory,
         GroupCollectionFactory $collectionFactory,
-        GroupSearchResultsInterfaceFactory $searchResultsFactory,
-        ?CollectionProcessorInterface $collectionProcessor = null
+        GroupSearchResultsFactory $searchResultsFactory,
+        CollectionProcessorInterface $collectionProcessor
     ) {
         $this->resource = $resource;
         $this->groupFactory = $groupFactory;
         $this->collectionFactory = $collectionFactory;
         $this->searchResultsFactory = $searchResultsFactory;
-        $this->collectionProcessor = $collectionProcessor
-            ?: ObjectManager::getInstance()->get(CollectionProcessorInterface::class);
+        $this->collectionProcessor = $collectionProcessor;
     }
 
     /**

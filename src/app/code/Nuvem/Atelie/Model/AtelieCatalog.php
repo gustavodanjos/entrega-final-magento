@@ -13,6 +13,7 @@ use Nuvem\Atelie\Api\AtelieCatalogInterface;
 use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Api\GroupRepositoryInterface;
 use Nuvem\Atelie\Api\RuleRepositoryInterface;
+use Nuvem\Atelie\Model\Config;
 
 /**
  * Class AtelieCatalog
@@ -178,18 +179,25 @@ class AtelieCatalog implements AtelieCatalogInterface
 
         $gravacao = null;
         if ($permiteGravacao) {
+            $pricePath = defined(Config::class . '::XML_PATH_ENGRAVING_PRICE')
+                ? Config::XML_PATH_ENGRAVING_PRICE
+                : 'nuvem_atelie/engraving/price';
+            $limitPath = defined(Config::class . '::XML_PATH_ENGRAVING_LIMIT')
+                ? Config::XML_PATH_ENGRAVING_LIMIT
+                : 'nuvem_atelie/engraving/limit';
+
             $precoCfg = $this->scopeConfig->getValue(
-                Config::XML_PATH_ENGRAVING_PRICE,
+                $pricePath,
                 ScopeInterface::SCOPE_STORE
             );
             $limiteCfg = $this->scopeConfig->getValue(
-                Config::XML_PATH_ENGRAVING_LIMIT,
+                $limitPath,
                 ScopeInterface::SCOPE_STORE
             );
 
             $gravacao = [
-                'preco' => $precoCfg !== null ? (float) $precoCfg : 29.90,
-                'limite' => $limiteCfg !== null ? (int) $limiteCfg : 12,
+                'preco' => ($precoCfg !== null && $precoCfg !== '') ? (float) $precoCfg : 29.90,
+                'limite' => ($limiteCfg !== null && $limiteCfg !== '') ? (int) $limiteCfg : 12,
             ];
         }
 
@@ -227,7 +235,7 @@ class AtelieCatalog implements AtelieCatalogInterface
             ->addSortOrder($sortOrder)
             ->create();
 
-        $allComponents = $this->componentRepository->getList($componentCriteria)->getItems();
+        $allComponents = $this->componentRepository->getList($componentCriteria)->getItems() ?: [];
 
         $componentsByGroup = [];
         $componentsById = [];
@@ -244,7 +252,7 @@ class AtelieCatalog implements AtelieCatalogInterface
         }
 
         $gruposData = [];
-        foreach ($groupList->getItems() as $group) {
+        foreach ($groupList->getItems() ?: [] as $group) {
             $gruposData[] = [
                 'codigo' => $group->getCodigo(),
                 'nome' => $group->getNome(),
@@ -272,7 +280,7 @@ class AtelieCatalog implements AtelieCatalogInterface
         $ruleList = $this->ruleRepository->getList($ruleCriteria);
 
         $regrasData = [];
-        foreach ($ruleList->getItems() as $rule) {
+        foreach ($ruleList->getItems() ?: [] as $rule) {
             $origemId = (int) $rule->getOrigemComponenteId();
             $origemCodigo = $componentsById[$origemId] ?? null;
 

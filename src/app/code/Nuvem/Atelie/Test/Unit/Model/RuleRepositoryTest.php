@@ -11,7 +11,7 @@ use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Nuvem\Atelie\Api\Data\RuleInterface;
 use Nuvem\Atelie\Api\Data\RuleSearchResultsInterface;
-use Nuvem\Atelie\Api\Data\RuleSearchResultsInterfaceFactory;
+use Nuvem\Atelie\Model\RuleSearchResultsFactory;
 use Nuvem\Atelie\Model\ResourceModel\Rule as RuleResource;
 use Nuvem\Atelie\Model\ResourceModel\Rule\Collection as RuleCollection;
 use Nuvem\Atelie\Model\ResourceModel\Rule\CollectionFactory as RuleCollectionFactory;
@@ -39,7 +39,7 @@ class RuleRepositoryTest extends TestCase
     private MockObject $collectionFactoryMock;
 
     /**
-     * @var RuleSearchResultsInterfaceFactory|MockObject
+     * @var RuleSearchResultsFactory|MockObject
      */
     private MockObject $searchResultsFactoryMock;
 
@@ -78,7 +78,7 @@ class RuleRepositoryTest extends TestCase
         $this->resourceMock = $this->createMock(RuleResource::class);
         $this->ruleFactoryMock = $this->createMock(RuleFactory::class);
         $this->collectionFactoryMock = $this->createMock(RuleCollectionFactory::class);
-        $this->searchResultsFactoryMock = $this->createMock(RuleSearchResultsInterfaceFactory::class);
+        $this->searchResultsFactoryMock = $this->createMock(RuleSearchResultsFactory::class);
         $this->collectionProcessorMock = $this->createMock(CollectionProcessorInterface::class);
 
         $this->repository = new RuleRepository(
@@ -259,5 +259,60 @@ class RuleRepositoryTest extends TestCase
             ->with(1);
 
         $this->assertSame($searchResultsMock, $this->repository->getList($searchCriteriaMock));
+    }
+
+    public function testGetListReturnsEmptyPageWhenNoItemsFound(): void
+    {
+        $searchCriteriaMock = $this->createMock(SearchCriteriaInterface::class);
+        $collectionMock = $this->createMock(RuleCollection::class);
+        $searchResultsMock = $this->createMock(RuleSearchResultsInterface::class);
+
+        $this->collectionFactoryMock->expects($this->once())
+            ->method('create')
+            ->willReturn($collectionMock);
+
+        $this->collectionProcessorMock->expects($this->once())
+            ->method('process')
+            ->with($searchCriteriaMock, $collectionMock);
+
+        $collectionMock->expects($this->once())
+            ->method('getItems')
+            ->willReturn([]);
+        $collectionMock->expects($this->once())
+            ->method('getSize')
+            ->willReturn(0);
+
+        $this->searchResultsFactoryMock->expects($this->once())
+            ->method('create')
+            ->willReturn($searchResultsMock);
+
+        $searchResultsMock->expects($this->once())
+            ->method('setSearchCriteria')
+            ->with($searchCriteriaMock);
+        $searchResultsMock->expects($this->once())
+            ->method('setItems')
+            ->with([]);
+        $searchResultsMock->expects($this->once())
+            ->method('setTotalCount')
+            ->with(0);
+
+        $result = $this->repository->getList($searchCriteriaMock);
+        $this->assertSame($searchResultsMock, $result);
+    }
+
+    public function testGetByCodeAliasThrowsNoSuchEntityException(): void
+    {
+        $ruleMock = $this->createMock(Rule::class);
+        $ruleMock->method('getId')->willReturn(null);
+
+        $this->ruleFactoryMock->method('create')->willReturn($ruleMock);
+        $this->resourceMock->expects($this->once())
+            ->method('load')
+            ->with($ruleMock, 'NON_EXISTENT', RuleInterface::CODIGO);
+
+        $this->expectException(NoSuchEntityException::class);
+        $this->expectExceptionMessage('Rule with code "NON_EXISTENT" does not exist.');
+
+        $this->repository->getByCode('NON_EXISTENT');
     }
 }

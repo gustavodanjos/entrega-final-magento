@@ -11,10 +11,10 @@ use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Nuvem\Atelie\Api\Data\GroupInterface;
 use Nuvem\Atelie\Api\Data\GroupSearchResultsInterface;
-use Nuvem\Atelie\Api\Data\GroupSearchResultsInterfaceFactory;
 use Nuvem\Atelie\Model\Group;
 use Nuvem\Atelie\Model\GroupFactory;
 use Nuvem\Atelie\Model\GroupRepository;
+use Nuvem\Atelie\Model\GroupSearchResultsFactory;
 use Nuvem\Atelie\Model\ResourceModel\Group as GroupResource;
 use Nuvem\Atelie\Model\ResourceModel\Group\Collection as GroupCollection;
 use Nuvem\Atelie\Model\ResourceModel\Group\CollectionFactory as GroupCollectionFactory;
@@ -39,7 +39,7 @@ class GroupRepositoryTest extends TestCase
     private MockObject $collectionFactoryMock;
 
     /**
-     * @var GroupSearchResultsInterfaceFactory|MockObject
+     * @var GroupSearchResultsFactory|MockObject
      */
     private MockObject $searchResultsFactoryMock;
 
@@ -78,7 +78,7 @@ class GroupRepositoryTest extends TestCase
         $this->resourceMock = $this->createMock(GroupResource::class);
         $this->groupFactoryMock = $this->createMock(GroupFactory::class);
         $this->collectionFactoryMock = $this->createMock(GroupCollectionFactory::class);
-        $this->searchResultsFactoryMock = $this->createMock(GroupSearchResultsInterfaceFactory::class);
+        $this->searchResultsFactoryMock = $this->createMock(GroupSearchResultsFactory::class);
         $this->collectionProcessorMock = $this->createMock(CollectionProcessorInterface::class);
 
         $this->repository = new GroupRepository(
@@ -259,5 +259,60 @@ class GroupRepositoryTest extends TestCase
             ->with(1);
 
         $this->assertSame($searchResultsMock, $this->repository->getList($searchCriteriaMock));
+    }
+
+    public function testGetListReturnsEmptyPageWhenNoItemsFound(): void
+    {
+        $searchCriteriaMock = $this->createMock(SearchCriteriaInterface::class);
+        $collectionMock = $this->createMock(GroupCollection::class);
+        $searchResultsMock = $this->createMock(GroupSearchResultsInterface::class);
+
+        $this->collectionFactoryMock->expects($this->once())
+            ->method('create')
+            ->willReturn($collectionMock);
+
+        $this->collectionProcessorMock->expects($this->once())
+            ->method('process')
+            ->with($searchCriteriaMock, $collectionMock);
+
+        $collectionMock->expects($this->once())
+            ->method('getItems')
+            ->willReturn([]);
+        $collectionMock->expects($this->once())
+            ->method('getSize')
+            ->willReturn(0);
+
+        $this->searchResultsFactoryMock->expects($this->once())
+            ->method('create')
+            ->willReturn($searchResultsMock);
+
+        $searchResultsMock->expects($this->once())
+            ->method('setSearchCriteria')
+            ->with($searchCriteriaMock);
+        $searchResultsMock->expects($this->once())
+            ->method('setItems')
+            ->with([]);
+        $searchResultsMock->expects($this->once())
+            ->method('setTotalCount')
+            ->with(0);
+
+        $result = $this->repository->getList($searchCriteriaMock);
+        $this->assertSame($searchResultsMock, $result);
+    }
+
+    public function testGetByCodeAliasThrowsNoSuchEntityException(): void
+    {
+        $groupMock = $this->createMock(Group::class);
+        $groupMock->method('getId')->willReturn(null);
+
+        $this->groupFactoryMock->method('create')->willReturn($groupMock);
+        $this->resourceMock->expects($this->once())
+            ->method('load')
+            ->with($groupMock, 'NON_EXISTENT', GroupInterface::CODIGO);
+
+        $this->expectException(NoSuchEntityException::class);
+        $this->expectExceptionMessage('Group with code "NON_EXISTENT" does not exist.');
+
+        $this->repository->getByCode('NON_EXISTENT');
     }
 }

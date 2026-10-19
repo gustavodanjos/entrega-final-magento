@@ -17,13 +17,44 @@ use ReflectionProperty;
 
 class ComponentCollectionTest extends TestCase
 {
-    private EntityFactoryInterface&MockObject $entityFactoryMock;
-    private LoggerInterface&MockObject $loggerMock;
-    private FetchStrategyInterface&MockObject $fetchStrategyMock;
-    private ManagerInterface&MockObject $eventManagerMock;
-    private AdapterInterface&MockObject $connectionMock;
-    private AbstractDb&MockObject $resourceMock;
-    private Select&MockObject $selectMock;
+    /**
+     * @var EntityFactoryInterface|MockObject
+     */
+    private MockObject $entityFactoryMock;
+
+    /**
+     * @var LoggerInterface|MockObject
+     */
+    private MockObject $loggerMock;
+
+    /**
+     * @var FetchStrategyInterface|MockObject
+     */
+    private MockObject $fetchStrategyMock;
+
+    /**
+     * @var ManagerInterface|MockObject
+     */
+    private MockObject $eventManagerMock;
+
+    /**
+     * @var AdapterInterface|MockObject
+     */
+    private MockObject $connectionMock;
+
+    /**
+     * @var AbstractDb|MockObject
+     */
+    private MockObject $resourceMock;
+
+    /**
+     * @var Select|MockObject
+     */
+    private MockObject $selectMock;
+
+    /**
+     * @var Collection
+     */
     private Collection $collection;
 
     protected function setUp(): void
@@ -124,5 +155,58 @@ class ComponentCollectionTest extends TestCase
 
         $this->assertArrayHasKey('main_table.ordem', $orders);
         $this->assertSame('ASC', $orders['main_table.ordem']);
+    }
+
+    public function testAddFieldToFilterWithAcabamentoDisambiguates(): void
+    {
+        $this->connectionMock->expects($this->once())
+            ->method('prepareSqlCondition')
+            ->with('`main_table.acabamento`', 'tela')
+            ->willReturn("`main_table.acabamento` = 'tela'");
+
+        $this->selectMock->expects($this->once())
+            ->method('where')
+            ->with("`main_table.acabamento` = 'tela'")
+            ->willReturnSelf();
+
+        $result = $this->collection->addFieldToFilter('acabamento', 'tela');
+        $this->assertSame($this->collection, $result);
+    }
+
+    public function testAddFieldToFilterWithCombinationGrupoAndAtivo(): void
+    {
+        $this->selectMock->expects($this->once())
+            ->method('joinInner')
+            ->with(
+                ['grupo_table' => 'nuvem_atelie_grupo'],
+                'main_table.grupo_id = grupo_table.grupo_id',
+                []
+            )
+            ->willReturnSelf();
+
+        $this->connectionMock->expects($this->exactly(2))
+            ->method('prepareSqlCondition')
+            ->willReturnMap([
+                ['`grupo_table.codigo`', 'cabedal', "`grupo_table.codigo` = 'cabedal'"],
+                ['`main_table.ativo`', 1, "`main_table.ativo` = 1"],
+            ]);
+
+        $this->selectMock->expects($this->exactly(2))
+            ->method('where')
+            ->willReturnCallback(function (string $condition) {
+                return $this->selectMock;
+            });
+
+        $this->collection->addFieldToFilter('grupo', 'cabedal');
+        $this->collection->addFieldToFilter('ativo', 1);
+    }
+
+    public function testPagingCurrentPageAndPageSize(): void
+    {
+        $this->collection->setCurPage(2);
+        $this->collection->setPageSize(5);
+
+        $this->assertSame(2, $this->collection->getCurPage());
+        $this->assertSame(5, $this->collection->getPageSize());
     }
 }

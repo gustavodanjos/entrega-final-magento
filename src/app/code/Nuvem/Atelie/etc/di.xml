@@ -14,27 +14,11 @@
     <preference for="Nuvem\Atelie\Api\Data\ValidationResultInterface"
                 type="Nuvem\Atelie\Model\ValidationResult"/>
 
-    <!-- Service Contracts: Groups -->
-    <preference for="Nuvem\Atelie\Api\Data\GroupInterface"
-                type="Nuvem\Atelie\Model\Group"/>
-    <preference for="Nuvem\Atelie\Api\Data\GroupSearchResultsInterface"
-                type="Nuvem\Atelie\Model\GroupSearchResults"/>
+    <!-- Repositories -->
     <preference for="Nuvem\Atelie\Api\GroupRepositoryInterface"
                 type="Nuvem\Atelie\Model\GroupRepository"/>
-
-    <!-- Service Contracts: Components -->
-    <preference for="Nuvem\Atelie\Api\Data\ComponentInterface"
-                type="Nuvem\Atelie\Model\Component"/>
-    <preference for="Nuvem\Atelie\Api\Data\ComponentSearchResultsInterface"
-                type="Nuvem\Atelie\Model\ComponentSearchResults"/>
     <preference for="Nuvem\Atelie\Api\ComponentRepositoryInterface"
                 type="Nuvem\Atelie\Model\ComponentRepository"/>
-
-    <!-- Service Contracts: Rules -->
-    <preference for="Nuvem\Atelie\Api\Data\RuleInterface"
-                type="Nuvem\Atelie\Model\Rule"/>
-    <preference for="Nuvem\Atelie\Api\Data\RuleSearchResultsInterface"
-                type="Nuvem\Atelie\Model\RuleSearchResults"/>
     <preference for="Nuvem\Atelie\Api\RuleRepositoryInterface"
                 type="Nuvem\Atelie\Model\RuleRepository"/>
 

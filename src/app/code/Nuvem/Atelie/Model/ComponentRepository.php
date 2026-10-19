@@ -5,14 +5,15 @@ namespace Nuvem\Atelie\Model;
 
 use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
 use Magento\Framework\Api\SearchCriteriaInterface;
-use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Exception\CouldNotDeleteException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Api\Data\ComponentInterface;
 use Nuvem\Atelie\Api\Data\ComponentSearchResultsInterface;
-use Nuvem\Atelie\Api\Data\ComponentSearchResultsInterfaceFactory;
+use Nuvem\Atelie\Model\Component;
+use Nuvem\Atelie\Model\ComponentFactory;
+use Nuvem\Atelie\Model\ComponentSearchResultsFactory;
 use Nuvem\Atelie\Model\ResourceModel\Component as ComponentResource;
 use Nuvem\Atelie\Model\ResourceModel\Component\CollectionFactory as ComponentCollectionFactory;
 
@@ -39,9 +40,9 @@ class ComponentRepository implements ComponentRepositoryInterface
     private ComponentCollectionFactory $collectionFactory;
 
     /**
-     * @var ComponentSearchResultsInterfaceFactory
+     * @var ComponentSearchResultsFactory
      */
-    private ComponentSearchResultsInterfaceFactory $searchResultsFactory;
+    private ComponentSearchResultsFactory $searchResultsFactory;
 
     /**
      * @var CollectionProcessorInterface
@@ -52,22 +53,21 @@ class ComponentRepository implements ComponentRepositoryInterface
      * @param ComponentResource $resource
      * @param ComponentFactory $componentFactory
      * @param ComponentCollectionFactory $collectionFactory
-     * @param ComponentSearchResultsInterfaceFactory $searchResultsFactory
-     * @param CollectionProcessorInterface|null $collectionProcessor
+     * @param ComponentSearchResultsFactory $searchResultsFactory
+     * @param CollectionProcessorInterface $collectionProcessor
      */
     public function __construct(
         ComponentResource $resource,
         ComponentFactory $componentFactory,
         ComponentCollectionFactory $collectionFactory,
-        ComponentSearchResultsInterfaceFactory $searchResultsFactory,
-        ?CollectionProcessorInterface $collectionProcessor = null
+        ComponentSearchResultsFactory $searchResultsFactory,
+        CollectionProcessorInterface $collectionProcessor
     ) {
         $this->resource = $resource;
         $this->componentFactory = $componentFactory;
         $this->collectionFactory = $collectionFactory;
         $this->searchResultsFactory = $searchResultsFactory;
-        $this->collectionProcessor = $collectionProcessor
-            ?: ObjectManager::getInstance()->get(CollectionProcessorInterface::class);
+        $this->collectionProcessor = $collectionProcessor;
     }
 
     /**

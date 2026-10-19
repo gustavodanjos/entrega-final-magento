@@ -12,10 +12,10 @@ use Magento\Framework\Exception\NoSuchEntityException;
 use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Api\Data\ComponentInterface;
 use Nuvem\Atelie\Api\Data\ComponentSearchResultsInterface;
-use Nuvem\Atelie\Api\Data\ComponentSearchResultsInterfaceFactory;
 use Nuvem\Atelie\Model\Component;
 use Nuvem\Atelie\Model\ComponentFactory;
 use Nuvem\Atelie\Model\ComponentRepository;
+use Nuvem\Atelie\Model\ComponentSearchResultsFactory;
 use Nuvem\Atelie\Model\ResourceModel\Component as ComponentResource;
 use Nuvem\Atelie\Model\ResourceModel\Component\Collection as ComponentCollection;
 use Nuvem\Atelie\Model\ResourceModel\Component\CollectionFactory as ComponentCollectionFactory;
@@ -40,7 +40,7 @@ class ComponentRepositoryTest extends TestCase
     private MockObject $collectionFactoryMock;
 
     /**
-     * @var ComponentSearchResultsInterfaceFactory|MockObject
+     * @var ComponentSearchResultsFactory|MockObject
      */
     private MockObject $searchResultsFactoryMock;
 
@@ -79,7 +79,7 @@ class ComponentRepositoryTest extends TestCase
         $this->resourceMock = $this->createMock(ComponentResource::class);
         $this->componentFactoryMock = $this->createMock(ComponentFactory::class);
         $this->collectionFactoryMock = $this->createMock(ComponentCollectionFactory::class);
-        $this->searchResultsFactoryMock = $this->createMock(ComponentSearchResultsInterfaceFactory::class);
+        $this->searchResultsFactoryMock = $this->createMock(ComponentSearchResultsFactory::class);
         $this->collectionProcessorMock = $this->createMock(CollectionProcessorInterface::class);
 
         $this->repository = new ComponentRepository(
@@ -260,5 +260,60 @@ class ComponentRepositoryTest extends TestCase
             ->with(1);
 
         $this->assertSame($searchResultsMock, $this->repository->getList($searchCriteriaMock));
+    }
+
+    public function testGetListReturnsEmptyPageWhenNoItemsFound(): void
+    {
+        $searchCriteriaMock = $this->createMock(SearchCriteriaInterface::class);
+        $collectionMock = $this->createMock(ComponentCollection::class);
+        $searchResultsMock = $this->createMock(ComponentSearchResultsInterface::class);
+
+        $this->collectionFactoryMock->expects($this->once())
+            ->method('create')
+            ->willReturn($collectionMock);
+
+        $this->collectionProcessorMock->expects($this->once())
+            ->method('process')
+            ->with($searchCriteriaMock, $collectionMock);
+
+        $collectionMock->expects($this->once())
+            ->method('getItems')
+            ->willReturn([]);
+        $collectionMock->expects($this->once())
+            ->method('getSize')
+            ->willReturn(0);
+
+        $this->searchResultsFactoryMock->expects($this->once())
+            ->method('create')
+            ->willReturn($searchResultsMock);
+
+        $searchResultsMock->expects($this->once())
+            ->method('setSearchCriteria')
+            ->with($searchCriteriaMock);
+        $searchResultsMock->expects($this->once())
+            ->method('setItems')
+            ->with([]);
+        $searchResultsMock->expects($this->once())
+            ->method('setTotalCount')
+            ->with(0);
+
+        $result = $this->repository->getList($searchCriteriaMock);
+        $this->assertSame($searchResultsMock, $result);
+    }
+
+    public function testGetByCodeAliasThrowsNoSuchEntityException(): void
+    {
+        $componentMock = $this->createMock(Component::class);
+        $componentMock->method('getId')->willReturn(null);
+
+        $this->componentFactoryMock->method('create')->willReturn($componentMock);
+        $this->resourceMock->expects($this->once())
+            ->method('load')
+            ->with($componentMock, 'NON_EXISTENT', ComponentInterface::CODIGO);
+
+        $this->expectException(NoSuchEntityException::class);
+        $this->expectExceptionMessage('Component with code "NON_EXISTENT" does not exist.');
+
+        $this->repository->getByCode('NON_EXISTENT');
     }
 }
