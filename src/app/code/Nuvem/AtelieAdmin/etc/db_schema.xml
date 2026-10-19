@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="nuvem_atelie_ficha" resource="default" engine="innodb" comment="Ficha de produção">
+        <column xsi:type="int" name="ficha_id" unsigned="true" nullable="false" identity="true"/>
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false"/>
+        <column xsi:type="int" name="order_item_id" unsigned="true" nullable="false"/>
+        <column xsi:type="varchar" name="status" length="16" nullable="false"/>
+        <column xsi:type="text" name="conteudo" nullable="false"/>
+        <column xsi:type="timestamp" name="created_at" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <column xsi:type="timestamp" name="updated_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="true"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="ficha_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="NUVEM_ATELIE_FICHA_ORDER_ITEM_ID">
+            <column name="order_item_id"/>
+        </constraint>
+    </table>
+</schema>

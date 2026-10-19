@@ -1,0 +1,80 @@
+name: Quality
+
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev, main]
+
+jobs:
+  quality:
+    name: PHPCS + PHPUnit
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: src
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, soap, bcmath, gd, xsl, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Configure Magento repo auth
+        run: composer config --global http-basic.repo.magento.com "${{ secrets.MAGENTO_PUBLIC_KEY }}" "${{ secrets.MAGENTO_PRIVATE_KEY }}"
+
+      - name: Cache composer
+        uses: actions/cache@v4
+        with:
+          path: src/vendor
+          key: composer-${{ hashFiles('src/composer.lock') }}
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Create NonComposerComponentRegistration
+        run: |
+          mkdir -p app/etc
+          cat > app/etc/NonComposerComponentRegistration.php <<'PHP'
+          <?php
+          declare(strict_types=1);
+
+          $paths = glob(__DIR__ . '/../code/*/*/registration.php');
+          foreach ($paths ?: [] as $file) {
+              include $file;
+          }
+          PHP
+
+      - name: Create phpunit config
+        run: |
+          cat > phpunit.xml.dist <<'XML'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+                   bootstrap="vendor/autoload.php"
+                   colors="true"
+                   cacheDirectory=".phpunit.cache"
+                   executionOrder="depends,defects"
+                   failOnWarning="false"
+                   failOnDeprecation="false"
+                   failOnNotice="false"
+                   failOnRisky="false"
+                   beStrictAboutOutputDuringTests="false">
+              <testsuites>
+                  <testsuite name="Nuvem">
+                      <directory>app/code/Nuvem</directory>
+                  </testsuite>
+              </testsuites>
+          </phpunit>
+          XML
+
+      - name: PHPCS (Magento2)
+        run: vendor/bin/phpcs app/code/Nuvem
+
+      - name: PHPUnit (Nuvem)
+        run: vendor/bin/phpunit -c phpunit.xml.dist

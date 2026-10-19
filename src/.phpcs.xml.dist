@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<ruleset name="Nuvem">
+    <description>PHPCS para os módulos Nuvem</description>
+
+    <rule ref="Magento2"/>
+
+    <arg name="extensions" value="php"/>
+    <arg name="warning-severity" value="0"/>
+    <arg name="report" value="summary"/>
+
+    <file>app/code/Nuvem</file>
+    <file>app/design/frontend/Nuvem</file>
+
+    <exclude-pattern>*/Test/*</exclude-pattern>
+    <exclude-pattern>*/Test/Unit/*</exclude-pattern>
+</ruleset>

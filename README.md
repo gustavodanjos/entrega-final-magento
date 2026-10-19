@@ -1,3 +1,5 @@
+![Quality](https://github.com/gustavodanjos/entrega-final-magento/actions/workflows/quality.yml/badge.svg?branch=main)
+
 # Ateliê Nuvem — Entrega Final (Magento Open Source)
 
 Ambiente local do projeto da equipe, executado com Docker.
