@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Acl/etc/acl.xsd">
+    <acl>
+        <resources>
+            <resource id="Magento_Backend::admin">
+                <resource id="Nuvem_AtelieAdmin::atelie"
+                          title="Ateliê"
+                          sortOrder="15">
+                    <resource id="Nuvem_AtelieAdmin::components_view"
+                              title="Visualizar componentes"
+                              sortOrder="10"/>
+                    <resource id="Nuvem_AtelieAdmin::components_edit"
+                              title="Editar componentes"
+                              sortOrder="20"/>
+                    <resource id="Nuvem_AtelieAdmin::rules"
+                              title="Gerenciar regras"
+                              sortOrder="30"/>
+                    <resource id="Nuvem_AtelieAdmin::production"
+                              title="Gerenciar produção"
+                              sortOrder="40"/>
+                    <resource id="Nuvem_AtelieAdmin::configuration"
+                              title="Gerenciar configuração e preço"
+                              sortOrder="50"/>
+                </resource>
+            </resource>
+        </resources>
+    </acl>
+</config>
