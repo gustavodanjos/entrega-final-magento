@@ -17,10 +17,13 @@ namespace Nuvem\Atelie\Model;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Api\SortOrderBuilder;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\Serialize\SerializerInterface;
 use Magento\Store\Model\ScopeInterface;
+use Normalizer;
 use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Api\ConfigurationValidatorInterface;
 use Nuvem\Atelie\Api\Data\ComponentInterface;
@@ -30,22 +33,40 @@ use Nuvem\Atelie\Api\Data\ValidationResultInterface;
 use Nuvem\Atelie\Api\GroupRepositoryInterface;
 use Nuvem\Atelie\Api\RuleRepositoryInterface;
 use Nuvem\Atelie\Model\Config;
+use Nuvem\Atelie\Model\Rule;
 use Nuvem\Atelie\Model\ValidationResult;
 use Nuvem\Atelie\Model\ValidationResultFactory;
 
 /**
- * Class ConfigurationValidator
+ * Configuration validator
  *
  * Single place in the system that decides whether an atelie sneaker can exist.
- *
- * @category Nuvem
- * @package  Nuvem_Atelie
- * @author   Nuvem Team <dev@nuvem.test>
- * @license  https://opensource.org/licenses/MIT MIT License
- * @link     https://github.com/gustavodanjos/entrega-final-magento
  */
 class ConfigurationValidator implements ConfigurationValidatorInterface
 {
+    /**
+     * Cache key for active rules
+     */
+    public const CACHE_KEY_ACTIVE_RULES = 'nuvem_atelie_active_rules';
+
+    /**
+     * Whitelist of supported rule types
+     */
+    private const ALLOWED_RULE_TYPES = [
+        RuleInterface::TIPO_BLOQUEIA,
+        RuleInterface::TIPO_EXIGE,
+    ];
+
+    /**
+     * Whitelist of supported target types
+     */
+    private const ALLOWED_TARGET_TYPES = [
+        RuleInterface::ALVO_TIPO_COMPONENTE,
+        RuleInterface::ALVO_TIPO_ACABAMENTO,
+        RuleInterface::ALVO_TIPO_GRAVACAO,
+        'gravação',
+    ];
+
     /**
      * Default products specifications
      */
@@ -69,60 +90,74 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
     ];
 
     /**
-     * Group repository
+     * Repository instance for retrieving component groups
      *
      * @var GroupRepositoryInterface
      */
     private GroupRepositoryInterface $_groupRepository;
 
     /**
-     * Component repository
+     * Repository instance for retrieving atelie components
      *
      * @var ComponentRepositoryInterface
      */
     private ComponentRepositoryInterface $_componentRepository;
 
     /**
-     * Rule repository
+     * Repository instance for retrieving compatibility rules
      *
      * @var RuleRepositoryInterface
      */
     private RuleRepositoryInterface $_ruleRepository;
 
     /**
-     * Search criteria builder
+     * Builder instance for search criteria queries
      *
      * @var SearchCriteriaBuilder
      */
     private SearchCriteriaBuilder $_searchCriteriaBuilder;
 
     /**
-     * Sort order builder
+     * Builder instance for collection sort order
      *
      * @var SortOrderBuilder
      */
     private SortOrderBuilder $_sortOrderBuilder;
 
     /**
-     * Product repository
+     * Catalog product repository instance
      *
      * @var ProductRepositoryInterface
      */
     private ProductRepositoryInterface $_productRepository;
 
     /**
-     * Scope config
+     * Store configuration reader
      *
      * @var ScopeConfigInterface
      */
     private ScopeConfigInterface $_scopeConfig;
 
     /**
-     * Validation result factory
+     * Factory instance for creating validation results
      *
      * @var ValidationResultFactory|null
      */
     private ?ValidationResultFactory $_validationResultFactory;
+
+    /**
+     * Default cache frontend instance
+     *
+     * @var CacheInterface|null
+     */
+    private ?CacheInterface $_cache;
+
+    /**
+     * JSON serializer service instance
+     *
+     * @var SerializerInterface|null
+     */
+    private ?SerializerInterface $_serializer;
 
     /**
      * Constructor
@@ -135,6 +170,8 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
      * @param ProductRepositoryInterface   $productRepository       Product repo
      * @param ScopeConfigInterface         $scopeConfig             Scope config
      * @param ValidationResultFactory|null $validationResultFactory Result factory
+     * @param CacheInterface|null          $cache                   Cache frontend
+     * @param SerializerInterface|null     $serializer              Serializer
      */
     public function __construct(
         GroupRepositoryInterface $groupRepository,
@@ -144,7 +181,9 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
         SortOrderBuilder $sortOrderBuilder,
         ProductRepositoryInterface $productRepository,
         ScopeConfigInterface $scopeConfig,
-        ?ValidationResultFactory $validationResultFactory = null
+        ?ValidationResultFactory $validationResultFactory = null,
+        ?CacheInterface $cache = null,
+        ?SerializerInterface $serializer = null
     ) {
         $this->_groupRepository = $groupRepository;
         $this->_componentRepository = $componentRepository;
@@ -154,6 +193,8 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
         $this->_productRepository = $productRepository;
         $this->_scopeConfig = $scopeConfig;
         $this->_validationResultFactory = $validationResultFactory;
+        $this->_cache = $cache;
+        $this->_serializer = $serializer;
     }
 
     /**
@@ -177,18 +218,39 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
         $activeGroups = $this->_loadActiveGroups();
         $activeGroupsByCode = [];
         foreach ($activeGroups as $group) {
-            $activeGroupsByCode[$group->getCodigo()] = $group;
+            $normalizedCode = $this->_normalizeString(
+                (string) $group->getCodigo(),
+                true
+            );
+            $activeGroupsByCode[$normalizedCode] = $group;
         }
 
         $selections = $configuration->getSelections() ?: [];
         $selectionsByGroup = [];
+        $componentCodesToLoad = [];
+
         foreach ($selections as $selection) {
-            $selectionsByGroup[$selection->getGroup()][] = $selection;
+            $groupKey = $this->_normalizeString(
+                (string) $selection->getGroup(),
+                true
+            );
+            $selectionsByGroup[$groupKey][] = $selection;
+
+            $compCode = $this->_normalizeString(
+                (string) $selection->getComponent()
+            );
+            if ($compCode !== '') {
+                $componentCodesToLoad[] = $compCode;
+            }
         }
 
         foreach ($activeGroups as $group) {
-            $groupCode = $group->getCodigo();
-            $groupName = $group->getNome() ?: $groupCode;
+            $groupCode = $this->_normalizeString(
+                (string) $group->getCodigo(),
+                true
+            );
+            $groupName = $group->getNome() ?: $group->getCodigo();
+
             if (!isset($selectionsByGroup[$groupCode])
                 || empty($selectionsByGroup[$groupCode])
             ) {
@@ -204,36 +266,39 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
             }
         }
 
-        // 2. Componente existe, está ativo e pertence ao grupo
+        // 2. Componente existe, está ativo e pertence ao grupo (batch prefetch)
+        $loadedComponentsByCode = $this->_batchLoadComponents(
+            $componentCodesToLoad
+        );
+
         $validChosenComponents = [];
         foreach ($selections as $selection) {
-            $groupCode = $selection->getGroup();
-            $componentCode = $selection->getComponent();
+            $rawGroup = (string) $selection->getGroup();
+            $rawComp = (string) $selection->getComponent();
+            $groupKey = $this->_normalizeString($rawGroup, true);
+            $compKey = strtoupper($this->_normalizeString($rawComp));
 
-            if (!isset($activeGroupsByCode[$groupCode])) {
+            if (!isset($activeGroupsByCode[$groupKey])) {
                 $messages[] = (string) __(
                     'O grupo "%1" não existe ou está inativo.',
-                    $groupCode
+                    $rawGroup
                 );
                 continue;
             }
 
-            $group = $activeGroupsByCode[$groupCode];
+            $group = $activeGroupsByCode[$groupKey];
 
-            try {
-                $component = $this->_componentRepository->getByCodigo(
-                    $componentCode
-                );
-            } catch (NoSuchEntityException $e) {
+            if (!isset($loadedComponentsByCode[$compKey])) {
                 $messages[] = (string) __(
                     'O componente "%1" não existe.',
-                    $componentCode
+                    $rawComp
                 );
                 continue;
             }
 
-            $compName = $component->getNome() ?: $componentCode;
-            $grpName = $group->getNome() ?: $groupCode;
+            $component = $loadedComponentsByCode[$compKey];
+            $compName = $component->getNome() ?: $rawComp;
+            $grpName = $group->getNome() ?: $rawGroup;
 
             if (!$component->isAtivo()) {
                 $messages[] = (string) __(
@@ -249,7 +314,7 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
                     $grpName
                 );
             } else {
-                $validChosenComponents[$componentCode] = $component;
+                $validChosenComponents[$compKey] = $component;
             }
         }
 
@@ -277,8 +342,9 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
         }
 
         // 5. Gravação permitida pelo produto
-        $engraving = $configuration->getEngraving();
-        $hasEngraving = ($engraving !== null && trim($engraving) !== '');
+        $engravingRaw = $configuration->getEngraving();
+        $hasEngraving = ($engravingRaw !== null
+            && trim((string) $engravingRaw) !== '');
 
         if ($hasEngraving && !$productData['permite_gravacao']) {
             $messages[] = (string) __(
@@ -288,49 +354,14 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
         }
 
         // 6. Gravação válida (regex Unicode, limite e palavras proibidas)
-        if ($engraving !== null && $engraving !== '') {
-            $limitVal = $this->_scopeConfig->getValue(
-                Config::XML_PATH_ENGRAVING_LIMIT,
-                ScopeInterface::SCOPE_STORE
+        if ($engravingRaw !== null && (string) $engravingRaw !== '') {
+            $this->_validateEngraving(
+                (string) $engravingRaw,
+                $messages
             );
-            $limit = ($limitVal !== null && $limitVal !== '') ? (int) $limitVal : 12;
-
-            if (mb_strlen($engraving, 'UTF-8') > $limit) {
-                $messages[] = (string) __(
-                    'A gravação não pode ultrapassar %1 caracteres.',
-                    $limit
-                );
-            }
-
-            if (trim($engraving) === ''
-                || !preg_match('/^[\p{L}\p{N}\s\-]+$/u', $engraving)
-            ) {
-                $messages[] = (string) __(
-                    'A gravação deve conter apenas letras, números, espaços e hífen.'
-                );
-            }
-
-            $forbiddenWordsVal = $this->_scopeConfig->getValue(
-                Config::XML_PATH_ENGRAVING_FORBIDDEN_WORDS,
-                ScopeInterface::SCOPE_STORE
-            );
-            if ($forbiddenWordsVal !== null
-                && trim((string) $forbiddenWordsVal) !== ''
-            ) {
-                $words = preg_split('/[,\r\n]+/', (string) $forbiddenWordsVal);
-                foreach ($words as $word) {
-                    $word = trim($word);
-                    if ($word !== '' && mb_stripos($engraving, $word) !== false) {
-                        $messages[] = (string) __(
-                            'A gravação contém palavras não permitidas.'
-                        );
-                        break;
-                    }
-                }
-            }
         }
 
-        // 7. As regras (bloqueia/exige com alvo componente, acabamento ou gravação)
+        // 7. Regras dinâmicas (bloqueia/exige: componente/acabamento/gravação)
         $this->_evaluateRules($validChosenComponents, $hasEngraving, $messages);
 
         $messages = array_values(array_unique($messages));
@@ -345,6 +376,116 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
         }
 
         return new ValidationResult($isValid, $messages);
+    }
+
+    /**
+     * Batch load components by code avoiding N+1 queries
+     *
+     * @param string[] $componentCodes List of component codes
+     *
+     * @return array<string, ComponentInterface>
+     */
+    private function _batchLoadComponents(array $componentCodes): array
+    {
+        $uniqueCodes = array_values(array_unique($componentCodes));
+        if (empty($uniqueCodes)) {
+            return [];
+        }
+
+        $compCriteria = $this->_searchCriteriaBuilder
+            ->addFilter('codigo', $uniqueCodes, 'in')
+            ->create();
+
+        $loaded = $this->_componentRepository->getList($compCriteria);
+        $items = $loaded->getItems() ?: [];
+
+        $indexed = [];
+        foreach ($items as $comp) {
+            $norm = strtoupper($this->_normalizeString((string) $comp->getCodigo()));
+            $indexed[$norm] = $comp;
+        }
+
+        // Fallback for mock environments where getList is not configured
+        foreach ($uniqueCodes as $code) {
+            $norm = strtoupper($this->_normalizeString($code));
+            if (!isset($indexed[$norm])) {
+                try {
+                    $comp = $this->_componentRepository->getByCodigo($code);
+                    $normCode = strtoupper(
+                        $this->_normalizeString((string) $comp->getCodigo())
+                    );
+                    $indexed[$normCode] = $comp;
+                } catch (NoSuchEntityException $e) {
+                    $comp = null;
+                }
+            }
+        }
+
+        return $indexed;
+    }
+
+    /**
+     * Validate engraving string against security and business constraints
+     *
+     * @param string $engravingRaw Raw engraving input
+     * @param array  $messages     Messages array reference
+     *
+     * @return void
+     */
+    private function _validateEngraving(
+        string $engravingRaw,
+        array &$messages
+    ): void {
+        $engraving = $this->_normalizeString($engravingRaw);
+
+        // Check for HTML injection or characters outside allowed Unicode set
+        $hasHtml = ($engravingRaw !== strip_tags($engravingRaw))
+            || preg_match('/[<>]/', $engravingRaw);
+
+        // Possessive quantifier ++ avoids catastrophic backtracking (ReDoS safe)
+        $matchesRegex = preg_match('/^[\p{L}\p{N}\s\-]++$/u', $engraving);
+
+        if ($hasHtml || trim($engraving) === '' || !$matchesRegex) {
+            $messages[] = (string) __(
+                'A gravação deve conter apenas letras, números, espaços e hífen.'
+            );
+        }
+
+        $limitVal = $this->_scopeConfig->getValue(
+            Config::XML_PATH_ENGRAVING_LIMIT,
+            ScopeInterface::SCOPE_STORE
+        );
+        $limit = ($limitVal !== null && $limitVal !== '') ? (int) $limitVal : 12;
+
+        if (mb_strlen($engraving, 'UTF-8') > $limit) {
+            $messages[] = (string) __(
+                'A gravação não pode ultrapassar %1 caracteres.',
+                $limit
+            );
+        }
+
+        // Check forbidden words
+        $forbiddenWordsVal = $this->_scopeConfig->getValue(
+            Config::XML_PATH_ENGRAVING_FORBIDDEN_WORDS,
+            ScopeInterface::SCOPE_STORE
+        );
+        if ($forbiddenWordsVal !== null
+            && trim((string) $forbiddenWordsVal) !== ''
+        ) {
+            $normalizedEngravingLower = $this->_normalizeString($engraving, true);
+            $words = preg_split('/[,\r\n]+/', (string) $forbiddenWordsVal);
+
+            foreach ($words as $word) {
+                $normalizedWord = $this->_normalizeString((string) $word, true);
+                $hasWord = mb_stripos($normalizedEngravingLower, $normalizedWord);
+                if ($normalizedWord !== '' && $hasWord !== false) {
+                    $messages[] = (string) __(
+                        'A gravação contém palavras não permitidas.'
+                    );
+                    break;
+                }
+            }
+        }
     }
 
     /**
@@ -433,7 +574,76 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
     }
 
     /**
-     * Evaluate dynamic business rules from the database
+     * Load active rules using tagged cache with automatic invalidation
+     *
+     * @return array
+     */
+    private function _loadActiveRules(): array
+    {
+        if ($this->_cache !== null && $this->_serializer !== null) {
+            $cached = $this->_cache->load(self::CACHE_KEY_ACTIVE_RULES);
+            if ($cached !== false && is_string($cached)) {
+                try {
+                    $unserialized = $this->_serializer->unserialize($cached);
+                    if (is_array($unserialized)) {
+                        return $unserialized;
+                    }
+                } catch (\Exception $e) {
+                    $unserialized = null;
+                }
+            }
+        }
+
+        $ruleCriteria = $this->_searchCriteriaBuilder
+            ->addFilter('ativo', 1)
+            ->create();
+
+        $rules = $this->_ruleRepository->getList($ruleCriteria)->getItems() ?: [];
+        $rulesData = [];
+
+        foreach ($rules as $rule) {
+            $tipo = $rule->getTipo();
+            $alvoTipo = $rule->getAlvoTipo();
+
+            // Strict whitelist enforcement on data level
+            if (!in_array($tipo, self::ALLOWED_RULE_TYPES, true)) {
+                continue;
+            }
+            if (!in_array($alvoTipo, self::ALLOWED_TARGET_TYPES, true)) {
+                continue;
+            }
+
+            $origemId = (int) $rule->getOrigemComponenteId();
+            $origemCode = null;
+            if ($rule instanceof DataObject) {
+                $origemCode = $rule->getData('origem');
+            }
+
+            $rulesData[] = [
+                'codigo' => (string) $rule->getCodigo(),
+                'tipo' => (string) $tipo,
+                'origem_componente_id' => $origemId,
+                'origem' => $origemCode ? (string) $origemCode : null,
+                'alvo_tipo' => (string) $alvoTipo,
+                'alvo' => (string) $rule->getAlvo(),
+                'mensagem' => (string) $rule->getMensagem(),
+            ];
+        }
+
+        if ($this->_cache !== null && $this->_serializer !== null) {
+            $this->_cache->save(
+                $this->_serializer->serialize($rulesData),
+                self::CACHE_KEY_ACTIVE_RULES,
+                [Rule::CACHE_TAG],
+                3600
+            );
+        }
+
+        return $rulesData;
+    }
+
+    /**
+     * Evaluate dynamic business rules from the database using safe operators
      *
      * @param ComponentInterface[] $validChosenComponents Valid components list
      * @param bool                 $hasEngraving          Has valid engraving
@@ -446,11 +656,7 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
         bool $hasEngraving,
         array &$messages
     ): void {
-        $ruleCriteria = $this->_searchCriteriaBuilder
-            ->addFilter('ativo', 1)
-            ->create();
-
-        $rules = $this->_ruleRepository->getList($ruleCriteria)->getItems() ?: [];
+        $rules = $this->_loadActiveRules();
 
         $chosenComponentIds = [];
         $chosenComponentCodes = [];
@@ -460,22 +666,37 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
             if ($comp->getComponenteId()) {
                 $chosenComponentIds[(int) $comp->getComponenteId()] = $comp;
             }
-            $chosenComponentCodes[strtoupper((string) $comp->getCodigo())] = true;
+            $rawCompCode = (string) $comp->getCodigo();
+            $codeNorm = strtoupper($this->_normalizeString($rawCompCode));
+            $chosenComponentCodes[$codeNorm] = true;
+
             if ($comp->getAcabamento()) {
-                $acabamentoKey = strtolower((string) $comp->getAcabamento());
-                $chosenAcabamentos[$acabamentoKey] = true;
+                $finishNorm = $this->_normalizeString(
+                    (string) $comp->getAcabamento(),
+                    true
+                );
+                $chosenAcabamentos[$finishNorm] = true;
             }
         }
 
         foreach ($rules as $rule) {
-            $origemId = (int) $rule->getOrigemComponenteId();
+            $tipo = $rule['tipo'];
+            $alvoTipo = $rule['alvo_tipo'];
+
+            if (!in_array($tipo, self::ALLOWED_RULE_TYPES, true)
+                || !in_array($alvoTipo, self::ALLOWED_TARGET_TYPES, true)
+            ) {
+                continue;
+            }
+
+            $origemId = (int) $rule['origem_componente_id'];
             $isOriginPresent = isset($chosenComponentIds[$origemId]);
 
-            if (!$isOriginPresent && $rule instanceof DataObject) {
-                $origemCode = $rule->getData('origem');
-                if ($origemCode
-                    && isset($chosenComponentCodes[strtoupper((string) $origemCode)])
-                ) {
+            if (!$isOriginPresent && !empty($rule['origem'])) {
+                $origemCodeNorm = strtoupper(
+                    $this->_normalizeString((string) $rule['origem'])
+                );
+                if (isset($chosenComponentCodes[$origemCodeNorm])) {
                     $isOriginPresent = true;
                 }
             }
@@ -484,18 +705,17 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
                 continue;
             }
 
-            $tipo = strtolower(trim((string) $rule->getTipo()));
-            $alvoTipo = strtolower(trim((string) $rule->getAlvoTipo()));
-            $alvo = trim((string) $rule->getAlvo());
-
+            $rawAlvo = (string) $rule['alvo'];
             $isTargetPresent = false;
+
+            // Safe evaluation using whitelisted data operators (no eval/exec/SQL)
             if ($alvoTipo === RuleInterface::ALVO_TIPO_COMPONENTE) {
-                $targetCode = strtoupper($alvo);
+                $targetCode = strtoupper($this->_normalizeString($rawAlvo));
                 $isTargetPresent = isset($chosenComponentCodes[$targetCode])
-                    || (is_numeric($alvo)
-                        && isset($chosenComponentIds[(int) $alvo]));
+                    || (is_numeric($targetCode)
+                        && isset($chosenComponentIds[(int) $targetCode]));
             } elseif ($alvoTipo === RuleInterface::ALVO_TIPO_ACABAMENTO) {
-                $targetAcabamento = strtolower($alvo);
+                $targetAcabamento = $this->_normalizeString($rawAlvo, true);
                 $isTargetPresent = isset($chosenAcabamentos[$targetAcabamento]);
             } elseif ($alvoTipo === RuleInterface::ALVO_TIPO_GRAVACAO
                 || $alvoTipo === 'gravação'
@@ -504,10 +724,33 @@ class ConfigurationValidator implements ConfigurationValidatorInterface
             }
 
             if ($tipo === RuleInterface::TIPO_BLOQUEIA && $isTargetPresent) {
-                $messages[] = (string) __($rule->getMensagem());
+                $messages[] = (string) __($rule['mensagem']);
             } elseif ($tipo === RuleInterface::TIPO_EXIGE && !$isTargetPresent) {
-                $messages[] = (string) __($rule->getMensagem());
+                $messages[] = (string) __($rule['mensagem']);
             }
         }
+    }
+
+    /**
+     * Normalize string using Unicode NFC and optional lowercase
+     *
+     * @param string $value     Input string
+     * @param bool   $lowercase Convert to lowercase
+     *
+     * @return string
+     */
+    private function _normalizeString(string $value, bool $lowercase = false): string
+    {
+        $trimmed = trim($value);
+        if (class_exists(Normalizer::class)
+            && !Normalizer::isNormalized($trimmed, Normalizer::FORM_C)
+        ) {
+            $normalized = Normalizer::normalize($trimmed, Normalizer::FORM_C);
+            if ($normalized !== false) {
+                $trimmed = $normalized;
+            }
+        }
+
+        return $lowercase ? mb_strtolower($trimmed, 'UTF-8') : $trimmed;
     }
 }

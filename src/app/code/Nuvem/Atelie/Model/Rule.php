@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Nuvem\Atelie\Model;
 
 use Magento\Framework\DataObject\IdentityInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Model\AbstractModel;
 use Nuvem\Atelie\Api\Data\RuleInterface;
 
@@ -15,6 +16,17 @@ use Nuvem\Atelie\Api\Data\RuleInterface;
 class Rule extends AbstractModel implements RuleInterface, IdentityInterface
 {
     public const CACHE_TAG = 'nuvem_atelie_regra';
+
+    public const ALLOWED_TIPOS = [
+        RuleInterface::TIPO_BLOQUEIA,
+        RuleInterface::TIPO_EXIGE,
+    ];
+
+    public const ALLOWED_ALVO_TIPOS = [
+        RuleInterface::ALVO_TIPO_COMPONENTE,
+        RuleInterface::ALVO_TIPO_ACABAMENTO,
+        RuleInterface::ALVO_TIPO_GRAVACAO,
+    ];
 
     /**
      * @var string
@@ -214,5 +226,72 @@ class Rule extends AbstractModel implements RuleInterface, IdentityInterface
     public function setAtivo($ativo): RuleInterface
     {
         return $this->setData(self::ATIVO, (bool) $ativo);
+    }
+
+    /**
+     * Validate rule before save to prevent malicious inputs and ensure data integrity
+     *
+     * @return $this
+     * @throws LocalizedException
+     */
+    public function beforeSave()
+    {
+        parent::beforeSave();
+
+        $tipo = (string) $this->getTipo();
+        if (!in_array($tipo, self::ALLOWED_TIPOS, true)) {
+            throw new LocalizedException(
+                __('Invalid rule type "%1". Allowed types: %2.', $tipo, implode(', ', self::ALLOWED_TIPOS))
+            );
+        }
+
+        $alvoTipo = (string) $this->getAlvoTipo();
+        if (!in_array($alvoTipo, self::ALLOWED_ALVO_TIPOS, true)) {
+            throw new LocalizedException(
+                __(
+                    'Invalid target type "%1". Allowed target types: %2.',
+                    $alvoTipo,
+                    implode(', ', self::ALLOWED_ALVO_TIPOS)
+                )
+            );
+        }
+
+        $origemId = $this->getOrigemComponenteId();
+        if ($origemId === null || $origemId <= 0) {
+            throw new LocalizedException(__('Origin component ID must be a positive integer.'));
+        }
+
+        $alvo = trim((string) $this->getAlvo());
+        if ($alvo === '') {
+            throw new LocalizedException(__('Target (alvo) cannot be empty.'));
+        }
+
+        if ($alvoTipo === RuleInterface::ALVO_TIPO_GRAVACAO) {
+            if ($alvo !== '*') {
+                throw new LocalizedException(__('Target for engraving rules must be "*".'));
+            }
+        } elseif ($alvoTipo === RuleInterface::ALVO_TIPO_COMPONENTE) {
+            if (!preg_match('/^[A-Za-z0-9\-_]+$/', $alvo)) {
+                throw new LocalizedException(
+                    __('Target component code must be alphanumeric with hyphens or underscores.')
+                );
+            }
+        } elseif ($alvoTipo === RuleInterface::ALVO_TIPO_ACABAMENTO) {
+            if (!preg_match('/^[A-Za-z0-9_\-]+$/', $alvo)) {
+                throw new LocalizedException(
+                    __('Target finish name must be alphanumeric with hyphens or underscores.')
+                );
+            }
+        }
+
+        $mensagem = (string) $this->getMensagem();
+        if (trim($mensagem) === '') {
+            throw new LocalizedException(__('Rule message cannot be empty.'));
+        }
+        if ($mensagem !== strip_tags($mensagem) || preg_match('/[<>]/', $mensagem)) {
+            throw new LocalizedException(__('Rule message cannot contain HTML or script tags.'));
+        }
+
+        return $this;
     }
 }

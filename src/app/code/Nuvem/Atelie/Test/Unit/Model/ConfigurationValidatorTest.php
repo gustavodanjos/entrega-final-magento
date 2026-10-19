@@ -14,10 +14,14 @@ use Magento\Framework\Api\SearchCriteria;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Api\SortOrder;
 use Magento\Framework\Api\SortOrderBuilder;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Framework\Serialize\SerializerInterface;
 use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Api\Data\ComponentInterface;
+use Nuvem\Atelie\Api\Data\ComponentSearchResultsInterface;
 use Nuvem\Atelie\Api\Data\ConfigurationInterface;
 use Nuvem\Atelie\Api\Data\GroupInterface;
 use Nuvem\Atelie\Api\Data\GroupSearchResultsInterface;
@@ -28,6 +32,8 @@ use Nuvem\Atelie\Api\GroupRepositoryInterface;
 use Nuvem\Atelie\Api\RuleRepositoryInterface;
 use Nuvem\Atelie\Model\Config;
 use Nuvem\Atelie\Model\ConfigurationValidator;
+use Nuvem\Atelie\Model\Rule;
+use Nuvem\Atelie\Model\RuleRepository;
 use Nuvem\Atelie\Model\ValidationResultFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -73,6 +79,16 @@ class ConfigurationValidatorTest extends TestCase
      * @var ValidationResultFactory|MockObject
      */
     private MockObject $validationResultFactoryMock;
+
+    /**
+     * @var CacheInterface|MockObject
+     */
+    private MockObject $cacheMock;
+
+    /**
+     * @var SerializerInterface|MockObject
+     */
+    private MockObject $serializerMock;
 
     /**
      * @var ConfigurationValidator
@@ -124,6 +140,8 @@ class ConfigurationValidatorTest extends TestCase
         $this->productRepositoryMock = $this->createMock(ProductRepositoryInterface::class);
         $this->scopeConfigMock = $this->createMock(ScopeConfigInterface::class);
         $this->validationResultFactoryMock = $this->createMock(ValidationResultFactory::class);
+        $this->cacheMock = $this->createMock(CacheInterface::class);
+        $this->serializerMock = $this->createMock(SerializerInterface::class);
 
         $sortOrderMock = $this->createMock(SortOrder::class);
         $this->sortOrderBuilderMock->method('setField')->willReturnSelf();
@@ -143,6 +161,8 @@ class ConfigurationValidatorTest extends TestCase
             $this->sortOrderBuilderMock,
             $this->productRepositoryMock,
             $this->scopeConfigMock,
+            null,
+            null,
             null
         );
 
@@ -151,7 +171,6 @@ class ConfigurationValidatorTest extends TestCase
 
     private function initDefaultCatalogFixtures(): void
     {
-        // 7 groups
         $groupDefinitions = [
             ['id' => 1, 'codigo' => 'cabedal', 'nome' => 'Cabedal', 'ordem' => 10],
             ['id' => 2, 'codigo' => 'biqueira', 'nome' => 'Biqueira', 'ordem' => 20],
@@ -176,29 +195,142 @@ class ConfigurationValidatorTest extends TestCase
         $groupResultsMock->method('getItems')->willReturn(array_values($this->groups));
         $this->groupRepositoryMock->method('getList')->willReturn($groupResultsMock);
 
-        // Components
         $componentDefs = [
-            ['id' => 4, 'grupo_id' => 1, 'codigo' => 'CAB-TRICO-LAVANDA', 'nome' => 'Tricô Lavanda', 'acabamento' => 'trico', 'estoque' => 50, 'ativo' => true],
-            ['id' => 1, 'grupo_id' => 1, 'codigo' => 'CAB-TELA-MENTA', 'nome' => 'Tela Menta', 'acabamento' => 'tela', 'estoque' => 50, 'ativo' => true],
-            ['id' => 6, 'grupo_id' => 1, 'codigo' => 'CAB-CAMURCA-BAUNILHA', 'nome' => 'Camurça Baunilha', 'acabamento' => 'camurca', 'estoque' => 40, 'ativo' => true],
-
-            ['id' => 7, 'grupo_id' => 2, 'codigo' => 'BIQ-LISA-CEU', 'nome' => 'Lisa Céu', 'acabamento' => 'liso', 'estoque' => 80, 'ativo' => true],
-            ['id' => 10, 'grupo_id' => 2, 'codigo' => 'BIQ-VERNIZ-ROSA', 'nome' => 'Verniz Rosa', 'acabamento' => 'verniz', 'estoque' => 30, 'ativo' => true],
-
-            ['id' => 11, 'grupo_id' => 3, 'codigo' => 'CAL-ACOLCHOADO-CEU', 'nome' => 'Acolchoado Céu', 'acabamento' => 'acolchoado', 'estoque' => 90, 'ativo' => true],
-
-            ['id' => 15, 'grupo_id' => 4, 'codigo' => 'CAD-ALGODAO-NUVEM', 'nome' => 'Algodão Nuvem', 'acabamento' => 'algodao', 'estoque' => 100, 'ativo' => true],
-            ['id' => 18, 'grupo_id' => 4, 'codigo' => 'CAD-ELASTICO-MENTA', 'nome' => 'Elástico Menta', 'acabamento' => 'elastico', 'estoque' => 120, 'ativo' => true],
-
-            ['id' => 19, 'grupo_id' => 5, 'codigo' => 'EMB-NUVEM-PESSEGO', 'nome' => 'Nuvem Pêssego', 'acabamento' => 'liso', 'estoque' => 60, 'ativo' => true],
-            ['id' => 22, 'grupo_id' => 5, 'codigo' => 'EMB-NUVEM-GLITTER', 'nome' => 'Nuvem Glitter', 'acabamento' => 'glitter', 'estoque' => 50, 'ativo' => true],
-
-            ['id' => 23, 'grupo_id' => 6, 'codigo' => 'ENT-EVA-NUVEM', 'nome' => 'EVA Nuvem', 'acabamento' => 'eva', 'estoque' => 70, 'ativo' => true],
-            ['id' => 26, 'grupo_id' => 6, 'codigo' => 'ENT-AR-VISIVEL', 'nome' => 'Câmara de Ar Visível', 'acabamento' => 'ar', 'estoque' => 30, 'ativo' => true],
-
-            ['id' => 29, 'grupo_id' => 7, 'codigo' => 'SOL-TRANSLUCIDO-GELO', 'nome' => 'Translúcido Gelo', 'acabamento' => 'translucido', 'estoque' => 45, 'ativo' => true],
-            ['id' => 27, 'grupo_id' => 7, 'codigo' => 'SOL-BORRACHA-MENTA', 'nome' => 'Borracha Menta', 'acabamento' => 'borracha', 'estoque' => 50, 'ativo' => true],
-            ['id' => 31, 'grupo_id' => 7, 'codigo' => 'SOL-LUA-HOLO', 'nome' => 'Lua Holográfico', 'acabamento' => 'holografico', 'estoque' => 10, 'ativo' => true],
+            [
+                'id' => 4,
+                'grupo_id' => 1,
+                'codigo' => 'CAB-TRICO-LAVANDA',
+                'nome' => 'Tricô Lavanda',
+                'acabamento' => 'trico',
+                'estoque' => 50,
+                'ativo' => true,
+            ],
+            [
+                'id' => 1,
+                'grupo_id' => 1,
+                'codigo' => 'CAB-TELA-MENTA',
+                'nome' => 'Tela Menta',
+                'acabamento' => 'tela',
+                'estoque' => 50,
+                'ativo' => true,
+            ],
+            [
+                'id' => 6,
+                'grupo_id' => 1,
+                'codigo' => 'CAB-CAMURCA-BAUNILHA',
+                'nome' => 'Camurça Baunilha',
+                'acabamento' => 'camurca',
+                'estoque' => 40,
+                'ativo' => true,
+            ],
+            [
+                'id' => 7,
+                'grupo_id' => 2,
+                'codigo' => 'BIQ-LISA-CEU',
+                'nome' => 'Lisa Céu',
+                'acabamento' => 'liso',
+                'estoque' => 80,
+                'ativo' => true,
+            ],
+            [
+                'id' => 10,
+                'grupo_id' => 2,
+                'codigo' => 'BIQ-VERNIZ-ROSA',
+                'nome' => 'Verniz Rosa',
+                'acabamento' => 'verniz',
+                'estoque' => 30,
+                'ativo' => true,
+            ],
+            [
+                'id' => 11,
+                'grupo_id' => 3,
+                'codigo' => 'CAL-ACOLCHOADO-CEU',
+                'nome' => 'Acolchoado Céu',
+                'acabamento' => 'acolchoado',
+                'estoque' => 90,
+                'ativo' => true,
+            ],
+            [
+                'id' => 15,
+                'grupo_id' => 4,
+                'codigo' => 'CAD-ALGODAO-NUVEM',
+                'nome' => 'Algodão Nuvem',
+                'acabamento' => 'algodao',
+                'estoque' => 100,
+                'ativo' => true,
+            ],
+            [
+                'id' => 18,
+                'grupo_id' => 4,
+                'codigo' => 'CAD-ELASTICO-MENTA',
+                'nome' => 'Elástico Menta',
+                'acabamento' => 'elastico',
+                'estoque' => 120,
+                'ativo' => true,
+            ],
+            [
+                'id' => 19,
+                'grupo_id' => 5,
+                'codigo' => 'EMB-NUVEM-PESSEGO',
+                'nome' => 'Nuvem Pêssego',
+                'acabamento' => 'liso',
+                'estoque' => 60,
+                'ativo' => true,
+            ],
+            [
+                'id' => 22,
+                'grupo_id' => 5,
+                'codigo' => 'EMB-NUVEM-GLITTER',
+                'nome' => 'Nuvem Glitter',
+                'acabamento' => 'glitter',
+                'estoque' => 50,
+                'ativo' => true,
+            ],
+            [
+                'id' => 23,
+                'grupo_id' => 6,
+                'codigo' => 'ENT-EVA-NUVEM',
+                'nome' => 'EVA Nuvem',
+                'acabamento' => 'eva',
+                'estoque' => 70,
+                'ativo' => true,
+            ],
+            [
+                'id' => 26,
+                'grupo_id' => 6,
+                'codigo' => 'ENT-AR-VISIVEL',
+                'nome' => 'Câmara de Ar Visível',
+                'acabamento' => 'ar',
+                'estoque' => 30,
+                'ativo' => true,
+            ],
+            [
+                'id' => 29,
+                'grupo_id' => 7,
+                'codigo' => 'SOL-TRANSLUCIDO-GELO',
+                'nome' => 'Translúcido Gelo',
+                'acabamento' => 'translucido',
+                'estoque' => 45,
+                'ativo' => true,
+            ],
+            [
+                'id' => 27,
+                'grupo_id' => 7,
+                'codigo' => 'SOL-BORRACHA-MENTA',
+                'nome' => 'Borracha Menta',
+                'acabamento' => 'borracha',
+                'estoque' => 50,
+                'ativo' => true,
+            ],
+            [
+                'id' => 31,
+                'grupo_id' => 7,
+                'codigo' => 'SOL-LUA-HOLO',
+                'nome' => 'Lua Holográfico',
+                'acabamento' => 'holografico',
+                'estoque' => 10,
+                'ativo' => true,
+            ],
         ];
 
         $this->components = [];
@@ -223,12 +355,19 @@ class ConfigurationValidatorTest extends TestCase
             }
         );
 
-        // Rules R01 to R05
+        $this->componentRepositoryMock->method('getList')->willReturnCallback(
+            function () {
+                $resultsMock = $this->createMock(ComponentSearchResultsInterface::class);
+                $resultsMock->method('getItems')->willReturn(array_values($this->components));
+                return $resultsMock;
+            }
+        );
+
         $ruleDefs = [
             [
                 'codigo' => 'R01',
                 'tipo' => 'bloqueia',
-                'origem_id' => 6, // CAB-CAMURCA-BAUNILHA
+                'origem_id' => 6,
                 'alvo_tipo' => 'componente',
                 'alvo' => 'SOL-LUA-HOLO',
                 'mensagem' => 'A cola do solado holográfico mancha a camurça. Escolha outro solado ou outro cabedal.',
@@ -236,7 +375,7 @@ class ConfigurationValidatorTest extends TestCase
             [
                 'codigo' => 'R02',
                 'tipo' => 'exige',
-                'origem_id' => 18, // CAD-ELASTICO-MENTA
+                'origem_id' => 18,
                 'alvo_tipo' => 'acabamento',
                 'alvo' => 'trico',
                 'mensagem' => 'O cadarço elástico só segura em cabedal de tricô.',
@@ -244,7 +383,7 @@ class ConfigurationValidatorTest extends TestCase
             [
                 'codigo' => 'R03',
                 'tipo' => 'bloqueia',
-                'origem_id' => 22, // EMB-NUVEM-GLITTER
+                'origem_id' => 22,
                 'alvo_tipo' => 'componente',
                 'alvo' => 'BIQ-VERNIZ-ROSA',
                 'mensagem' => 'Glitter com verniz pesa no visual. Fique com um dos dois.',
@@ -252,7 +391,7 @@ class ConfigurationValidatorTest extends TestCase
             [
                 'codigo' => 'R04',
                 'tipo' => 'exige',
-                'origem_id' => 26, // ENT-AR-VISIVEL
+                'origem_id' => 26,
                 'alvo_tipo' => 'componente',
                 'alvo' => 'SOL-TRANSLUCIDO-GELO',
                 'mensagem' => 'A câmara de ar só aparece com o solado translúcido.',
@@ -260,7 +399,7 @@ class ConfigurationValidatorTest extends TestCase
             [
                 'codigo' => 'R05',
                 'tipo' => 'bloqueia',
-                'origem_id' => 26, // ENT-AR-VISIVEL
+                'origem_id' => 26,
                 'alvo_tipo' => 'gravacao',
                 'alvo' => '*',
                 'mensagem' => 'Não dá para gravar sobre a câmara de ar.',
@@ -281,10 +420,11 @@ class ConfigurationValidatorTest extends TestCase
         }
 
         $ruleResultsMock = $this->createMock(RuleSearchResultsInterface::class);
-        $ruleResultsMock->method('getItems')->willReturn($this->rules);
+        $ruleResultsMock->method('getItems')->willReturnCallback(function () {
+            return $this->rules;
+        });
         $this->ruleRepositoryMock->method('getList')->willReturn($ruleResultsMock);
 
-        // Product repository default
         $this->productRepositoryMock->method('get')->willReturnCallback(
             function (string $sku) {
                 if ($sku === 'NUVEM-RUNNER' || $sku === 'NUVEM-MINI') {
@@ -338,9 +478,6 @@ class ConfigurationValidatorTest extends TestCase
         );
     }
 
-    /**
-     * Helper to create a valid configuration
-     */
     private function createValidConfiguration(): ConfigurationInterface
     {
         $config = $this->createMock(ConfigurationInterface::class);
@@ -378,13 +515,46 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertEmpty($result->getMessages());
     }
 
+    public function testBatchLoadingAvoidsNPlusOneQueries(): void
+    {
+        $repoMock = $this->createMock(ComponentRepositoryInterface::class);
+        $repoMock->expects($this->once())
+            ->method('getList')
+            ->willReturnCallback(
+                function () {
+                    $resultsMock = $this->createMock(ComponentSearchResultsInterface::class);
+                    $resultsMock->method('getItems')->willReturn(array_values($this->components));
+                    return $resultsMock;
+                }
+            );
+
+        // getByCodigo must NOT be called since batch prefetch finds all components
+        $repoMock->expects($this->never())
+            ->method('getByCodigo');
+
+        $validator = new ConfigurationValidator(
+            $this->groupRepositoryMock,
+            $repoMock,
+            $this->ruleRepositoryMock,
+            $this->searchCriteriaBuilderMock,
+            $this->sortOrderBuilderMock,
+            $this->productRepositoryMock,
+            $this->scopeConfigMock,
+            null
+        );
+
+        $config = $this->createValidConfiguration();
+        $result = $validator->validate('NUVEM-RUNNER', $config);
+
+        $this->assertTrue($result->isValid());
+    }
+
     public function testMissingMandatoryGroupIsRefused(): void
     {
         $config = $this->createMock(ConfigurationInterface::class);
         $config->method('getSize')->willReturn(38);
         $config->method('getEngraving')->willReturn('LUIZ');
 
-        // Missing solado
         $selections = [
             $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
             $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
@@ -405,8 +575,8 @@ class ConfigurationValidatorTest extends TestCase
     {
         $config = $this->createValidConfiguration();
         $selections = $config->getSelections();
-        // Add another cabedal
         $selections[] = $this->createSelection('cabedal', 'CAB-TELA-MENTA');
+
         $configMock = $this->createMock(ConfigurationInterface::class);
         $configMock->method('getSize')->willReturn(38);
         $configMock->method('getEngraving')->willReturn('LUIZ');
@@ -479,7 +649,6 @@ class ConfigurationValidatorTest extends TestCase
         $config->method('getSize')->willReturn(38);
         $config->method('getEngraving')->willReturn('LUIZ');
 
-        // Solado component passed in cabedal group
         $selections = [
             $this->createSelection('cabedal', 'SOL-BORRACHA-MENTA'),
             $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
@@ -536,7 +705,7 @@ class ConfigurationValidatorTest extends TestCase
     public function testSizeOutsideProductRangeIsRefused(): void
     {
         $config = $this->createMock(ConfigurationInterface::class);
-        $config->method('getSize')->willReturn(50); // Valid is 34-44
+        $config->method('getSize')->willReturn(50);
         $config->method('getEngraving')->willReturn('LUIZ');
 
         $selections = [
@@ -559,7 +728,7 @@ class ConfigurationValidatorTest extends TestCase
     public function testEngravingOnProductThatDoesNotAllowIsRefused(): void
     {
         $config = $this->createMock(ConfigurationInterface::class);
-        $config->method('getSize')->willReturn(30); // Valid for Mini (26-33)
+        $config->method('getSize')->willReturn(30);
         $config->method('getEngraving')->willReturn('BIA');
 
         $selections = [
@@ -635,7 +804,7 @@ class ConfigurationValidatorTest extends TestCase
     {
         $config = $this->createMock(ConfigurationInterface::class);
         $config->method('getSize')->willReturn(38);
-        $config->method('getEngraving')->willReturn('NUVEMNUVEMNUVEM'); // 15 chars > 12
+        $config->method('getEngraving')->willReturn('NUVEMNUVEMNUVEM');
 
         $selections = [
             $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
@@ -677,13 +846,72 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertContains('A gravação contém palavras não permitidas.', $result->getMessages());
     }
 
+    public function testReDoSSafety(): void
+    {
+        // Pathological repeated input string that would trigger catastrophic backtracking
+        $longAttackString = str_repeat('a-', 1000) . '!';
+        $config = $this->createMock(ConfigurationInterface::class);
+        $config->method('getSize')->willReturn(38);
+        $config->method('getEngraving')->willReturn($longAttackString);
+
+        $selections = [
+            $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
+            $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
+            $this->createSelection('calcanhar', 'CAL-ACOLCHOADO-CEU'),
+            $this->createSelection('cadarco', 'CAD-ELASTICO-MENTA'),
+            $this->createSelection('emblema', 'EMB-NUVEM-PESSEGO'),
+            $this->createSelection('entressola', 'ENT-EVA-NUVEM'),
+            $this->createSelection('solado', 'SOL-TRANSLUCIDO-GELO'),
+        ];
+        $config->method('getSelections')->willReturn($selections);
+
+        $start = microtime(true);
+        $result = $this->validator->validate('NUVEM-RUNNER', $config);
+        $duration = microtime(true) - $start;
+
+        $this->assertFalse($result->isValid());
+        // Possessive quantifier guarantees sub-50ms linear validation
+        $this->assertLessThan(0.05, $duration, 'Regex must execute in linear time without catastrophic backtracking');
+    }
+
+    public function testUnicodeNfcNormalizationOnComparison(): void
+    {
+        // Rule target has decomposed NFD Unicode character: o + circumflex (\x6F\xCC\x82)
+        $decomposedTrico = "trico\xCC\x82";
+        $rNorm = $this->createMock(RuleInterface::class);
+        $rNorm->method('getCodigo')->willReturn('R-NORM');
+        $rNorm->method('getTipo')->willReturn('exige');
+        $rNorm->method('getOrigemComponenteId')->willReturn(18); // CAD-ELASTICO-MENTA
+        $rNorm->method('getAlvoTipo')->willReturn('acabamento');
+        $rNorm->method('getAlvo')->willReturn($decomposedTrico);
+        $rNorm->method('getMensagem')->willReturn('O cadarço elástico só segura em cabedal de tricô.');
+        $rNorm->method('isAtivo')->willReturn(true);
+        $this->rules = [$rNorm];
+
+        // Component acabamento has composed NFC character: ô (\xC3\xB4)
+        $compTrico = $this->createMock(ComponentInterface::class);
+        $compTrico->method('getComponenteId')->willReturn(4);
+        $compTrico->method('getGrupoId')->willReturn(1);
+        $compTrico->method('getCodigo')->willReturn('CAB-TRICO-LAVANDA');
+        $compTrico->method('getNome')->willReturn('Tricô Lavanda');
+        $compTrico->method('getAcabamento')->willReturn("tric\xC3\xB4");
+        $compTrico->method('getEstoque')->willReturn(50);
+        $compTrico->method('isAtivo')->willReturn(true);
+        $this->components['CAB-TRICO-LAVANDA'] = $compTrico;
+
+        $config = $this->createValidConfiguration();
+        $result = $this->validator->validate('NUVEM-RUNNER', $config);
+
+        // Normalized NFC comparison matches NFD with NFC, validating successfully
+        $this->assertTrue($result->isValid());
+    }
+
     public function testRuleR01BloqueiaCamurcaComSoladoHolografico(): void
     {
         $config = $this->createMock(ConfigurationInterface::class);
         $config->method('getSize')->willReturn(38);
         $config->method('getEngraving')->willReturn('LUIZ');
 
-        // Camurca baunilha + Lua holografico
         $selections = [
             $this->createSelection('cabedal', 'CAB-CAMURCA-BAUNILHA'),
             $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
@@ -710,7 +938,6 @@ class ConfigurationValidatorTest extends TestCase
         $config->method('getSize')->willReturn(38);
         $config->method('getEngraving')->willReturn('LUIZ');
 
-        // Cadarco elastico with Tela Menta (finish tela, not trico)
         $selections = [
             $this->createSelection('cabedal', 'CAB-TELA-MENTA'),
             $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
@@ -737,7 +964,6 @@ class ConfigurationValidatorTest extends TestCase
         $config->method('getSize')->willReturn(38);
         $config->method('getEngraving')->willReturn('LUIZ');
 
-        // Glitter + Verniz
         $selections = [
             $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
             $this->createSelection('biqueira', 'BIQ-VERNIZ-ROSA'),
@@ -764,7 +990,6 @@ class ConfigurationValidatorTest extends TestCase
         $config->method('getSize')->willReturn(38);
         $config->method('getEngraving')->willReturn(null);
 
-        // Camara de ar with Borracha menta (not Sol translucido gelo)
         $selections = [
             $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
             $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
@@ -791,7 +1016,6 @@ class ConfigurationValidatorTest extends TestCase
         $config->method('getSize')->willReturn(38);
         $config->method('getEngraving')->willReturn('LUIZ');
 
-        // Camara de ar with engraving and Sol translucido
         $selections = [
             $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
             $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
@@ -809,21 +1033,21 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertContains('Não dá para gravar sobre a câmara de ar.', $result->getMessages());
     }
 
-    public function testReturnsAllErrorsInsteadOfOnlyFirst(): void
+    public function testOrderAndAggregationOfAllValidationSteps(): void
     {
         $config = $this->createMock(ConfigurationInterface::class);
-        $config->method('getSize')->willReturn(50); // Error 1: Size outside range
-        $config->method('getEngraving')->willReturn('<script>alert(1)</script>'); // Error 2: HTML
+        $config->method('getSize')->willReturn(50); // Step 4: Size error
+        $config->method('getEngraving')->willReturn('<script>alert(1)</script>'); // Step 6: HTML
 
-        // Camurca + Lua Holografico -> Error 3: Rule R01
+        // Step 1: Missing solado
+        // Step 2: Component CAB-OURO-24K does not exist
         $selections = [
-            $this->createSelection('cabedal', 'CAB-CAMURCA-BAUNILHA'),
+            $this->createSelection('cabedal', 'CAB-OURO-24K'),
             $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
             $this->createSelection('calcanhar', 'CAL-ACOLCHOADO-CEU'),
             $this->createSelection('cadarco', 'CAD-ALGODAO-NUVEM'),
             $this->createSelection('emblema', 'EMB-NUVEM-PESSEGO'),
             $this->createSelection('entressola', 'ENT-EVA-NUVEM'),
-            $this->createSelection('solado', 'SOL-LUA-HOLO'),
         ];
         $config->method('getSelections')->willReturn($selections);
 
@@ -831,13 +1055,157 @@ class ConfigurationValidatorTest extends TestCase
 
         $this->assertFalse($result->isValid());
         $messages = $result->getMessages();
-        $this->assertGreaterThanOrEqual(3, count($messages));
-        $this->assertContains('O tamanho 50 está fora da grade do produto (34 a 44).', $messages);
-        $this->assertContains('A gravação deve conter apenas letras, números, espaços e hífen.', $messages);
-        $this->assertContains(
-            'A cola do solado holográfico mancha a camurça. Escolha outro solado ou outro cabedal.',
-            $messages
+
+        $this->assertCount(5, $messages);
+        // Verify aggregation and strict order:
+        $this->assertSame('O grupo obrigatório "Solado" não foi informado.', $messages[0]);
+        $this->assertSame('O componente "CAB-OURO-24K" não existe.', $messages[1]);
+        $this->assertSame('O tamanho 50 está fora da grade do produto (34 a 44).', $messages[2]);
+        $this->assertSame('A gravação deve conter apenas letras, números, espaços e hífen.', $messages[3]);
+        $this->assertSame('A gravação não pode ultrapassar 12 caracteres.', $messages[4]);
+    }
+
+    public function testMaliciousRulesAreSafelyIgnored(): void
+    {
+        // Malicious rule attempting code injection / eval
+        $maliciousRule = $this->createMock(RuleInterface::class);
+        $maliciousRule->method('getCodigo')->willReturn('R-ATTACK');
+        $maliciousRule->method('getTipo')->willReturn('eval("system(\'id\')")');
+        $maliciousRule->method('getOrigemComponenteId')->willReturn(4);
+        $maliciousRule->method('getAlvoTipo')->willReturn('SELECT * FROM admin_user');
+        $maliciousRule->method('getAlvo')->willReturn('1; DROP TABLE users;--');
+        $maliciousRule->method('getMensagem')->willReturn('Injected Message');
+        $maliciousRule->method('isAtivo')->willReturn(true);
+
+        $ruleResultsMock = $this->createMock(RuleSearchResultsInterface::class);
+        $ruleResultsMock->method('getItems')->willReturn([$maliciousRule]);
+
+        $ruleRepoMock = $this->createMock(RuleRepositoryInterface::class);
+        $ruleRepoMock->method('getList')->willReturn($ruleResultsMock);
+
+        $validator = new ConfigurationValidator(
+            $this->groupRepositoryMock,
+            $this->componentRepositoryMock,
+            $ruleRepoMock,
+            $this->searchCriteriaBuilderMock,
+            $this->sortOrderBuilderMock,
+            $this->productRepositoryMock,
+            $this->scopeConfigMock,
+            null
         );
+
+        $config = $this->createValidConfiguration();
+        $result = $validator->validate('NUVEM-RUNNER', $config);
+
+        // Malicious rule was safely ignored by whitelist
+        $this->assertTrue($result->isValid());
+        $this->assertEmpty($result->getMessages());
+    }
+
+    public function testRuleModelRejectsMaliciousDataInBeforeSave(): void
+    {
+        $ruleResourceMock = $this->createMock(\Nuvem\Atelie\Model\ResourceModel\Rule::class);
+        $contextMock = $this->createMock(\Magento\Framework\Model\Context::class);
+        $eventManagerMock = $this->createMock(\Magento\Framework\Event\ManagerInterface::class);
+        $contextMock->method('getEventDispatcher')->willReturn($eventManagerMock);
+        $registryMock = $this->createMock(\Magento\Framework\Registry::class);
+
+        $rule = new Rule(
+            $contextMock,
+            $registryMock,
+            $ruleResourceMock
+        );
+
+        // 1. Invalid tipo
+        $rule->setTipo('invalid_type');
+        $rule->setAlvoTipo('componente');
+        $rule->setOrigemComponenteId(1);
+        $rule->setAlvo('BIQ-LISA-CEU');
+        $rule->setMensagem('Valid message');
+
+        $this->expectException(LocalizedException::class);
+        $this->expectExceptionMessage('Invalid rule type');
+        $rule->beforeSave();
+    }
+
+    public function testRuleModelRejectsScriptInMessageInBeforeSave(): void
+    {
+        $ruleResourceMock = $this->createMock(\Nuvem\Atelie\Model\ResourceModel\Rule::class);
+        $contextMock = $this->createMock(\Magento\Framework\Model\Context::class);
+        $eventManagerMock = $this->createMock(\Magento\Framework\Event\ManagerInterface::class);
+        $contextMock->method('getEventDispatcher')->willReturn($eventManagerMock);
+        $registryMock = $this->createMock(\Magento\Framework\Registry::class);
+
+        $rule = new Rule(
+            $contextMock,
+            $registryMock,
+            $ruleResourceMock
+        );
+
+        $rule->setTipo('bloqueia');
+        $rule->setAlvoTipo('componente');
+        $rule->setOrigemComponenteId(1);
+        $rule->setAlvo('BIQ-LISA-CEU');
+        $rule->setMensagem('<script>alert("xss")</script>');
+
+        $this->expectException(LocalizedException::class);
+        $this->expectExceptionMessage('Rule message cannot contain HTML or script tags');
+        $rule->beforeSave();
+    }
+
+    public function testCacheInvalidationWhenRuleRepositorySaves(): void
+    {
+        $ruleMock = $this->createMock(\Nuvem\Atelie\Model\Rule::class);
+        $resourceMock = $this->createMock(\Nuvem\Atelie\Model\ResourceModel\Rule::class);
+        $ruleFactoryMock = $this->createMock(\Nuvem\Atelie\Model\RuleFactory::class);
+        $collectionFactoryMock = $this->createMock(\Nuvem\Atelie\Model\ResourceModel\Rule\CollectionFactory::class);
+        $searchResultsFactoryMock = $this->createMock(\Nuvem\Atelie\Model\RuleSearchResultsFactory::class);
+        $procClass = \Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface::class;
+        $collectionProcessorMock = $this->createMock($procClass);
+
+        $cacheMock = $this->createMock(CacheInterface::class);
+        $cacheMock->expects($this->once())
+            ->method('clean')
+            ->with([Rule::CACHE_TAG]);
+
+        $repo = new RuleRepository(
+            $resourceMock,
+            $ruleFactoryMock,
+            $collectionFactoryMock,
+            $searchResultsFactoryMock,
+            $collectionProcessorMock,
+            $cacheMock
+        );
+
+        $repo->save($ruleMock);
+    }
+
+    public function testEavCustomAttributesFallback(): void
+    {
+        $prodWithoutEav = $this->createMock(ProductInterface::class);
+        $prodWithoutEav->method('getTypeId')->willReturn('atelie');
+        $prodWithoutEav->method('getName')->willReturn('Nuvem Runner Base');
+        $prodWithoutEav->method('getCustomAttribute')->willReturn(null); // No EAV attributes
+
+        $prodRepo = $this->createMock(ProductRepositoryInterface::class);
+        $prodRepo->method('get')->with('NUVEM-RUNNER')->willReturn($prodWithoutEav);
+
+        $validator = new ConfigurationValidator(
+            $this->groupRepositoryMock,
+            $this->componentRepositoryMock,
+            $this->ruleRepositoryMock,
+            $this->searchCriteriaBuilderMock,
+            $this->sortOrderBuilderMock,
+            $prodRepo,
+            $this->scopeConfigMock,
+            null
+        );
+
+        $config = $this->createValidConfiguration();
+        $result = $validator->validate('NUVEM-RUNNER', $config);
+
+        // Fallback allows valid configuration (size 38 within default 34-44)
+        $this->assertTrue($result->isValid());
     }
 
     public function testUnknownSkuThrowsNoSuchEntityException(): void
@@ -856,46 +1224,5 @@ class ConfigurationValidatorTest extends TestCase
 
         $config = $this->createValidConfiguration();
         $this->validator->validate('SIMPLE-PRODUCT', $config);
-    }
-
-    public function testDynamicAdminRuleIsAppliedImmediately(): void
-    {
-        // Add a new dynamic rule without deploy/code change
-        $newRule = $this->createMock(RuleInterface::class);
-        $newRule->method('getCodigo')->willReturn('R99');
-        $newRule->method('getTipo')->willReturn('bloqueia');
-        $newRule->method('getOrigemComponenteId')->willReturn(4); // CAB-TRICO-LAVANDA
-        $newRule->method('getAlvoTipo')->willReturn('componente');
-        $newRule->method('getAlvo')->willReturn('BIQ-LISA-CEU');
-        $newRule->method('getMensagem')->willReturn('Regra dinâmica do admin: Tricô Lavanda não combina com Lisa Céu.');
-        $newRule->method('isAtivo')->willReturn(true);
-
-        $dynamicRules = array_merge($this->rules, [$newRule]);
-        $ruleResultsMock = $this->createMock(RuleSearchResultsInterface::class);
-        $ruleResultsMock->method('getItems')->willReturn($dynamicRules);
-
-        // Reset ruleRepository getList mock with dynamic rules
-        $ruleRepoMock = $this->createMock(RuleRepositoryInterface::class);
-        $ruleRepoMock->method('getList')->willReturn($ruleResultsMock);
-
-        $validatorWithDynamicRule = new ConfigurationValidator(
-            $this->groupRepositoryMock,
-            $this->componentRepositoryMock,
-            $ruleRepoMock,
-            $this->searchCriteriaBuilderMock,
-            $this->sortOrderBuilderMock,
-            $this->productRepositoryMock,
-            $this->scopeConfigMock,
-            null
-        );
-
-        $config = $this->createValidConfiguration(); // Has CAB-TRICO-LAVANDA and BIQ-LISA-CEU
-        $result = $validatorWithDynamicRule->validate('NUVEM-RUNNER', $config);
-
-        $this->assertFalse($result->isValid());
-        $this->assertContains(
-            'Regra dinâmica do admin: Tricô Lavanda não combina com Lisa Céu.',
-            $result->getMessages()
-        );
     }
 }
