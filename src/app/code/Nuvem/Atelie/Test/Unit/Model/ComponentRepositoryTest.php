@@ -24,12 +24,55 @@ use PHPUnit\Framework\TestCase;
 
 class ComponentRepositoryTest extends TestCase
 {
-    private ComponentResource&MockObject $resourceMock;
-    private ComponentFactory&MockObject $componentFactoryMock;
-    private ComponentCollectionFactory&MockObject $collectionFactoryMock;
-    private ComponentSearchResultsInterfaceFactory&MockObject $searchResultsFactoryMock;
-    private CollectionProcessorInterface&MockObject $collectionProcessorMock;
+    /**
+     * @var ComponentResource|MockObject
+     */
+    private MockObject $resourceMock;
+
+    /**
+     * @var ComponentFactory|MockObject
+     */
+    private MockObject $componentFactoryMock;
+
+    /**
+     * @var ComponentCollectionFactory|MockObject
+     */
+    private MockObject $collectionFactoryMock;
+
+    /**
+     * @var ComponentSearchResultsInterfaceFactory|MockObject
+     */
+    private MockObject $searchResultsFactoryMock;
+
+    /**
+     * @var CollectionProcessorInterface|MockObject
+     */
+    private MockObject $collectionProcessorMock;
+
+    /**
+     * @var ComponentRepository
+     */
     private ComponentRepository $repository;
+
+    public static function setUpBeforeClass(): void
+    {
+        if (class_exists(\Magento\Framework\TestFramework\Unit\Autoloader\GeneratedClassesAutoloader::class)) {
+            $generatorIo = new \Magento\Framework\Code\Generator\Io(
+                new \Magento\Framework\Filesystem\Driver\File(),
+                sys_get_temp_dir() . '/generated/code'
+            );
+            $generatedCodeAutoloader = new \Magento\Framework\TestFramework\Unit\Autoloader\GeneratedClassesAutoloader(
+                [
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ExtensionAttributesGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ExtensionAttributesInterfaceGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\FactoryGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ProxyGenerator()
+                ],
+                $generatorIo
+            );
+            spl_autoload_register([$generatedCodeAutoloader, 'load']);
+        }
+    }
 
     protected function setUp(): void
     {

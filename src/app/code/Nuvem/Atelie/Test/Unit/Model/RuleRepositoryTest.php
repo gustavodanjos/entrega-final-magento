@@ -23,12 +23,55 @@ use PHPUnit\Framework\TestCase;
 
 class RuleRepositoryTest extends TestCase
 {
-    private RuleResource&MockObject $resourceMock;
-    private RuleFactory&MockObject $ruleFactoryMock;
-    private RuleCollectionFactory&MockObject $collectionFactoryMock;
-    private RuleSearchResultsInterfaceFactory&MockObject $searchResultsFactoryMock;
-    private CollectionProcessorInterface&MockObject $collectionProcessorMock;
+    /**
+     * @var RuleResource|MockObject
+     */
+    private MockObject $resourceMock;
+
+    /**
+     * @var RuleFactory|MockObject
+     */
+    private MockObject $ruleFactoryMock;
+
+    /**
+     * @var RuleCollectionFactory|MockObject
+     */
+    private MockObject $collectionFactoryMock;
+
+    /**
+     * @var RuleSearchResultsInterfaceFactory|MockObject
+     */
+    private MockObject $searchResultsFactoryMock;
+
+    /**
+     * @var CollectionProcessorInterface|MockObject
+     */
+    private MockObject $collectionProcessorMock;
+
+    /**
+     * @var RuleRepository
+     */
     private RuleRepository $repository;
+
+    public static function setUpBeforeClass(): void
+    {
+        if (class_exists(\Magento\Framework\TestFramework\Unit\Autoloader\GeneratedClassesAutoloader::class)) {
+            $generatorIo = new \Magento\Framework\Code\Generator\Io(
+                new \Magento\Framework\Filesystem\Driver\File(),
+                sys_get_temp_dir() . '/generated/code'
+            );
+            $generatedCodeAutoloader = new \Magento\Framework\TestFramework\Unit\Autoloader\GeneratedClassesAutoloader(
+                [
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ExtensionAttributesGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ExtensionAttributesInterfaceGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\FactoryGenerator(),
+                    new \Magento\Framework\TestFramework\Unit\Autoloader\ProxyGenerator()
+                ],
+                $generatorIo
+            );
+            spl_autoload_register([$generatedCodeAutoloader, 'load']);
+        }
+    }
 
     protected function setUp(): void
     {
