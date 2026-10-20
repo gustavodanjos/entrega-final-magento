@@ -10,4 +10,8 @@
                 type="Nuvem\AtelieSales\Plugin\Catalog\Product\Type\PriceModelPlugin"
                 sortOrder="10"/>
     </type>
+    <type name="Magento\Framework\Webapi\ServiceInputProcessor">
+        <plugin name="nuvem_atelie_sales_strip_tampered_price"
+                type="Nuvem\AtelieSales\Plugin\Webapi\StripTamperedPricePlugin"/>
+    </type>
 </config>
