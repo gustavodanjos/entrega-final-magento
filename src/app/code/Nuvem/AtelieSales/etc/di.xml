@@ -3,4 +3,11 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Nuvem\AtelieSales\Api\ComponentStockInterface"
                 type="Nuvem\AtelieSales\Model\ProvisionalComponentStock"/>
+    <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
+                type="Nuvem\AtelieSales\Model\PriceCalculator"/>
+    <type name="Magento\Catalog\Model\Product\Type">
+        <plugin name="nuvem_atelie_sales_price_model"
+                type="Nuvem\AtelieSales\Plugin\Catalog\Product\Type\PriceModelPlugin"
+                sortOrder="10"/>
+    </type>
 </config>
