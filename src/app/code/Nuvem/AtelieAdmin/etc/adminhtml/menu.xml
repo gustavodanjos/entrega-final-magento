@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="Nuvem_AtelieAdmin::atelie_menu"
+             title="Ateliê"
+             module="Nuvem_AtelieAdmin"
+             sortOrder="15"
+             resource="Magento_Backend::admin"/>
+
+        <add id="Nuvem_AtelieAdmin::components_menu"
+             title="Componentes"
+             module="Nuvem_AtelieAdmin"
+             sortOrder="10"
+             parent="Nuvem_AtelieAdmin::atelie_menu"
+             action="nuvem_atelieadmin/component/index"
+             resource="Nuvem_AtelieAdmin::components_view"/>
+
+        <add id="Nuvem_AtelieAdmin::rules_menu"
+             title="Regras"
+             module="Nuvem_AtelieAdmin"
+             sortOrder="20"
+             parent="Nuvem_AtelieAdmin::atelie_menu"
+             action="nuvem_atelieadmin/rule/index"
+             resource="Nuvem_AtelieAdmin::rules"/>
+
+        <add id="Nuvem_AtelieAdmin::production_menu"
+             title="Produção"
+             module="Nuvem_AtelieAdmin"
+             sortOrder="30"
+             parent="Nuvem_AtelieAdmin::atelie_menu"
+             action="nuvem_atelieadmin/production/index"
+             resource="Nuvem_AtelieAdmin::production"/>
+    </menu>
+</config>

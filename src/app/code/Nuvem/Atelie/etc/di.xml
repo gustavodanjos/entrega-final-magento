@@ -2,9 +2,9 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Nuvem\Atelie\Api\AtelieCatalogInterface"
-                type="Nuvem\Atelie\Model\ProvisionalAtelieCatalog"/>
+                type="Nuvem\Atelie\Model\AtelieCatalog"/>
     <preference for="Nuvem\Atelie\Api\ConfigurationValidatorInterface"
-                type="Nuvem\Atelie\Model\ProvisionalConfigurationValidator"/>
+                type="Nuvem\Atelie\Model\ConfigurationValidator"/>
     <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
                 type="Nuvem\Atelie\Model\ProvisionalPriceCalculator"/>
     <preference for="Nuvem\Atelie\Api\Data\ConfigurationInterface"
@@ -13,4 +13,28 @@
                 type="Nuvem\Atelie\Model\Selection"/>
     <preference for="Nuvem\Atelie\Api\Data\ValidationResultInterface"
                 type="Nuvem\Atelie\Model\ValidationResult"/>
+
+    <!-- Repositories -->
+    <preference for="Nuvem\Atelie\Api\GroupRepositoryInterface"
+                type="Nuvem\Atelie\Model\GroupRepository"/>
+    <preference for="Nuvem\Atelie\Api\ComponentRepositoryInterface"
+                type="Nuvem\Atelie\Model\ComponentRepository"/>
+    <preference for="Nuvem\Atelie\Api\RuleRepositoryInterface"
+                type="Nuvem\Atelie\Model\RuleRepository"/>
+
+    <type name="Nuvem\Atelie\Model\GroupRepository">
+        <arguments>
+            <argument name="collectionProcessor" xsi:type="object">Magento\Framework\Api\SearchCriteria\CollectionProcessor</argument>
+        </arguments>
+    </type>
+    <type name="Nuvem\Atelie\Model\ComponentRepository">
+        <arguments>
+            <argument name="collectionProcessor" xsi:type="object">Magento\Framework\Api\SearchCriteria\CollectionProcessor</argument>
+        </arguments>
+    </type>
+    <type name="Nuvem\Atelie\Model\RuleRepository">
+        <arguments>
+            <argument name="collectionProcessor" xsi:type="object">Magento\Framework\Api\SearchCriteria\CollectionProcessor</argument>
+        </arguments>
+    </type>
 </config>
