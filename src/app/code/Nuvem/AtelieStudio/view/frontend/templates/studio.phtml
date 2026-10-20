@@ -1,4 +1,7 @@
 <?php
+/**
+ * @var \Nuvem\AtelieStudio\Block\Studio $block
+ */
 $viewModel = $block->getData('view_model');
 $jsLayoutConfig = $viewModel ? $viewModel->getMergedJsLayout($block->getJsLayout()) : $block->getJsLayout();
 ?>
@@ -9,7 +12,7 @@ $jsLayoutConfig = $viewModel ? $viewModel->getMergedJsLayout($block->getJsLayout
 <script type="text/x-magento-init">
 {
     "#atelie-studio-app": {
-        "Magento_Ui/js/core/app": <?= $jsLayoutConfig ?>
+        "Magento_Ui/js/core/app": <?= /* @noEscape */ $jsLayoutConfig ?>
     }
 }
 </script>
