@@ -1,0 +1,15 @@
+<?php
+$viewModel = $block->getData('view_model');
+$jsLayoutConfig = $viewModel ? $viewModel->getMergedJsLayout($block->getJsLayout()) : $block->getJsLayout();
+?>
+<div id="atelie-studio-app" class="atelie-studio-wrapper" data-bind="scope: 'atelieStudio'">
+    <!-- ko template: getTemplate() --><!-- /ko -->
+</div>
+
+<script type="text/x-magento-init">
+{
+    "#atelie-studio-app": {
+        "Magento_Ui/js/core/app": <?= $jsLayoutConfig ?>
+    }
+}
+</script>
