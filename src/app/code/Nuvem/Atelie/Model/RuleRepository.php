@@ -5,6 +5,7 @@ namespace Nuvem\Atelie\Model;
 
 use Magento\Framework\Api\SearchCriteria\CollectionProcessorInterface;
 use Magento\Framework\Api\SearchCriteriaInterface;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\Exception\CouldNotDeleteException;
 use Magento\Framework\Exception\CouldNotSaveException;
 use Magento\Framework\Exception\NoSuchEntityException;
@@ -50,24 +51,32 @@ class RuleRepository implements RuleRepositoryInterface
     private CollectionProcessorInterface $collectionProcessor;
 
     /**
+     * @var CacheInterface|null
+     */
+    private ?CacheInterface $cache;
+
+    /**
      * @param RuleResource $resource
      * @param RuleFactory $ruleFactory
      * @param RuleCollectionFactory $collectionFactory
      * @param RuleSearchResultsFactory $searchResultsFactory
      * @param CollectionProcessorInterface $collectionProcessor
+     * @param CacheInterface|null $cache
      */
     public function __construct(
         RuleResource $resource,
         RuleFactory $ruleFactory,
         RuleCollectionFactory $collectionFactory,
         RuleSearchResultsFactory $searchResultsFactory,
-        CollectionProcessorInterface $collectionProcessor
+        CollectionProcessorInterface $collectionProcessor,
+        ?CacheInterface $cache = null
     ) {
         $this->resource = $resource;
         $this->ruleFactory = $ruleFactory;
         $this->collectionFactory = $collectionFactory;
         $this->searchResultsFactory = $searchResultsFactory;
         $this->collectionProcessor = $collectionProcessor;
+        $this->cache = $cache;
     }
 
     /**
@@ -81,6 +90,9 @@ class RuleRepository implements RuleRepositoryInterface
     {
         try {
             $this->resource->save($rule);
+            if ($this->cache !== null) {
+                $this->cache->clean([Rule::CACHE_TAG]);
+            }
         } catch (\Exception $exception) {
             throw new CouldNotSaveException(
                 __('Could not save rule: %1', $exception->getMessage()),
@@ -154,6 +166,9 @@ class RuleRepository implements RuleRepositoryInterface
     {
         try {
             $this->resource->delete($rule);
+            if ($this->cache !== null) {
+                $this->cache->clean([Rule::CACHE_TAG]);
+            }
         } catch (\Exception $exception) {
             throw new CouldNotDeleteException(
                 __('Could not delete rule: %1', $exception->getMessage()),

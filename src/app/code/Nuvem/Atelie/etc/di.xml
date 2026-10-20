@@ -4,7 +4,7 @@
     <preference for="Nuvem\Atelie\Api\AtelieCatalogInterface"
                 type="Nuvem\Atelie\Model\AtelieCatalog"/>
     <preference for="Nuvem\Atelie\Api\ConfigurationValidatorInterface"
-                type="Nuvem\Atelie\Model\ProvisionalConfigurationValidator"/>
+                type="Nuvem\Atelie\Model\ConfigurationValidator"/>
     <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
                 type="Nuvem\Atelie\Model\ProvisionalPriceCalculator"/>
     <preference for="Nuvem\Atelie\Api\Data\ConfigurationInterface"
