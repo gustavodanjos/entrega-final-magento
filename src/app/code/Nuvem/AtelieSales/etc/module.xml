@@ -8,6 +8,7 @@
     <module name="Nuvem_AtelieSales">
         <sequence>
             <module name="Nuvem_Atelie"/>
+            <module name="Magento_Quote"/>
         </sequence>
     </module>
 </config>
