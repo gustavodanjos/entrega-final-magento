@@ -31,8 +31,10 @@ use Nuvem\Atelie\Model\Product\Type\Atelie;
  *
  * By registering this around plugin with sortOrder="-10", it executes before MSI's plugin:
  * 1. For Atelie products:
+ *    - Validates quantity integrity: rejects non-positive quantities (<= 0) with 'qty_min'
+ *      and decimal quantities with 'qty_decimal' (canUseQtyDecimals="false").
  *    - Validates component availability via $product->isSalable().
- *    - If salable, returns has_error = false, safely bypassing MSI source item verification.
+ *    - If salable and quantity is valid, returns has_error = false, bypassing MSI source check.
  *    - If NOT salable (e.g. an active group has no in-stock components), returns has_error = true
  *      with the 'out_stock' error code, preserving inventory integrity.
  * 2. For all other product types (Simple, Configurable, Bundle, Virtual, etc.):
@@ -83,6 +85,28 @@ class CheckAtelieQuoteItemQtyPlugin
         }
 
         $result = $this->dataObjectFactory->create();
+        $qty = (float) $itemQty;
+        $qtyCheck = (float) $qtyToCheck;
+        $quoteMessage = __('Please correct the quantity for some products.');
+
+        if ($qty <= 0 || $qtyCheck <= 0) {
+            $result->setHasError(true)
+                ->setMessage(__('The fewest you may purchase is 1.'))
+                ->setQuoteMessage($quoteMessage)
+                ->setQuoteMessageIndex('qty')
+                ->setErrorCode('qty_min');
+            return $result;
+        }
+
+        if (floor($qty) !== $qty || floor($qtyCheck) !== $qtyCheck) {
+            $result->setHasError(true)
+                ->setMessage(__('You cannot use decimal quantity for this product.'))
+                ->setQuoteMessage($quoteMessage)
+                ->setQuoteMessageIndex('qty')
+                ->setErrorCode('qty_decimal');
+            return $result;
+        }
+
         if (!$product->isSalable()) {
             $result->setHasError(true)
                 ->setMessage(__('This product is out of stock.'))

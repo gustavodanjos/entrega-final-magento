@@ -58,6 +58,48 @@ class CheckAtelieQuoteItemQtyPluginTest extends TestCase
         $this->assertFalse($result->getHasError());
     }
 
+    public function testAroundCheckQuoteItemQtyReturnsErrorForZeroOrNegativeQuantity(): void
+    {
+        $product = $this->createMock(Product::class);
+        $product->method('getTypeId')->willReturn(Atelie::TYPE_CODE);
+        $this->productRepoMock->method('getById')->with(2041)->willReturn($product);
+        $this->dataObjectFactoryMock->method('create')->willReturnCallback(fn() => new DataObject());
+
+        $proceedCalled = false;
+        $proceed = function () use (&$proceedCalled) {
+            $proceedCalled = true;
+            return new DataObject();
+        };
+
+        $resultZero = $this->plugin->aroundCheckQuoteItemQty($this->subjectMock, $proceed, 2041, 0.0, 0.0, 0.0);
+        $this->assertFalse($proceedCalled);
+        $this->assertTrue($resultZero->getHasError());
+        $this->assertEquals('qty_min', $resultZero->getErrorCode());
+
+        $resultNeg = $this->plugin->aroundCheckQuoteItemQty($this->subjectMock, $proceed, 2041, -1.0, -1.0, 0.0);
+        $this->assertTrue($resultNeg->getHasError());
+        $this->assertEquals('qty_min', $resultNeg->getErrorCode());
+    }
+
+    public function testAroundCheckQuoteItemQtyReturnsErrorForDecimalQuantity(): void
+    {
+        $product = $this->createMock(Product::class);
+        $product->method('getTypeId')->willReturn(Atelie::TYPE_CODE);
+        $this->productRepoMock->method('getById')->with(2041)->willReturn($product);
+        $this->dataObjectFactoryMock->method('create')->willReturnCallback(fn() => new DataObject());
+
+        $proceedCalled = false;
+        $proceed = function () use (&$proceedCalled) {
+            $proceedCalled = true;
+            return new DataObject();
+        };
+
+        $result = $this->plugin->aroundCheckQuoteItemQty($this->subjectMock, $proceed, 2041, 1.5, 1.5, 0.0);
+        $this->assertFalse($proceedCalled);
+        $this->assertTrue($result->getHasError());
+        $this->assertEquals('qty_decimal', $result->getErrorCode());
+    }
+
     public function testAroundCheckQuoteItemQtyReturnsErrorForUnsalableAtelieProduct(): void
     {
         $product = $this->createMock(Product::class);
