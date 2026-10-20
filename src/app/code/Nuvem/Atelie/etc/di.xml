@@ -43,4 +43,11 @@
                 type="Nuvem\Atelie\Plugin\CatalogInventory\StockState\CheckAtelieQuoteItemQtyPlugin"
                 sortOrder="-10"/>
     </type>
+
+    <virtualType name="Nuvem\Atelie\Model\ResourceModel\Product\Indexer\Price\AtelieProductPrice"
+                 type="Magento\Catalog\Model\ResourceModel\Product\Indexer\Price\SimpleProductPrice">
+        <arguments>
+            <argument name="productType" xsi:type="string">atelie</argument>
+        </arguments>
+    </virtualType>
 </config>
