@@ -13,4 +13,12 @@
             </argument>
         </arguments>
     </virtualType>
+
+    <virtualType name="Magento\Catalog\Ui\DataProvider\Product\Form\Modifier\Pool">
+        <arguments>
+            <argument name="modifiers" xsi:type="array">
+                <item name="atelieQuantity" xsi:type="string">Nuvem\Atelie\Ui\DataProvider\Product\Form\Modifier\AtelieQuantity</item>
+            </argument>
+        </arguments>
+    </virtualType>
 </config>
