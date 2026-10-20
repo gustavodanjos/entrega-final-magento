@@ -11,6 +11,7 @@ use Magento\Catalog\Model\Product;
 use Magento\CatalogInventory\Api\StockStateInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\DataObject\Factory as DataObjectFactory;
+use Magento\Framework\Exception\NoSuchEntityException;
 use Nuvem\Atelie\Model\Product\Type\Atelie;
 use Nuvem\Atelie\Plugin\CatalogInventory\StockState\CheckAtelieQuoteItemQtyPlugin;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -35,13 +36,14 @@ class CheckAtelieQuoteItemQtyPluginTest extends TestCase
         );
     }
 
-    public function testAroundCheckQuoteItemQtyReturnsNoErrorForAtelieProduct(): void
+    public function testAroundCheckQuoteItemQtyReturnsNoErrorForSalableAtelieProduct(): void
     {
         $product = $this->createMock(Product::class);
         $product->method('getTypeId')->willReturn(Atelie::TYPE_CODE);
+        $product->method('isSalable')->willReturn(true);
         $this->productRepoMock->method('getById')->with(2041)->willReturn($product);
 
-        $expectedResult = new DataObject(['has_error' => false]);
+        $expectedResult = new DataObject();
         $this->dataObjectFactoryMock->method('create')->willReturn($expectedResult);
 
         $proceedCalled = false;
@@ -50,17 +52,33 @@ class CheckAtelieQuoteItemQtyPluginTest extends TestCase
             return new DataObject();
         };
 
-        $result = $this->plugin->aroundCheckQuoteItemQty(
-            $this->subjectMock,
-            $proceed,
-            2041,
-            1.0,
-            1.0,
-            0.0
-        );
+        $result = $this->plugin->aroundCheckQuoteItemQty($this->subjectMock, $proceed, 2041, 1.0, 1.0, 0.0);
 
         $this->assertFalse($proceedCalled);
         $this->assertFalse($result->getHasError());
+    }
+
+    public function testAroundCheckQuoteItemQtyReturnsErrorForUnsalableAtelieProduct(): void
+    {
+        $product = $this->createMock(Product::class);
+        $product->method('getTypeId')->willReturn(Atelie::TYPE_CODE);
+        $product->method('isSalable')->willReturn(false);
+        $this->productRepoMock->method('getById')->with(2041)->willReturn($product);
+
+        $expectedResult = new DataObject();
+        $this->dataObjectFactoryMock->method('create')->willReturn($expectedResult);
+
+        $proceedCalled = false;
+        $proceed = function () use (&$proceedCalled) {
+            $proceedCalled = true;
+            return new DataObject();
+        };
+
+        $result = $this->plugin->aroundCheckQuoteItemQty($this->subjectMock, $proceed, 2041, 1.0, 1.0, 0.0);
+
+        $this->assertFalse($proceedCalled);
+        $this->assertTrue($result->getHasError());
+        $this->assertEquals('out_stock', $result->getErrorCode());
     }
 
     public function testAroundCheckQuoteItemQtyCallsProceedForOtherProducts(): void
@@ -70,19 +88,20 @@ class CheckAtelieQuoteItemQtyPluginTest extends TestCase
         $this->productRepoMock->method('getById')->with(100)->willReturn($product);
 
         $proceedResult = new DataObject(['from_proceed' => true]);
-        $proceed = function ($productId, $itemQty, $qtyToCheck, $origQty, $scopeId) use ($proceedResult) {
-            return $proceedResult;
-        };
+        $proceed = fn() => $proceedResult;
 
-        $result = $this->plugin->aroundCheckQuoteItemQty(
-            $this->subjectMock,
-            $proceed,
-            100,
-            2.0,
-            2.0,
-            0.0
-        );
+        $result = $this->plugin->aroundCheckQuoteItemQty($this->subjectMock, $proceed, 100, 2.0, 2.0, 0.0);
+        $this->assertSame($proceedResult, $result);
+    }
 
+    public function testAroundCheckQuoteItemQtyCallsProceedWhenProductNotFound(): void
+    {
+        $this->productRepoMock->method('getById')->willThrowException(new NoSuchEntityException());
+
+        $proceedResult = new DataObject(['from_proceed' => true]);
+        $proceed = fn() => $proceedResult;
+
+        $result = $this->plugin->aroundCheckQuoteItemQty($this->subjectMock, $proceed, 999, 1.0, 1.0, 0.0);
         $this->assertSame($proceedResult, $result);
     }
 }
