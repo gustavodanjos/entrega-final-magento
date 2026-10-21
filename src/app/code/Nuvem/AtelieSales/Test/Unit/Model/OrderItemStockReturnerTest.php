@@ -182,6 +182,23 @@ class OrderItemStockReturnerTest extends TestCase
         $this->returner->returnCreditmemo($this->creditmemo($this->item(3), 0.5, true));
     }
 
+    public function testCancellationPreservesFractionalStandardProducts(): void
+    {
+        $item = $this->createMock(OrderItemInterface::class);
+        $item->method('getProductType')->willReturn('simple');
+        $item->method('getQtyCanceled')->willReturn(0.5);
+        $this->connection->expects($this->never())->method('beginTransaction');
+        $this->returner->returnOrder($this->order($item));
+    }
+
+    public function testRefundPreservesFractionalStandardProducts(): void
+    {
+        $item = $this->createMock(OrderItemInterface::class);
+        $item->method('getProductType')->willReturn('simple');
+        $this->connection->expects($this->never())->method('beginTransaction');
+        $this->returner->returnCreditmemo($this->creditmemo($item, 0.5, true));
+    }
+
     private function item(int $ordered, int $canceled = 0): OrderItemInterface
     {
         $item = $this->createMock(OrderItemInterface::class);
