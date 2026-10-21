@@ -1,4 +1,7 @@
 <?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
 declare(strict_types=1);
 
 namespace Nuvem\Atelie\Model;
@@ -16,6 +19,10 @@ use Nuvem\Atelie\Api\Data\ConfigurationInterface;
 class ConfigurationSerializer
 {
     /**
+     * Serializes a configuration object to a normalized JSON string.
+     *
+     * @param ConfigurationInterface $configuration
+     * @return string
      * @throws \InvalidArgumentException when the same group is selected twice
      * @throws JsonException when the configuration cannot be encoded
      */
@@ -55,6 +62,10 @@ class ConfigurationSerializer
     }
 
     /**
+     * Reconstructs a configuration from contract-format JSON string.
+     *
+     * @param string $json
+     * @return ConfigurationInterface
      * @throws \InvalidArgumentException when the string is not valid contract-format JSON
      */
     public function unserialize(string $json): ConfigurationInterface

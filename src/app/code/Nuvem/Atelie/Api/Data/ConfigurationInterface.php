@@ -58,4 +58,50 @@ interface ConfigurationInterface
      * @throws \InvalidArgumentException when an item is not a SelectionInterface instance
      */
     public function setSelections(array $selections): static;
+
+    /**
+     * Get the selected size of the sneaker (REST contract alias).
+     *
+     * @return int
+     */
+    public function getTamanho(): int;
+
+    /**
+     * Set the selected size of the sneaker (REST contract alias).
+     *
+     * @param int $tamanho
+     * @return $this
+     */
+    public function setTamanho(int $tamanho): static;
+
+    /**
+     * Get the engraving text (REST contract alias).
+     *
+     * @return string|null null when the configuration has no engraving
+     */
+    public function getGravacao(): ?string;
+
+    /**
+     * Set the engraving text (REST contract alias).
+     *
+     * @param string|null $gravacao null when the configuration has no engraving
+     * @return $this
+     */
+    public function setGravacao(?string $gravacao): static;
+
+    /**
+     * Get the chosen components, one per group (REST contract alias).
+     *
+     * @return \Nuvem\Atelie\Api\Data\SelectionInterface[]
+     */
+    public function getSelecoes(): array;
+
+    /**
+     * Set the chosen components, one per group (REST contract alias).
+     *
+     * @param \Nuvem\Atelie\Api\Data\SelectionInterface[] $selecoes
+     * @return $this
+     * @throws \InvalidArgumentException when an item is not a SelectionInterface instance
+     */
+    public function setSelecoes(array $selecoes): static;
 }
