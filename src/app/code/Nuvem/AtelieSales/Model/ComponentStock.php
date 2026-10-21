@@ -178,7 +178,13 @@ class ComponentStock implements ComponentStockInterface
     /**
      * @inheritDoc
      */
-    public function return(string $componentCode, int $qty, ?int $orderId = null, ?int $orderItemId = null): void
+    public function return(
+        string $componentCode,
+        int $qty,
+        ?int $orderId = null,
+        ?int $orderItemId = null,
+        ?string $note = null
+    ): void
     {
         $this->assertPositiveQuantity($qty);
         $component = $this->resolveComponent($componentCode);
@@ -194,7 +200,7 @@ class ComponentStock implements ComponentStockInterface
                 null,
                 $orderId,
                 $orderItemId,
-                null
+                $note
             );
             $this->scheduleCacheInvalidation($component);
             $connection->commit();

@@ -62,10 +62,17 @@ interface ComponentStockInterface
      * @param int $qty units to return, must be positive
      * @param int|null $orderId
      * @param int|null $orderItemId
+     * @param string|null $note stable return document identity recorded in the ledger
      * @return void
      * @throws \Magento\Framework\Exception\LocalizedException when the component does not exist or the quantity is not positive
      */
-    public function return(string $componentCode, int $qty, ?int $orderId = null, ?int $orderItemId = null): void;
+    public function return(
+        string $componentCode,
+        int $qty,
+        ?int $orderId = null,
+        ?int $orderItemId = null,
+        ?string $note = null
+    ): void;
 
     /**
      * Set the stock of a component to an absolute quantity.
