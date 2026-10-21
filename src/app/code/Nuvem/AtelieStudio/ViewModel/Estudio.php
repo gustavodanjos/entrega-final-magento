@@ -80,7 +80,18 @@ class Estudio implements ArgumentInterface
             }
         }
 
-        $basePrice = (float) ($catalog['preco_base'] ?? $product->getFinalPrice());
+        $basePrice = 0.0;
+        if ($product) {
+            $basePrice = (float) (
+                $product->getFinalPrice()
+                ?: $product->getPrice()
+                ?: $product->getData('price')
+                ?: ($product->getPriceInfo() ? $product->getPriceInfo()->getPrice('final_price')->getAmount()->getValue() : 0.0)
+            );
+        }
+        if ($basePrice <= 0 && isset($catalog['preco_base'])) {
+            $basePrice = (float) $catalog['preco_base'];
+        }
 
         return [
             'produto' => [
@@ -133,4 +144,61 @@ class Estudio implements ArgumentInterface
     {
         return $this->jsonSerializer->serialize($this->getStudioData());
     }
+
+    /**
+     * Resolve a grade de tamanhos a partir do produto ou configuracao.
+     *
+     * @param mixed $product
+     * @return array
+     */
+    private function resolveGradeTamanhos($product): array
+    {
+        if ($product) {
+            $grade = $product->getData('grade_tamanhos');
+            if (is_string($grade) && trim($grade) !== '') {
+                return array_map('trim', explode(',', $grade));
+            }
+            if (is_array($grade) && !empty($grade)) {
+                return $grade;
+            }
+            if (stripos((string) $product->getSku(), 'MINI') !== false) {
+                return ['28', '29', '30', '31', '32', '33', '34'];
+            }
+        }
+        return ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44'];
+    }
+
+    /**
+     * Resolve parametros de gravacao a laser do produto/admin.
+     *
+     * @param mixed $product
+     * @return array
+     */
+    private function resolveConfigGravacao($product): array
+    {
+        $permitido = true;
+        $preco = 29.90;
+        $limite = 12;
+
+        if ($product) {
+            if ($product->getData('permite_gravacao') !== null) {
+                $permitido = (bool) $product->getData('permite_gravacao');
+            } elseif (stripos((string) $product->getSku(), 'MINI') !== false) {
+                $permitido = false;
+            }
+            if ($product->getData('preco_gravacao') !== null) {
+                $preco = (float) $product->getData('preco_gravacao');
+            }
+            if ($product->getData('limite_gravacao') !== null) {
+                $limite = (int) $product->getData('limite_gravacao');
+            }
+        }
+
+        return [
+            'permitido' => $permitido,
+            'preco' => $preco,
+            'limite' => $limite,
+        ];
+    }
+
 }
