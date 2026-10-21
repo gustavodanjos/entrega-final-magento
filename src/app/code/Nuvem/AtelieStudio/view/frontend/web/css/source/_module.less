@@ -1,10 +1,4 @@
-// Tokens Oficiais Nuvem / Manual de Marca
-@nuvem-grafite: #2E2A3B;
-@nuvem-magenta-profundo: #A3307A;
-@nuvem-magenta-hover: #8C2567;
-@nuvem-bruma: #E6E1F2;
-@nuvem-nevoa: #F3F0FF;
-@nuvem-branco: #FFFFFF;
+// Estilos do Estúdio Ateliê (reutiliza os tokens globais compilados pelo tema Nuvem: _nuvem-tokens.less)
 
 .atelie-studio {
     color: @nuvem-grafite;
@@ -115,7 +109,7 @@
             box-shadow: 0 0 0 2px fade(@nuvem-magenta-profundo, 20%);
         }
 
-        // Estado Bloqueado: visual translúcido com risco diagonal, mas clicável
+        // Estado Bloqueado: translúcido com risco diagonal, mas clicável
         &.is-blocked {
             opacity: 0.55;
             background: @nuvem-nevoa;

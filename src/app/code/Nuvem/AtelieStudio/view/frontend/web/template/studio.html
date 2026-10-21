@@ -36,7 +36,7 @@
             <!-- /ko -->
         </div>
 
-        <!-- Grade de Amostras (Sem disabled: clicável para exibir o balão com motivo) -->
+        <!-- Grade de Amostras -->
         <div class="atelie-options-grid">
             <!-- ko foreach: { data: grupo.opcoes, as: 'option' } -->
             <div class="atelie-swatch-wrapper">
@@ -62,7 +62,7 @@
                     </span>
                 </button>
 
-                <!-- Balão explicativo amigável para amostras com incompatibilidade -->
+                <!-- Balão explicativo amigável -->
                 <!-- ko if: $parents[1].isBlocked(option.codigo) && $parents[1].activeTooltip() === option.codigo -->
                 <div class="atelie-block-balloon" role="alert">
                     <span class="atelie-balloon-text" data-bind="text: $parents[1].getBlockReason(option.codigo)"></span>
@@ -76,11 +76,11 @@
     <!-- /ko -->
     <!-- /ko -->
 
-    <!-- Seção de Tamanho -->
+    <!-- Seção de Tamanho com grade dinâmica -->
     <div class="atelie-size-section">
         <span class="atelie-section-label">Tamanho (Grade)</span>
         <div class="atelie-size-grid">
-            <!-- ko foreach: ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44'] -->
+            <!-- ko foreach: gradeTamanhos -->
             <button type="button"
                     class="atelie-size-btn"
                     data-bind="
@@ -92,30 +92,41 @@
         </div>
     </div>
 
-    <!-- Seção de Gravação a Laser -->
+    <!-- Seção de Gravação a Laser Dinâmica -->
+    <!-- ko if: permiteGravacao -->
     <div class="atelie-laser-section">
         <div class="atelie-laser-header">
             <span class="atelie-section-label">Gravação a Laser Personalizada</span>
-            <span class="atelie-laser-badge">+ R$ 29,90</span>
+            <span class="atelie-laser-badge" data-bind="text: '+ R$ ' + laserPrice().toFixed(2).replace('.', ',')"></span>
         </div>
         <input type="text"
                class="atelie-laser-input"
-               maxlength="12"
                placeholder="Ex: NUVEM"
-               data-bind="value: laserText, valueUpdate: 'afterkeydown'" />
+               data-bind="
+                   value: laserText,
+                   valueUpdate: 'afterkeydown',
+                   attr: { maxlength: laserLimit }" />
         <div class="atelie-laser-counter">
             <span data-bind="text: laserRemainingChars() + ' restantes'"></span>
         </div>
     </div>
+    <!-- /ko -->
 
-    <!-- Inputs Ocultos Vinculados ao Formulário Nativo -->
+    <!-- Inputs Ocultos no formato estrito do contrato: atelie[selecoes][i][grupo] e [componente] -->
     <div class="atelie-hidden-inputs">
         <!-- ko foreach: { data: grupos, as: 'grupo' } -->
         <input type="hidden"
                form="product_addtocart_form"
                data-bind="
                    attr: {
-                       name: 'atelie[selecoes][' + grupo.codigo + ']',
+                       name: 'atelie[selecoes][' + $index() + '][grupo]',
+                       value: grupo.codigo
+                   }" />
+        <input type="hidden"
+               form="product_addtocart_form"
+               data-bind="
+                   attr: {
+                       name: 'atelie[selecoes][' + $index() + '][componente]',
                        value: $parent.selections[grupo.codigo]()
                    }" />
         <!-- /ko -->
@@ -123,9 +134,11 @@
                name="atelie[tamanho]"
                form="product_addtocart_form"
                data-bind="value: selectedSize" />
+        <!-- ko if: permiteGravacao -->
         <input type="hidden"
                name="atelie[gravacao]"
                form="product_addtocart_form"
                data-bind="value: laserText" />
+        <!-- /ko -->
     </div>
 </div>
