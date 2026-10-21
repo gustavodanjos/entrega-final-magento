@@ -72,4 +72,40 @@ class Movimentacao extends AbstractDb
             $connection->fetchAll($select)
         );
     }
+
+    /**
+     * Quantity of each component already returned for a specific order item.
+     *
+     * @param int $orderItemId
+     * @return array<string, int> component code => total quantity returned
+     */
+    public function getReturnedQuantitiesByOrderItemId(int $orderItemId): array
+    {
+        $connection = $this->getConnection();
+        $select = $connection->select()
+            ->from(
+                ['movimentacao' => $this->getMainTable()],
+                [
+                    'codigo' => 'componente.codigo',
+                    'total' => 'SUM(movimentacao.quantidade)',
+                ]
+            )
+            ->join(
+                ['componente' => $this->getTable(self::TABLE_COMPONENTE)],
+                'componente.componente_id = movimentacao.componente_id',
+                []
+            )
+            ->where('movimentacao.order_item_id = ?', $orderItemId)
+            ->where('movimentacao.tipo = ?', self::TIPO_DEVOLUCAO)
+            ->group('componente.codigo');
+
+        $rows = $connection->fetchPairs($select);
+        $result = [];
+        foreach ($rows as $code => $total) {
+            $result[(string) $code] = (int) $total;
+        }
+
+        return $result;
+    }
 }
+
