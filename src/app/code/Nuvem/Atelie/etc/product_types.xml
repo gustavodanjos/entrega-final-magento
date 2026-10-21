@@ -14,7 +14,7 @@
           canUseQtyDecimals="false"
           sortOrder="70">
         <priceModel instance="Magento\Catalog\Model\Product\Type\Price" />
-        <indexerModel instance="Magento\Catalog\Model\ResourceModel\Product\Indexer\Price\SimpleProductPrice" />
+        <indexerModel instance="Nuvem\Atelie\Model\ResourceModel\Product\Indexer\Price\AtelieProductPrice" />
         <customAttributes>
             <attribute name="refundable" value="true"/>
         </customAttributes>

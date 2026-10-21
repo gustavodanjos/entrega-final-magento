@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="product.info.type">
+            <block class="Magento\Catalog\Block\Product\View\Type\Simple"
+                   name="product.info.atelie"
+                   as="product_type_data"
+                   template="Magento_Catalog::product/view/type/default.phtml"/>
+            <container name="product.info.atelie.extra"
+                       after="product.info.atelie"
+                       as="product_type_data_extra"
+                       label="Product Extra Info"/>
+        </referenceContainer>
+    </body>
+</page>
