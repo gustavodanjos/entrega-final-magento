@@ -113,6 +113,19 @@ class CartItemProcessor implements CartItemProcessorInterface
      */
     private function resolveConfiguration(CartItemInterface $cartItem): ?ConfigurationInterface
     {
+        return $this->resolveFromExtensionAttributes($cartItem)
+            ?? $this->resolveFromQuoteOption($cartItem)
+            ?? $this->resolveFromBuyRequest($cartItem);
+    }
+
+    /**
+     * Resolve configuration from product option extension attributes.
+     *
+     * @param CartItemInterface $cartItem
+     * @return ConfigurationInterface|null
+     */
+    private function resolveFromExtensionAttributes(CartItemInterface $cartItem): ?ConfigurationInterface
+    {
         $productOption = $cartItem->getProductOption();
         if ($productOption instanceof ProductOptionInterface) {
             $extensionAttributes = $productOption->getExtensionAttributes();
@@ -124,6 +137,17 @@ class CartItemProcessor implements CartItemProcessorInterface
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Resolve configuration from quote item custom option.
+     *
+     * @param CartItemInterface $cartItem
+     * @return ConfigurationInterface|null
+     */
+    private function resolveFromQuoteOption(CartItemInterface $cartItem): ?ConfigurationInterface
+    {
         if (method_exists($cartItem, 'getOptionByCode')) {
             $option = $cartItem->getOptionByCode(Atelie::CUSTOM_OPTION_CONFIGURACAO);
             if ($option && $option->getValue()) {
@@ -152,6 +176,17 @@ class CartItemProcessor implements CartItemProcessorInterface
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Resolve configuration from buyRequest DataObject.
+     *
+     * @param CartItemInterface $cartItem
+     * @return ConfigurationInterface|null
+     */
+    private function resolveFromBuyRequest(CartItemInterface $cartItem): ?ConfigurationInterface
+    {
         if (method_exists($cartItem, 'getBuyRequest')) {
             $buyRequest = $cartItem->getBuyRequest();
             if ($buyRequest instanceof DataObject) {
