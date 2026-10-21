@@ -3,95 +3,29 @@ declare(strict_types=1);
 
 namespace Nuvem\AtelieSales\Test\Unit\Observer;
 
+use Magento\Framework\Event;
 use Magento\Framework\Event\Observer;
 use Magento\Quote\Model\Quote;
-use Magento\Sales\Model\Order;
-use Nuvem\AtelieSales\Api\ComponentStockInterface;
-use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
+use Nuvem\AtelieSales\Model\QuoteStockReservation;
 use Nuvem\AtelieSales\Observer\CompensateStockOnQuoteSubmitFailure;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class CompensateStockOnQuoteSubmitFailureTest extends TestCase
 {
-    /**
-     * @var ComponentStockInterface|MockObject
-     */
-    private MockObject $componentStockMock;
-
-    /**
-     * @var Movimentacao|MockObject
-     */
-    private MockObject $movimentacaoResourceMock;
-
-    /**
-     * @var Quote|MockObject
-     */
-    private MockObject $quoteMock;
-
-    private CompensateStockOnQuoteSubmitFailure $observer;
-
-    protected function setUp(): void
+    public function testMissingQuoteDoesNotMoveStock(): void
     {
-        $this->componentStockMock = $this->createMock(ComponentStockInterface::class);
-        $this->movimentacaoResourceMock = $this->createMock(Movimentacao::class);
-
-        $this->quoteMock = $this->createMock(Quote::class);
-        $this->quoteMock->method('getId')->willReturn(99);
-
-        $this->observer = new CompensateStockOnQuoteSubmitFailure(
-            $this->componentStockMock,
-            $this->movimentacaoResourceMock
-        );
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->expects($this->never())->method("compensate");
+        (new CompensateStockOnQuoteSubmitFailure($reservation))->execute(new Observer(['event' => new Event()]));
     }
 
-    private function createObserverMockWithQuote(?Order $order): Observer
+    public function testSubmitsTheEventQuoteToTheReservationService(): void
     {
-        return new Observer(
-            ['event' => new \Magento\Framework\Event(['quote' => $this->quoteMock, 'order' => $order])]
-        );
-    }
-
-    public function testCompensatesOnlyComponentsStillOwingStock(): void
-    {
-        $orderMock = $this->createMock(Order::class);
-        $orderMock->method('getId')->willReturn(123);
-
-        $this->movimentacaoResourceMock->method('getNetQuantitiesByQuoteId')
-            ->with(99)
-            ->willReturn([
-                ['componente_id' => 7, 'codigo' => 'SOL-LUA-HOLO', 'net' => -2],
-                ['componente_id' => 8, 'codigo' => 'CAB-TRICO-LAVANDA', 'net' => 0],
-            ]);
-
-        $this->componentStockMock
-            ->expects($this->once())
-            ->method('compensate')
-            ->with('SOL-LUA-HOLO', 2, 123, 99);
-
-        $this->observer->execute($this->createObserverMockWithQuote($orderMock));
-    }
-
-    public function testCompensatesNothingWhenLedgerIsBalanced(): void
-    {
-        $this->movimentacaoResourceMock->method('getNetQuantitiesByQuoteId')
-            ->with(99)
-            ->willReturn([['componente_id' => 7, 'codigo' => 'SOL-LUA-HOLO', 'net' => 0]]);
-
-        $this->componentStockMock->expects($this->never())->method('compensate');
-
-        $this->observer->execute($this->createObserverMockWithQuote(null));
-    }
-
-    public function testSkipsWhenQuoteIsMissing(): void
-    {
-        $observerMock = new Observer(
-            ['event' => new \Magento\Framework\Event([])]
-        );
-
-        $this->movimentacaoResourceMock->expects($this->never())->method('getNetQuantitiesByQuoteId');
-        $this->componentStockMock->expects($this->never())->method('compensate');
-
-        $this->observer->execute($observerMock);
+        $quote = $this->createMock(Quote::class);
+        $quote->method('getId')->willReturn(99);
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('hasReservation')->willReturn(true);
+        $reservation->expects($this->once())->method("compensate")->with($quote);
+        (new CompensateStockOnQuoteSubmitFailure($reservation))->execute(new Observer(['event' => new Event(['quote' => $quote])]));
     }
 }
