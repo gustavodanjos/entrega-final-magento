@@ -68,6 +68,8 @@ class ComponentStockTest extends TestCase
 
     private ComponentStock $componentStock;
 
+    private array $commitCallbacks = [];
+
     protected function setUp(): void
     {
         $this->componentRepositoryMock = $this->createMock(ComponentRepositoryInterface::class);
@@ -80,10 +82,25 @@ class ComponentStockTest extends TestCase
 
         $this->movimentacaoResourceMock->method('getMainTable')->willReturn('nuvem_atelie_movimentacao');
         $this->resourceConnectionMock->method('getConnection')->willReturn($this->connectionMock);
+        $this->resourceConnectionMock->method('getTableName')->willReturnArgument(0);
+        $this->movimentacaoResourceMock->method('getReservedQuantity')->willReturn(2);
+        $this->movimentacaoResourceMock->method('addCommitCallback')->willReturnCallback(
+            function (callable $callback): Movimentacao {
+                $this->commitCallbacks[] = $callback;
+                return $this->movimentacaoResourceMock;
+            }
+        );
+        $this->connectionMock->method('commit')->willReturnCallback(function (): void {
+            foreach ($this->commitCallbacks as $callback) {
+                $callback();
+            }
+            $this->commitCallbacks = [];
+        });
 
         $this->selectMock = $this->createMock(Select::class);
         $this->selectMock->method('from')->willReturnSelf();
         $this->selectMock->method('where')->willReturnSelf();
+        $this->selectMock->method('forUpdate')->willReturnSelf();
         $this->connectionMock->method('select')->willReturn($this->selectMock);
 
         $this->componentMock = $this->createMock(Component::class);
@@ -105,7 +122,6 @@ class ComponentStockTest extends TestCase
     public function testReserveDecrementsStockAndRecordsLedgerMovement(): void
     {
         $this->connectionMock->method('update')->willReturn(1);
-        $this->connectionMock->method('fetchOne')->willReturn('5');
         $this->connectionMock->expects($this->once())->method('beginTransaction');
         $this->connectionMock->expects($this->once())->method('commit');
         $this->connectionMock->expects($this->never())->method('rollBack');
@@ -124,7 +140,7 @@ class ComponentStockTest extends TestCase
                     'observacao' => null,
                 ]
             );
-        $this->eventManagerMock->expects($this->never())->method('dispatch');
+        $this->eventManagerMock->expects($this->once())->method('dispatch');
 
         $this->assertTrue($this->componentStock->reserve('SOL-LUA-HOLO', 2, null, null, 99));
     }
@@ -175,10 +191,9 @@ class ComponentStockTest extends TestCase
         $this->componentStock->reserve('SOL-LUA-HOLO', 0);
     }
 
-    public function testReserveInvalidatesComponentCacheWhenSoldOut(): void
+    public function testReserveInvalidatesComponentCacheAfterCommit(): void
     {
         $this->connectionMock->method('update')->willReturn(1);
-        $this->connectionMock->method('fetchOne')->willReturn('0');
         $this->componentMock->expects($this->once())->method('cleanModelCache');
         $this->eventManagerMock
             ->expects($this->once())
@@ -237,6 +252,8 @@ class ComponentStockTest extends TestCase
 
     public function testAdjustSetsAbsoluteStockAndRecordsDelta(): void
     {
+        $this->connectionMock->method('fetchOne')->willReturn('10');
+        $this->selectMock->expects($this->once())->method('forUpdate')->with(true);
         $this->connectionMock->expects($this->once())->method('beginTransaction');
         $this->connectionMock
             ->expects($this->once())
@@ -264,6 +281,7 @@ class ComponentStockTest extends TestCase
 
     public function testAdjustRecordsNoMovementWhenQuantityDoesNotChange(): void
     {
+        $this->connectionMock->method('fetchOne')->willReturn('10');
         $this->connectionMock->expects($this->once())->method('update');
         $this->connectionMock->expects($this->never())->method('insert');
         $this->connectionMock->expects($this->once())->method('commit');
@@ -291,6 +309,53 @@ class ComponentStockTest extends TestCase
         $this->expectExceptionMessage('A quantidade em estoque não pode ser negativa.');
 
         $this->componentStock->adjust('SOL-LUA-HOLO', -1);
+    }
+
+    /** @dataProvider movementMethods */
+    public function testLedgerFailureRollsBackEveryMovement(string $method): void
+    {
+        $this->connectionMock->method('update')->willReturn(1);
+        $this->connectionMock->method('fetchOne')->willReturn('10');
+        $failure = new \RuntimeException('ledger unavailable');
+        $this->connectionMock->method('insert')->willThrowException($failure);
+        $this->connectionMock->expects($this->once())->method('rollBack');
+        $this->connectionMock->expects($this->never())->method('commit');
+        $this->expectExceptionObject($failure);
+
+        $this->componentStock->$method('SOL-LUA-HOLO', 2);
+    }
+
+    public static function movementMethods(): array
+    {
+        return [['reserve'], ['compensate'], ['return'], ['adjust']];
+    }
+
+    public function testCompensationWithNoPendingReservationDoesNotCreateStock(): void
+    {
+        $resource = $this->createMock(Movimentacao::class);
+        $resource->method('getReservedQuantity')->willReturn(0);
+        $resource->expects($this->once())->method('lockQuote')->with(99);
+        $service = new ComponentStock(
+            $this->componentRepositoryMock,
+            $resource,
+            $this->resourceConnectionMock,
+            $this->atelieCatalogMock,
+            $this->scopeConfigMock,
+            $this->eventManagerMock
+        );
+        $this->connectionMock->expects($this->never())->method('update');
+        $this->connectionMock->expects($this->never())->method('insert');
+        $service->compensate('SOL-LUA-HOLO', 10, null, 99);
+    }
+
+    public function testCompensationCannotExceedOutstandingReservation(): void
+    {
+        $this->connectionMock->expects($this->once())->method('update')->with(
+            'nuvem_atelie_componente',
+            $this->callback(static fn (array $data): bool => (string) $data['estoque'] === 'estoque + 2'),
+            ['componente_id = ?' => 7]
+        );
+        $this->componentStock->compensate('SOL-LUA-HOLO', 10, null, 99);
     }
 
     public function testAvailabilityReportsFlagsWithoutQuantities(): void

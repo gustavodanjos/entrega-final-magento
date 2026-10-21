@@ -103,8 +103,11 @@ class ComponentStock implements ComponentStockInterface
 
         $connection->beginTransaction();
         try {
+            if ($quoteId !== null) {
+                $this->movimentacaoResource->lockQuote($quoteId);
+            }
             $affectedRows = $connection->update(
-                self::TABLE_COMPONENTE,
+                $this->resourceConnection->getTableName(self::TABLE_COMPONENTE),
                 ['estoque' => new Zend_Db_Expr('estoque - ' . $qty)],
                 [
                     'componente_id = ?' => (int) $component->getComponenteId(),
@@ -130,13 +133,12 @@ class ComponentStock implements ComponentStockInterface
                 $orderItemId,
                 null
             );
+            $this->scheduleCacheInvalidation($component);
             $connection->commit();
-        } catch (LocalizedException $exception) {
+        } catch (\Throwable $exception) {
             $connection->rollBack();
             throw $exception;
         }
-
-        $this->invalidateCacheWhenSoldOut($component);
 
         return true;
     }
@@ -152,10 +154,22 @@ class ComponentStock implements ComponentStockInterface
 
         $connection->beginTransaction();
         try {
+            if ($quoteId !== null) {
+                $this->movimentacaoResource->lockQuote($quoteId);
+                $qty = min($qty, $this->movimentacaoResource->getReservedQuantity(
+                    $quoteId,
+                    (int) $component->getComponenteId()
+                ));
+            }
+            if ($qty === 0) {
+                $connection->commit();
+                return;
+            }
             $this->increaseStock($component, $qty);
             $this->recordMovement($component, Movimentacao::TIPO_COMPENSACAO, $qty, $quoteId, $orderId, null, null);
+            $this->scheduleCacheInvalidation($component);
             $connection->commit();
-        } catch (LocalizedException $exception) {
+        } catch (\Throwable $exception) {
             $connection->rollBack();
             throw $exception;
         }
@@ -182,8 +196,9 @@ class ComponentStock implements ComponentStockInterface
                 $orderItemId,
                 null
             );
+            $this->scheduleCacheInvalidation($component);
             $connection->commit();
-        } catch (LocalizedException $exception) {
+        } catch (\Throwable $exception) {
             $connection->rollBack();
             throw $exception;
         }
@@ -203,9 +218,14 @@ class ComponentStock implements ComponentStockInterface
 
         $connection->beginTransaction();
         try {
-            $currentQty = (int) $component->getEstoque();
+            $currentQty = (int) $connection->fetchOne(
+                $connection->select()
+                    ->from($this->resourceConnection->getTableName(self::TABLE_COMPONENTE), 'estoque')
+                    ->where('componente_id = ?', (int) $component->getComponenteId())
+                    ->forUpdate(true)
+            );
             $connection->update(
-                self::TABLE_COMPONENTE,
+                $this->resourceConnection->getTableName(self::TABLE_COMPONENTE),
                 ['estoque' => $newQty],
                 ['componente_id = ?' => (int) $component->getComponenteId()]
             );
@@ -221,14 +241,11 @@ class ComponentStock implements ComponentStockInterface
                     $note !== '' ? $note : null
                 );
             }
+            $this->scheduleCacheInvalidation($component);
             $connection->commit();
-        } catch (LocalizedException $exception) {
+        } catch (\Throwable $exception) {
             $connection->rollBack();
             throw $exception;
-        }
-
-        if ($newQty === 0) {
-            $this->invalidateComponentCache($component);
         }
     }
 
@@ -278,7 +295,7 @@ class ComponentStock implements ComponentStockInterface
     private function increaseStock(ComponentInterface $component, int $qty): void
     {
         $this->connection()->update(
-            self::TABLE_COMPONENTE,
+            $this->resourceConnection->getTableName(self::TABLE_COMPONENTE),
             ['estoque' => new Zend_Db_Expr('estoque + ' . $qty)],
             ['componente_id = ?' => (int) $component->getComponenteId()]
         );
@@ -329,30 +346,22 @@ class ComponentStock implements ComponentStockInterface
     {
         $connection = $this->connection();
         $select = $connection->select()
-            ->from(self::TABLE_COMPONENTE, ['codigo', 'estoque'])
+            ->from($this->resourceConnection->getTableName(self::TABLE_COMPONENTE), ['codigo', 'estoque'])
             ->where('codigo IN (?)', $componentCodes);
 
         return array_map('intval', $connection->fetchPairs($select));
     }
 
     /**
-     * Invalidate the component cache identities when the guarded UPDATE sold the last unit.
+     * Cache readers must see committed stock, including replenishments.
+     * Magento discards these callbacks when an enclosing transaction rolls back.
      *
      * @param ComponentInterface $component
      * @return void
      */
-    private function invalidateCacheWhenSoldOut(ComponentInterface $component): void
+    private function scheduleCacheInvalidation(ComponentInterface $component): void
     {
-        $connection = $this->connection();
-        $remainingStock = (int) $connection->fetchOne(
-            $connection->select()
-                ->from(self::TABLE_COMPONENTE, 'estoque')
-                ->where('componente_id = ?', (int) $component->getComponenteId())
-        );
-
-        if ($remainingStock === 0) {
-            $this->invalidateComponentCache($component);
-        }
+        $this->movimentacaoResource->addCommitCallback(fn () => $this->invalidateComponentCache($component));
     }
 
     /**

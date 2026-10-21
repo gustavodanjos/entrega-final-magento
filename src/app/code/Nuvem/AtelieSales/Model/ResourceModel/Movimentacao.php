@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Nuvem\AtelieSales\Model\ResourceModel;
 
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Model\ResourceModel\Db\AbstractDb;
 
 /**
@@ -34,12 +35,49 @@ class Movimentacao extends AbstractDb
     }
 
     /**
+     * Serialize stock operations belonging to the same persisted quote.
+     *
+     * @param int $quoteId
+     * @return void
+     * @throws LocalizedException
+     */
+    public function lockQuote(int $quoteId): void
+    {
+        $connection = $this->getConnection();
+        $quoteId = $connection->fetchOne(
+            $connection->select()->from($this->getTable('quote'), 'entity_id')
+                ->where('entity_id = ?', $quoteId)->forUpdate(true)
+        );
+        if (!$quoteId) {
+            throw new LocalizedException(__('O carrinho não existe mais. Atualize a página e tente novamente.'));
+        }
+    }
+
+    /**
+     * Current read avoids an enclosing transaction's repeatable-read snapshot.
+     * The caller must hold the quote lock until its movement is committed.
+     *
+     * @param int $quoteId
+     * @param int $componentId
+     * @return int
+     */
+    public function getReservedQuantity(int $quoteId, int $componentId): int
+    {
+        $quantities = $this->getConnection()->fetchCol(
+            $this->getConnection()->select()->from($this->getMainTable(), 'quantidade')
+                ->where('quote_id = ?', $quoteId)->where('componente_id = ?', $componentId)
+                ->forUpdate(true)
+        );
+        return max(0, -(int) array_sum($quantities));
+    }
+
+    /**
      * Net quantity still owed per component for a quote.
      *
      * Every ledger row attributed to the quote counts towards the balance:
      * a negative net means the quote still owes stock to the ledger, a zero
      * net means the quote is already balanced. This makes the compensation
-     * idempotent: a second compensation attempt finds net zero and does nothing.
+     * idempotent when the caller locks the quote before reading the balance.
      *
      * @param int $quoteId
      * @return array<int, array{componente_id: int, codigo: string, net: int}>

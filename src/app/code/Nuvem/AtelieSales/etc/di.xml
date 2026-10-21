@@ -14,4 +14,8 @@
         <plugin name="nuvem_atelie_sales_strip_tampered_price"
                 type="Nuvem\AtelieSales\Plugin\Webapi\StripTamperedPricePlugin"/>
     </type>
+    <type name="Magento\Quote\Model\QuoteManagement">
+        <plugin name="nuvem_atelie_sales_compensate_failed_submission"
+                type="Nuvem\AtelieSales\Plugin\QuoteManagement\CompensateFailedSubmission"/>
+    </type>
 </config>
