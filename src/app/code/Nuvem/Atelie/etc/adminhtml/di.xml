@@ -14,10 +14,15 @@
         </arguments>
     </virtualType>
 
-    <virtualType name="Magento\Catalog\Ui\DataProvider\Product\Form\Modifier\Pool">
+    <virtualType name="Magento\Catalog\Ui\DataProvider\Product\Form\Modifier\Pool"
+                 type="Magento\Ui\DataProvider\Modifier\Pool">
         <arguments>
             <argument name="modifiers" xsi:type="array">
-                <item name="atelieQuantity" xsi:type="string">Nuvem\Atelie\Ui\DataProvider\Product\Form\Modifier\AtelieQuantity</item>
+                <item name="atelieQuantity" xsi:type="array">
+                    <item name="class"
+                          xsi:type="string">Nuvem\Atelie\Ui\DataProvider\Product\Form\Modifier\AtelieQuantity</item>
+                    <item name="sortOrder" xsi:type="number">150</item>
+                </item>
             </argument>
         </arguments>
     </virtualType>
