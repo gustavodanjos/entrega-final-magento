@@ -147,4 +147,48 @@ class OrderItemConfigurationReaderTest extends TestCase
 
         $this->reader->getComponentQuantities($this->itemMock);
     }
+    public function testThrowsForAtelieItemWithoutConfiguration(): void
+    {
+        $this->itemMock->method('getProductType')->willReturn('atelie');
+        $this->itemMock->method('getProductOptions')->willReturn(null);
+        $this->expectException(LocalizedException::class);
+        $this->reader->getComponentQuantities($this->itemMock);
+    }
+
+    public function testThrowsForEmptySelections(): void
+    {
+        $this->itemMock->method('getProductOptions')->willReturn([
+            'atelie_configuracao' => ['selecoes' => []],
+        ]);
+        $this->expectException(LocalizedException::class);
+        $this->reader->getComponentQuantities($this->itemMock);
+    }
+
+    public function testThrowsForMalformedSelection(): void
+    {
+        $this->itemMock->method('getProductOptions')->willReturn([
+            'atelie_configuracao' => ['selecoes' => ['invalid']],
+        ]);
+        $this->expectException(LocalizedException::class);
+        $this->reader->getComponentQuantities($this->itemMock);
+    }
+
+    public function testCountsRepeatedComponentsInStoredConfiguration(): void
+    {
+        $this->itemMock->method('getProductOptions')->willReturn([
+            'atelie_configuracao' => ['selecoes' => [
+                ['componente' => 'SOL-LUA-HOLO'], ['componente' => 'SOL-LUA-HOLO'],
+            ]],
+        ]);
+        self::assertSame(['SOL-LUA-HOLO' => 4], $this->reader->getComponentQuantities($this->itemMock, 2));
+    }
+
+    public function testReadsHistoricalBuyRequestConfiguration(): void
+    {
+        $this->itemMock->method('getProductOptions')->willReturn([
+            'info_buyRequest' => ['atelie' => ['selections' => [['component' => 'SOL-LUA-HOLO']]]],
+        ]);
+        self::assertSame(['SOL-LUA-HOLO' => 1], $this->reader->getComponentQuantities($this->itemMock, 1));
+    }
+
 }
