@@ -160,7 +160,9 @@ class CreateAtelieProductAttributes implements DataPatchInterface
      */
     public static function getDependencies(): array
     {
-        return [];
+        return [
+            EnableProductAttributesForAtelie::class,
+        ];
     }
 
     /**

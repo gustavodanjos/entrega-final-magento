@@ -6,6 +6,8 @@ declare(strict_types=1);
 
 namespace Nuvem\Atelie\Test\Unit\Setup\Patch\Data;
 
+use Magento\Catalog\Api\CategoryRepositoryInterface;
+use Magento\Catalog\Api\Data\CategoryInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
@@ -13,20 +15,20 @@ use Magento\Catalog\Model\Product\Visibility;
 use Magento\Catalog\Model\ProductFactory;
 use Magento\CatalogInventory\Api\Data\StockItemInterface;
 use Magento\CatalogInventory\Api\StockRegistryInterface;
+use Magento\CatalogUrlRewrite\Model\ProductUrlRewriteGenerator;
 use Magento\Eav\Setup\EavSetup;
 use Magento\Eav\Setup\EavSetupFactory;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\State;
-use Magento\Framework\DB\Adapter\AdapterInterface;
-use Magento\Framework\DB\Select;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\File\Csv;
 use Magento\Framework\Filesystem\Driver\File as FileDriver;
 use Magento\Framework\Module\Dir\Reader as ModuleReader;
 use Magento\Framework\Setup\ModuleDataSetupInterface;
-use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Api\Data\WebsiteInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use Magento\UrlRewrite\Model\UrlPersistInterface;
+use Magento\UrlRewrite\Service\V1\Data\UrlRewrite;
 use Nuvem\Atelie\Model\Product\Type\Atelie;
 use Nuvem\Atelie\Setup\Patch\Data\CreateAtelieProductAttributes;
 use Nuvem\Atelie\Setup\Patch\Data\CreateAtelieProducts;
@@ -55,6 +57,11 @@ class CreateAtelieProductsTest extends TestCase
      * @var ProductRepositoryInterface|MockObject
      */
     private ProductRepositoryInterface|MockObject $productRepositoryMock;
+
+    /**
+     * @var CategoryRepositoryInterface|MockObject
+     */
+    private CategoryRepositoryInterface|MockObject $categoryRepositoryMock;
 
     /**
      * @var StoreManagerInterface|MockObject
@@ -87,9 +94,14 @@ class CreateAtelieProductsTest extends TestCase
     private Csv|MockObject $csvReaderMock;
 
     /**
-     * @var AdapterInterface|MockObject
+     * @var ProductUrlRewriteGenerator|MockObject
      */
-    private AdapterInterface|MockObject $connectionMock;
+    private ProductUrlRewriteGenerator|MockObject $productUrlRewriteGeneratorMock;
+
+    /**
+     * @var UrlPersistInterface|MockObject
+     */
+    private UrlPersistInterface|MockObject $urlPersistMock;
 
     /**
      * @var EavSetup|MockObject
@@ -107,17 +119,16 @@ class CreateAtelieProductsTest extends TestCase
         $this->eavSetupFactoryMock = $this->createMock(EavSetupFactory::class);
         $this->productFactoryMock = $this->createMock(ProductFactory::class);
         $this->productRepositoryMock = $this->createMock(ProductRepositoryInterface::class);
+        $this->categoryRepositoryMock = $this->createMock(CategoryRepositoryInterface::class);
         $this->storeManagerMock = $this->createMock(StoreManagerInterface::class);
         $this->appStateMock = $this->createMock(State::class);
         $this->stockRegistryMock = $this->createMock(StockRegistryInterface::class);
         $this->moduleReaderMock = $this->createMock(ModuleReader::class);
         $this->fileDriverMock = $this->createMock(FileDriver::class);
         $this->csvReaderMock = $this->createMock(Csv::class);
-        $this->connectionMock = $this->createMock(AdapterInterface::class);
+        $this->productUrlRewriteGeneratorMock = $this->createMock(ProductUrlRewriteGenerator::class);
+        $this->urlPersistMock = $this->createMock(UrlPersistInterface::class);
         $this->eavSetupMock = $this->createMock(EavSetup::class);
-
-        $this->moduleDataSetupMock->method('getConnection')->willReturn($this->connectionMock);
-        $this->moduleDataSetupMock->method('getTable')->willReturnArgument(0);
 
         $this->eavSetupFactoryMock->method('create')
             ->with(['setup' => $this->moduleDataSetupMock])
@@ -128,12 +139,15 @@ class CreateAtelieProductsTest extends TestCase
             $this->eavSetupFactoryMock,
             $this->productFactoryMock,
             $this->productRepositoryMock,
+            $this->categoryRepositoryMock,
             $this->storeManagerMock,
             $this->appStateMock,
             $this->stockRegistryMock,
             $this->moduleReaderMock,
             $this->fileDriverMock,
-            $this->csvReaderMock
+            $this->csvReaderMock,
+            $this->productUrlRewriteGeneratorMock,
+            $this->urlPersistMock
         );
     }
 
@@ -160,10 +174,6 @@ class CreateAtelieProductsTest extends TestCase
         $websiteMock->method('getId')->willReturn(1);
         $this->storeManagerMock->method('getWebsites')->willReturn([$websiteMock]);
 
-        $storeMock = $this->createMock(StoreInterface::class);
-        $storeMock->method('getId')->willReturn(1);
-        $this->storeManagerMock->method('getDefaultStoreView')->willReturn($storeMock);
-
         $this->moduleReaderMock->method('getModuleDir')
             ->with('', 'Nuvem_Atelie')
             ->willReturn('/path/to/Nuvem/Atelie');
@@ -177,11 +187,8 @@ class CreateAtelieProductsTest extends TestCase
         ];
         $this->csvReaderMock->method('getData')->willReturn($csvData);
 
-        $selectMock = $this->createMock(Select::class);
-        $selectMock->method('from')->willReturnSelf();
-        $selectMock->method('where')->willReturnSelf();
-        $this->connectionMock->method('select')->willReturn($selectMock);
-        $this->connectionMock->method('fetchOne')->willReturn(null);
+        $categoryMock = $this->createMock(CategoryInterface::class);
+        $this->categoryRepositoryMock->method('get')->with(38)->willReturn($categoryMock);
 
         $productRunnerMock = $this->createMock(Product::class);
         $productRunnerMock->method('getId')->willReturn(101);
@@ -228,18 +235,14 @@ class CreateAtelieProductsTest extends TestCase
         $this->stockRegistryMock->method('getStockItemBySku')->willReturn($stockItemMock);
         $this->stockRegistryMock->expects($this->exactly(2))->method('updateStockItemBySku');
 
-        $this->connectionMock->expects($this->exactly(2))
-            ->method('update')
-            ->with('catalog_product_entity', ['attribute_set_id' => 15], $this->anything());
+        $rewriteMock = $this->createMock(UrlRewrite::class);
+        $this->productUrlRewriteGeneratorMock->expects($this->exactly(2))
+            ->method('generate')
+            ->willReturn([$rewriteMock]);
 
-        $this->connectionMock->expects($this->exactly(2))
-            ->method('insert')
-            ->with(
-                'url_rewrite',
-                $this->callback(function (array $data): bool {
-                    return in_array($data['request_path'], ['nuvem-runner.html', 'nuvem-mini.html'], true);
-                })
-            );
+        $this->urlPersistMock->expects($this->exactly(2))
+            ->method('replace')
+            ->with([$rewriteMock]);
 
         $this->patch->executeProductCreation();
     }
