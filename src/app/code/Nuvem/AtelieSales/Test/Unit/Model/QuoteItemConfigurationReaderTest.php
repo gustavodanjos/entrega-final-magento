@@ -23,6 +23,7 @@ class QuoteItemConfigurationReaderTest extends TestCase
     {
         $this->itemMock = $this->createMock(Item::class);
         $this->itemMock->method('getSku')->willReturn('NUVEM-RUNNER');
+        $this->itemMock->method('getProductType')->willReturn('atelie');
         $this->reader = new QuoteItemConfigurationReader();
     }
 
@@ -43,11 +44,59 @@ class QuoteItemConfigurationReaderTest extends TestCase
         );
     }
 
-    public function testSkipsItemsWithoutTheAtelieOption(): void
+    public function testSkipsOtherProductTypes(): void
     {
-        $this->itemMock->method('getOptionByCode')->willReturn(null);
+        $item = $this->createMock(Item::class);
+        $item->method('getProductType')->willReturn('simple');
+        $item->expects($this->never())->method('getOptionByCode');
+        $this->assertSame([], $this->reader->getComponentQuantities($item));
+    }
 
-        $this->assertSame([], $this->reader->getComponentQuantities($this->itemMock));
+    public function testRejectsAtelieItemWithoutConfiguration(): void
+    {
+        $this->expectException(LocalizedException::class);
+        $this->reader->getComponentQuantities($this->itemMock);
+    }
+
+    /** @dataProvider invalidConfigurations */
+    public function testRejectsInvalidSelectionStructures(string $json): void
+    {
+        $option = $this->createMock(Option::class);
+        $option->method('getValue')->willReturn($json);
+        $this->itemMock->method('getOptionByCode')->willReturn($option);
+        $this->itemMock->method('getQty')->willReturn(1.0);
+        $this->expectException(LocalizedException::class);
+        $this->reader->getComponentQuantities($this->itemMock);
+    }
+
+    public static function invalidConfigurations(): array
+    {
+        return array_map(static fn (array $selections): array => [json_encode([
+            'tamanho' => 40, 'gravacao' => null, 'selecoes' => $selections,
+        ])], [
+            [], ['invalid'],
+            [['grupo' => 'solado', 'componente' => '']],
+            [['grupo' => 'solado', 'componente' => 'SOL-LUA-HOLO'],
+             ['grupo' => 'solado', 'componente' => 'SOL-LUA-HOLO']],
+        ]);
+    }
+
+    /** @dataProvider invalidQuantities */
+    public function testRejectsInvalidQuantity(float $qty): void
+    {
+        $option = $this->createMock(Option::class);
+        $option->method('getValue')->willReturn(
+            '{"tamanho":40,"gravacao":null,"selecoes":[{"grupo":"solado","componente":"SOL-LUA-HOLO"}]}'
+        );
+        $this->itemMock->method('getOptionByCode')->willReturn($option);
+        $this->itemMock->method('getQty')->willReturn($qty);
+        $this->expectException(LocalizedException::class);
+        $this->reader->getComponentQuantities($this->itemMock);
+    }
+
+    public static function invalidQuantities(): array
+    {
+        return [[0.0], [-1.0], [1.5], [INF]];
     }
 
     public function testThrowsOnCorruptedConfiguration(): void
