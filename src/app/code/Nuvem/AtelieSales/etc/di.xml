@@ -5,11 +5,6 @@
                 type="Nuvem\AtelieSales\Model\ProvisionalComponentStock"/>
     <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
                 type="Nuvem\AtelieSales\Model\PriceCalculator"/>
-    <type name="Magento\Catalog\Model\Product\Type">
-        <plugin name="nuvem_atelie_sales_price_model"
-                type="Nuvem\AtelieSales\Plugin\Catalog\Product\Type\PriceModelPlugin"
-                sortOrder="10"/>
-    </type>
     <type name="Magento\Framework\Webapi\ServiceInputProcessor">
         <plugin name="nuvem_atelie_sales_strip_tampered_price"
                 type="Nuvem\AtelieSales\Plugin\Webapi\StripTamperedPricePlugin"/>
