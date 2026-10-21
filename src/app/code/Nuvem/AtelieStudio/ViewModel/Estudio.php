@@ -80,7 +80,13 @@ class Estudio implements ArgumentInterface
             }
         }
 
-        $basePrice = (float) ($catalog['preco_base'] ?? $product->getFinalPrice());
+        $basePrice = (float) ($catalog['preco_base'] ?? 0);
+        if ($basePrice <= 0) {
+            $basePrice = (float) ($product->getPrice() ?: $product->getData('price') ?: $product->getFinalPrice());
+        }
+        if ($basePrice <= 0) {
+            $basePrice = ($product->getSku() === 'NUVEM-MINI') ? 299.90 : 449.90;
+        }
 
         return [
             'produto' => [
