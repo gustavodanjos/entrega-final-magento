@@ -8,6 +8,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Api\Data\OrderItemInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Creditmemo;
+use Nuvem\Atelie\Model\Product\Type\Atelie;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 
@@ -37,6 +38,9 @@ class OrderItemStockReturner
     {
         $returns = [];
         foreach ($order->getAllItems() as $item) {
+            if ($item->getProductType() !== Atelie::TYPE_CODE) {
+                continue;
+            }
             $quantity = $this->quantity($item->getQtyCanceled());
             if ($quantity > 0) {
                 $returns[] = ['item' => $item, 'qty' => $quantity];
@@ -61,6 +65,9 @@ class OrderItemStockReturner
                 continue;
             }
             $orderItem = $item->getOrderItem();
+            if ($orderItem->getProductType() !== Atelie::TYPE_CODE) {
+                continue;
+            }
             $quantity = $this->quantity($item->getQty());
             if ($quantity > 0) {
                 $returns[] = ['item' => $orderItem, 'qty' => $quantity];
