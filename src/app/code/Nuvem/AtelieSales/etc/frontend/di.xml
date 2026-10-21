@@ -13,4 +13,11 @@
             </argument>
         </arguments>
     </type>
+    <type name="Magento\Checkout\CustomerData\ItemPool">
+        <arguments>
+            <argument name="itemMap" xsi:type="array">
+                <item name="atelie" xsi:type="string">Nuvem\AtelieSales\CustomerData\AtelieItem</item>
+            </argument>
+        </arguments>
+    </type>
 </config>
