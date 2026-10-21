@@ -28,7 +28,7 @@ class OrderItemStockReturner
     }
 
     /**
-     * Return components in one transaction across all configured order items.
+     * Called within order persistence so cancellation and stock share the transaction.
      *
      * @param Order $order
      * @return void
@@ -37,7 +37,7 @@ class OrderItemStockReturner
     {
         $returns = [];
         foreach ($order->getAllItems() as $item) {
-            $quantity = $this->quantity($item->getQtyOrdered());
+            $quantity = $this->quantity($item->getQtyCanceled());
             if ($quantity > 0) {
                 $returns[] = ['item' => $item, 'qty' => $quantity];
             }
@@ -111,10 +111,11 @@ class OrderItemStockReturner
         }
         $orderedQuantity = $this->quantity($item->getQtyOrdered());
         $returned = $this->stockLedger->getReturnedQuantitiesByOrderItemId($itemId, null, $orderId);
+        $returnedForDocument = $this->stockLedger->getReturnedQuantitiesByOrderItemId($itemId, $note, $orderId);
         ksort($componentQuantities);
         foreach ($componentQuantities as $code => $unitsPerItem) {
             $remaining = $orderedQuantity * $unitsPerItem - ($returned[$code] ?? 0);
-            $requested = $requestedQuantity * $unitsPerItem;
+            $requested = $requestedQuantity * $unitsPerItem - ($returnedForDocument[$code] ?? 0);
             $quantity = min($remaining, $requested);
             if ($quantity > 0) {
                 $this->componentStock->return($code, $quantity, $orderId, $itemId, $note);
