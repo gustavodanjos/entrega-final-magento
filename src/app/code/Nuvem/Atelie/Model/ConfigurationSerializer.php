@@ -30,7 +30,8 @@ class ConfigurationSerializer
     {
         $selections = [];
         foreach ($configuration->getSelections() as $selection) {
-            $group = $selection->getGroup();
+            $group = (string) ($selection->getGrupo() ?: $selection->getGroup());
+            $component = (string) ($selection->getComponente() ?: $selection->getComponent());
             if (isset($selections[$group])) {
                 throw new \InvalidArgumentException(
                     sprintf('The group "%s" is selected more than once.', $group)
@@ -38,22 +39,24 @@ class ConfigurationSerializer
             }
             $selections[$group] = [
                 'grupo' => $group,
-                'componente' => $selection->getComponent(),
+                'componente' => $component,
             ];
         }
         ksort($selections);
 
-        $engraving = $configuration->getEngraving();
+        $engraving = $configuration->getGravacao() ?? $configuration->getEngraving();
         if ($engraving !== null) {
-            $engraving = trim($engraving);
+            $engraving = trim((string) $engraving);
             if ($engraving === '') {
                 $engraving = null;
             }
         }
 
+        $size = (int) ($configuration->getTamanho() ?: $configuration->getSize());
+
         return json_encode(
             [
-                'tamanho' => $configuration->getSize(),
+                'tamanho' => $size,
                 'gravacao' => $engraving,
                 'selecoes' => array_values($selections),
             ],
