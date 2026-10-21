@@ -52,6 +52,9 @@ class OrderItemStockReturner
      */
     public function returnCreditmemo(Creditmemo $creditmemo): void
     {
+        if (!$creditmemo->getEntityId() || (int) $creditmemo->getState() !== Creditmemo::STATE_REFUNDED) {
+            return;
+        }
         $returns = [];
         foreach ($creditmemo->getAllItems() as $item) {
             if (!$item->getBackToStock()) {
