@@ -40,10 +40,13 @@ interface ComponentStockInterface
      * On error nothing changes: stock is only released for real components with
      * a positive quantity.
      *
+     * With a quote ID, compensation is capped to its outstanding ledger balance under a quote lock.
+     * Without a quote ID, the caller is responsible for preventing duplicate compensation.
+     *
      * @param string $componentCode component code (e.g. "SOL-LUA-HOLO")
      * @param int $qty units to release, must be positive
      * @param int|null $orderId
-     * @param int|null $quoteId quote the compensation refers to, recorded in the ledger so the compensation is idempotent per quote
+     * @param int|null $quoteId quote whose outstanding reservation will be released
      * @return void
      * @throws \Magento\Framework\Exception\LocalizedException when the component does not exist or the quantity is not positive
      */
