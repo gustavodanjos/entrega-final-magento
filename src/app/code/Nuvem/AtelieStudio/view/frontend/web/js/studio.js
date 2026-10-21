@@ -13,30 +13,49 @@ define([
             this._super();
 
             var self = this;
-            var config = this.configurador || {};
-            var grupos = config.grupos || [];
+            var config = this.studioData || {};
+            var produto = config.produto || {};
+            var initial = config.configuracao_inicial || {};
+            var grupos = (config.grupos || []).map(function (grupo) {
+                return Object.assign({}, grupo, {
+                    opcoes: (grupo.componentes || []).map(function (componente) {
+                        return Object.assign({}, componente, {
+                            hex: componente.cor_hex,
+                            acrescimo: componente.preco_adicional
+                        });
+                    })
+                });
+            });
             var regras = config.regras || [];
-            var gravacao = config.gravacao || {};
+            var gravacao = produto.gravacao || {};
 
             this.grupos = ko.observableArray(grupos);
             this.activeTab = ko.observable(grupos.length > 0 ? grupos[0].codigo : '');
             
             // Dados dinamicos fornecidos pelo ViewModel
-            var gradeDisponivel = config.grade_tamanhos || ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44'];
+            var gradeDisponivel = produto.grade_tamanhos || [];
             this.gradeTamanhos = ko.observableArray(gradeDisponivel);
-            this.selectedSize = ko.observable(gradeDisponivel.length > 4 ? gradeDisponivel[4] : gradeDisponivel[0]);
+            this.selectedSize = ko.observable(
+                gradeDisponivel.indexOf(initial.tamanho) !== -1 ? initial.tamanho : gradeDisponivel[0]
+            );
 
-            this.permiteGravacao = ko.observable(gravacao.permitido !== undefined ? gravacao.permitido : true);
+            this.permiteGravacao = ko.observable(!!gravacao.permitida);
             this.laserPrice = ko.observable(gravacao.preco !== undefined ? parseFloat(gravacao.preco) : 29.90);
-            this.laserLimit = ko.observable(gravacao.limite !== undefined ? parseInt(gravacao.limite, 10) : 12);
-            this.laserText = ko.observable('');
-            this.basePrice = ko.observable(config.preco_base ? parseFloat(config.preco_base) : 0.0);
+            this.laserLimit = ko.observable(
+                gravacao.limite_caracteres !== undefined ? parseInt(gravacao.limite_caracteres, 10) : 12
+            );
+            this.laserText = ko.observable(initial.gravacao || '');
+            this.basePrice = ko.observable(parseFloat(produto.preco_base) || 0.0);
             this.activeTooltip = ko.observable(null);
 
             // Observables de selecao por grupo
             this.selections = {};
             grupos.forEach(function (grupo) {
-                var initialOption = (grupo.opcoes && grupo.opcoes.length > 0) ? grupo.opcoes[0].codigo : '';
+                var selection = (initial.selecoes || []).find(function (item) {
+                    return item.grupo === grupo.codigo;
+                });
+                var initialOption = selection ? selection.componente :
+                    (grupo.opcoes.length > 0 ? grupo.opcoes[0].codigo : '');
                 self.selections[grupo.codigo] = ko.observable(initialOption);
             });
 
