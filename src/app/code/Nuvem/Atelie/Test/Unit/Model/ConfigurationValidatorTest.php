@@ -38,6 +38,19 @@ use Nuvem\Atelie\Model\ValidationResultFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Unit tests for Atelie Configuration Validator (F1.6)
+ *
+ * Verifies all factory rules and core business constraints:
+ * - Valid configuration for Nuvem Runner and Nuvem Mini
+ * - Rules R01 to R05 (bloqueia and exige)
+ * - Mandatory group missing
+ * - Component in wrong group
+ * - Engraving with HTML tags / scripts
+ * - Nuvem Mini with engraving (forbidden)
+ * - Strict test isolation (breaking a rule causes exactly one test failure)
+ * - Mocks repositories with createMock (no database)
+ */
 class ConfigurationValidatorTest extends TestCase
 {
     /**
@@ -515,6 +528,29 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertEmpty($result->getMessages());
     }
 
+    public function testValidConfigurationForNuvemMiniWithoutEngravingReturnsValidResult(): void
+    {
+        $config = $this->createMock(ConfigurationInterface::class);
+        $config->method('getSize')->willReturn(30);
+        $config->method('getEngraving')->willReturn(null);
+
+        $selections = [
+            $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
+            $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
+            $this->createSelection('calcanhar', 'CAL-ACOLCHOADO-CEU'),
+            $this->createSelection('cadarco', 'CAD-ALGODAO-NUVEM'),
+            $this->createSelection('emblema', 'EMB-NUVEM-PESSEGO'),
+            $this->createSelection('entressola', 'ENT-EVA-NUVEM'),
+            $this->createSelection('solado', 'SOL-BORRACHA-MENTA'),
+        ];
+        $config->method('getSelections')->willReturn($selections);
+
+        $result = $this->validator->validate('NUVEM-MINI', $config);
+
+        $this->assertTrue($result->isValid());
+        $this->assertEmpty($result->getMessages());
+    }
+
     public function testBatchLoadingAvoidsNPlusOneQueries(): void
     {
         $repoMock = $this->createMock(ComponentRepositoryInterface::class);
@@ -568,6 +604,7 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-RUNNER', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains('O grupo obrigatório "Solado" não foi informado.', $result->getMessages());
     }
 
@@ -653,7 +690,7 @@ class ConfigurationValidatorTest extends TestCase
             $this->createSelection('cabedal', 'SOL-BORRACHA-MENTA'),
             $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
             $this->createSelection('calcanhar', 'CAL-ACOLCHOADO-CEU'),
-            $this->createSelection('cadarco', 'CAD-ELASTICO-MENTA'),
+            $this->createSelection('cadarco', 'CAD-ALGODAO-NUVEM'),
             $this->createSelection('emblema', 'EMB-NUVEM-PESSEGO'),
             $this->createSelection('entressola', 'ENT-EVA-NUVEM'),
             $this->createSelection('solado', 'SOL-TRANSLUCIDO-GELO'),
@@ -663,6 +700,7 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-RUNNER', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains(
             'O componente "Borracha Menta" não pertence ao grupo "Cabedal".',
             $result->getMessages()
@@ -745,6 +783,7 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-MINI', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains('O produto "Nuvem Mini" não permite gravação.', $result->getMessages());
     }
 
@@ -752,7 +791,7 @@ class ConfigurationValidatorTest extends TestCase
     {
         $config = $this->createMock(ConfigurationInterface::class);
         $config->method('getSize')->willReturn(38);
-        $config->method('getEngraving')->willReturn('<script>alert(1)</script>');
+        $config->method('getEngraving')->willReturn('<script>');
 
         $selections = [
             $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
@@ -768,6 +807,34 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-RUNNER', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
+        $this->assertContains(
+            'A gravação deve conter apenas letras, números, espaços e hífen.',
+            $result->getMessages()
+        );
+    }
+
+    public function testEngravingWithHtmlMarkupTagIsRefused(): void
+    {
+        $config = $this->createMock(ConfigurationInterface::class);
+        $config->method('getSize')->willReturn(38);
+        $config->method('getEngraving')->willReturn('<b>BIA</b>');
+
+        $selections = [
+            $this->createSelection('cabedal', 'CAB-TRICO-LAVANDA'),
+            $this->createSelection('biqueira', 'BIQ-LISA-CEU'),
+            $this->createSelection('calcanhar', 'CAL-ACOLCHOADO-CEU'),
+            $this->createSelection('cadarco', 'CAD-ELASTICO-MENTA'),
+            $this->createSelection('emblema', 'EMB-NUVEM-PESSEGO'),
+            $this->createSelection('entressola', 'ENT-EVA-NUVEM'),
+            $this->createSelection('solado', 'SOL-TRANSLUCIDO-GELO'),
+        ];
+        $config->method('getSelections')->willReturn($selections);
+
+        $result = $this->validator->validate('NUVEM-RUNNER', $config);
+
+        $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains(
             'A gravação deve conter apenas letras, números, espaços e hífen.',
             $result->getMessages()
@@ -926,6 +993,7 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-RUNNER', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains(
             'A cola do solado holográfico mancha a camurça. Escolha outro solado ou outro cabedal.',
             $result->getMessages()
@@ -952,6 +1020,7 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-RUNNER', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains(
             'O cadarço elástico só segura em cabedal de tricô.',
             $result->getMessages()
@@ -978,6 +1047,7 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-RUNNER', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains(
             'Glitter com verniz pesa no visual. Fique com um dos dois.',
             $result->getMessages()
@@ -1004,6 +1074,7 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-RUNNER', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains(
             'A câmara de ar só aparece com o solado translúcido.',
             $result->getMessages()
@@ -1030,6 +1101,7 @@ class ConfigurationValidatorTest extends TestCase
         $result = $this->validator->validate('NUVEM-RUNNER', $config);
 
         $this->assertFalse($result->isValid());
+        $this->assertCount(1, $result->getMessages());
         $this->assertContains('Não dá para gravar sobre a câmara de ar.', $result->getMessages());
     }
 
