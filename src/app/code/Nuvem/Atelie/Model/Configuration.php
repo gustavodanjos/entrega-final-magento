@@ -1,4 +1,7 @@
 <?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
 declare(strict_types=1);
 
 namespace Nuvem\Atelie\Model;
@@ -8,10 +11,14 @@ use Nuvem\Atelie\Api\Data\SelectionInterface;
 
 class Configuration implements ConfigurationInterface
 {
-    /** @var SelectionInterface[] */
+    /**
+     * @var SelectionInterface[]
+     */
     private array $selections;
 
     /**
+     * @param int $size
+     * @param string|null $engraving
      * @param SelectionInterface[] $selections
      */
     public function __construct(
@@ -22,11 +29,17 @@ class Configuration implements ConfigurationInterface
         $this->selections = self::filterSelections($selections);
     }
 
+    /**
+     * @inheritdoc
+     */
     public function getSize(): int
     {
         return $this->size;
     }
 
+    /**
+     * @inheritdoc
+     */
     public function setSize(int $size): static
     {
         $this->size = $size;
@@ -34,11 +47,33 @@ class Configuration implements ConfigurationInterface
         return $this;
     }
 
+    /**
+     * @inheritdoc
+     */
+    public function getTamanho(): int
+    {
+        return $this->getSize();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function setTamanho(int $tamanho): static
+    {
+        return $this->setSize($tamanho);
+    }
+
+    /**
+     * @inheritdoc
+     */
     public function getEngraving(): ?string
     {
         return $this->engraving;
     }
 
+    /**
+     * @inheritdoc
+     */
     public function setEngraving(?string $engraving): static
     {
         $this->engraving = $engraving;
@@ -46,11 +81,33 @@ class Configuration implements ConfigurationInterface
         return $this;
     }
 
+    /**
+     * @inheritdoc
+     */
+    public function getGravacao(): ?string
+    {
+        return $this->getEngraving();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function setGravacao(?string $gravacao): static
+    {
+        return $this->setEngraving($gravacao);
+    }
+
+    /**
+     * @inheritdoc
+     */
     public function getSelections(): array
     {
         return $this->selections;
     }
 
+    /**
+     * @inheritdoc
+     */
     public function setSelections(array $selections): static
     {
         $this->selections = self::filterSelections($selections);
@@ -59,9 +116,27 @@ class Configuration implements ConfigurationInterface
     }
 
     /**
+     * @inheritdoc
+     */
+    public function getSelecoes(): array
+    {
+        return $this->getSelections();
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function setSelecoes(array $selecoes): static
+    {
+        return $this->setSelections($selecoes);
+    }
+
+    /**
+     * Filter and validate selections.
+     *
      * @param SelectionInterface[] $selections
      * @return SelectionInterface[]
-     * @throws \InvalidArgumentException when an item is not a SelectionInterface instance
+     * @throws \InvalidArgumentException
      */
     private static function filterSelections(array $selections): array
     {

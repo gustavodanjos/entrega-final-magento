@@ -39,4 +39,34 @@ interface SelectionInterface
      * @return $this
      */
     public function setComponent(string $component): static;
+
+    /**
+     * Get the group of the selection (REST contract alias).
+     *
+     * @return string
+     */
+    public function getGrupo(): string;
+
+    /**
+     * Set the group of the selection (REST contract alias).
+     *
+     * @param string $grupo
+     * @return $this
+     */
+    public function setGrupo(string $grupo): static;
+
+    /**
+     * Get the chosen component (REST contract alias).
+     *
+     * @return string
+     */
+    public function getComponente(): string;
+
+    /**
+     * Set the chosen component (REST contract alias).
+     *
+     * @param string $componente
+     * @return $this
+     */
+    public function setComponente(string $componente): static;
 }
