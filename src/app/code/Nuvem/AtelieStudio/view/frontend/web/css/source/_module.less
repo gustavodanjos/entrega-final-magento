@@ -1,295 +1,284 @@
-@nuvem-bg: #FAF7F5;
-@nuvem-magenta: #8C4378;
-@nuvem-text: #2D2A2E;
-@nuvem-muted: #7A7276;
-@nuvem-border: #E8E2DD;
-@nuvem-card-bg: #FFFFFF;
-@nuvem-blocked-bg: #F4F1EE;
-@nuvem-blocked-border: #D8D2CD;
+// Tokens Oficiais Nuvem / Manual de Marca
+@nuvem-grafite: #2E2A3B;
+@nuvem-magenta-profundo: #A3307A;
+@nuvem-magenta-hover: #8C2567;
+@nuvem-bruma: #E6E1F2;
+@nuvem-nevoa: #F3F0FF;
+@nuvem-branco: #FFFFFF;
 
-.atelie-studio-wrapper {
-    background-color: @nuvem-bg;
-    padding: 24px;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    font-family: 'Quicksand', sans-serif;
-    color: @nuvem-text;
-    margin-bottom: 30px;
+.atelie-studio {
+    color: @nuvem-grafite;
 
-    .atelie-studio-header {
+    .atelie-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 24px;
+
+        .atelie-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: @nuvem-magenta-profundo;
+            margin: 0;
+        }
+
+        .atelie-subtitle {
+            font-size: 14px;
+            color: @nuvem-grafite;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .atelie-mirror-price {
+            text-align: right;
+
+            .atelie-price-label {
+                font-size: 11px;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                color: @nuvem-grafite;
+                opacity: 0.7;
+            }
+
+            .atelie-price-value {
+                font-size: 32px;
+                font-weight: 700;
+                color: @nuvem-magenta-profundo;
+                line-height: 1.1;
+            }
+        }
+    }
+
+    // Abas em Pílula
+    .atelie-tabs-nav {
+        display: flex;
+        gap: 8px;
+        border-bottom: 1px solid @nuvem-bruma;
+        padding-bottom: 12px;
+        margin-bottom: 24px;
+        overflow-x: auto;
+
+        .atelie-tab-btn {
+            background: @nuvem-nevoa;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            padding: 8px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            color: @nuvem-grafite;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+
+            &:hover {
+                background: @nuvem-bruma;
+            }
+
+            &.is-active {
+                background: @nuvem-magenta-profundo;
+                color: @nuvem-branco;
+            }
+        }
+    }
+
+    // Grid de Amostras
+    .atelie-options-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+
+    .atelie-swatch-wrapper {
+        position: relative;
+    }
+
+    .atelie-swatch {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 12px 14px;
+        background: @nuvem-branco;
+        border: 1.6px solid @nuvem-bruma;
+        border-radius: 12px;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.2s ease;
+
+        &:hover {
+            border-color: @nuvem-grafite;
+        }
+
+        &.is-selected {
+            border: 2px solid @nuvem-magenta-profundo;
+            box-shadow: 0 0 0 2px fade(@nuvem-magenta-profundo, 20%);
+        }
+
+        // Estado Bloqueado: visual translúcido com risco diagonal, mas clicável
+        &.is-blocked {
+            opacity: 0.55;
+            background: @nuvem-nevoa;
+            border-style: dashed;
+            cursor: help;
+            position: relative;
+
+            &::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 10%;
+                right: 10%;
+                height: 1.5px;
+                background: @nuvem-grafite;
+                transform: rotate(-15deg);
+                pointer-events: none;
+            }
+        }
+
+        .atelie-swatch-color {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1.6px solid @nuvem-grafite;
+            flex-shrink: 0;
+        }
+
+        .atelie-swatch-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+
+            .atelie-swatch-name {
+                font-size: 13px;
+                font-weight: 600;
+                color: @nuvem-grafite;
+            }
+
+            .atelie-swatch-finish {
+                font-size: 11px;
+                color: @nuvem-grafite;
+                opacity: 0.7;
+            }
+
+            .atelie-swatch-badge {
+                font-size: 11px;
+                font-weight: 700;
+                color: @nuvem-magenta-profundo;
+            }
+        }
+    }
+
+    // Balão Amigável (Tooltip de Bloqueio)
+    .atelie-block-balloon {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        background: @nuvem-grafite;
+        color: @nuvem-branco;
+        font-size: 12px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 20;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid @nuvem-border;
-        padding-bottom: 16px;
-        margin-bottom: 24px;
+        gap: 8px;
 
-        .atelie-product-title {
-            margin: 0 0 6px 0;
-            font-size: 26px;
-            font-weight: 700;
-            color: @nuvem-magenta;
+        &::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 20px;
+            border: 6px solid transparent;
+            border-top-color: @nuvem-grafite;
         }
 
-        .atelie-lead-time {
-            font-size: 13px;
-            color: @nuvem-muted;
-        }
-
-        .atelie-price-box {
-            text-align: right;
-
-            .price-label {
-                display: block;
-                font-size: 12px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                color: @nuvem-muted;
-            }
-
-            .price-value {
-                font-size: 28px;
-                font-weight: 700;
-                color: @nuvem-magenta;
-            }
-        }
-    }
-
-    .atelie-tabs-navigation {
-        margin-bottom: 20px;
-        overflow-x: auto;
-
-        .atelie-tabs-list {
-            display: flex;
-            gap: 8px;
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            border-bottom: 1px solid @nuvem-border;
-
-            .atelie-tab-item {
-                margin: 0;
-
-                .atelie-tab-button {
-                    background: transparent;
-                    border: none;
-                    border-bottom: 3px solid transparent;
-                    padding: 10px 18px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: @nuvem-muted;
-                    cursor: pointer;
-                    transition: all 0.2s ease-in-out;
-
-                    &:hover {
-                        color: @nuvem-magenta;
-                    }
-                }
-
-                &.active .atelie-tab-button {
-                    color: @nuvem-magenta;
-                    border-bottom-color: @nuvem-magenta;
-                }
-            }
-        }
-    }
-
-    .atelie-group-panel {
-        .panel-header {
-            margin-bottom: 16px;
-
-            .group-title {
-                font-size: 18px;
-                font-weight: 700;
-                margin: 0 0 4px 0;
-            }
-
-            .group-hint {
-                font-size: 13px;
-                color: @nuvem-muted;
-            }
-        }
-
-        .atelie-swatches-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .atelie-swatch-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: @nuvem-card-bg;
-            border: 2px solid @nuvem-border;
-            border-radius: 12px;
-            padding: 12px;
-            text-align: left;
+        .atelie-balloon-close {
+            background: transparent;
+            border: none;
+            color: @nuvem-branco;
+            font-size: 16px;
             cursor: pointer;
-            transition: all 0.2s ease-in-out;
+            padding: 0;
+            line-height: 1;
+        }
+    }
 
-            .swatch-color-pill {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                border: 1px solid rgba(0, 0, 0, 0.1);
-                flex-shrink: 0;
-            }
+    // Grade de Tamanho
+    .atelie-size-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
 
-            .swatch-details {
-                display: flex;
-                flex-direction: column;
-                font-size: 12px;
+        .atelie-size-btn {
+            min-width: 44px;
+            height: 40px;
+            padding: 0 8px;
+            background: @nuvem-branco;
+            border: 1px solid @nuvem-bruma;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: @nuvem-grafite;
+            cursor: pointer;
 
-                .swatch-name {
-                    font-weight: 600;
-                    color: @nuvem-text;
-                }
-
-                .swatch-finish {
-                    color: @nuvem-muted;
-                    text-transform: capitalize;
-                }
-
-                .swatch-extra-price {
-                    font-weight: 700;
-                    color: @nuvem-magenta;
-                    margin-top: 2px;
-                }
-
-                .swatch-blocked-msg {
-                    color: #D9534F;
-                    font-size: 10px;
-                    margin-top: 3px;
-                }
-            }
-
-            &:hover:not(.blocked) {
-                border-color: lighten(@nuvem-magenta, 25%);
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(140, 67, 120, 0.1);
-            }
-
-            &.selected {
-                border-color: @nuvem-magenta;
-                background-color: #FAF2F7;
-                box-shadow: 0 0 0 1px @nuvem-magenta;
-            }
-
-            &.blocked {
-                background: @nuvem-blocked-bg;
-                border-color: @nuvem-blocked-border;
-                opacity: 0.65;
-                cursor: not-allowed;
-
-                .swatch-color-pill {
-                    filter: grayscale(40%);
-                }
+            &.is-selected {
+                background: @nuvem-magenta-profundo;
+                border-color: @nuvem-magenta-profundo;
+                color: @nuvem-branco;
             }
         }
     }
 
-    .atelie-global-options {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
+    // Gravação a Laser
+    .atelie-laser-section {
         margin-top: 24px;
-        padding-top: 20px;
-        border-top: 2px solid @nuvem-border;
 
-        @media (max-width: 768px) {
-            grid-template-columns: 1fr;
-        }
-
-        .option-label {
-            display: block;
-            font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-
-        .atelie-sizes-grid {
+        .atelie-laser-header {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
 
-            .size-pill {
-                min-width: 44px;
-                height: 40px;
-                border: 2px solid @nuvem-border;
-                background: @nuvem-card-bg;
-                border-radius: 8px;
+            .atelie-section-label {
                 font-size: 14px;
                 font-weight: 600;
-                cursor: pointer;
-                transition: all 0.2s;
+                color: @nuvem-grafite;
+            }
 
-                &:hover {
-                    border-color: @nuvem-magenta;
-                }
-
-                &.selected {
-                    background: @nuvem-magenta;
-                    border-color: @nuvem-magenta;
-                    color: #FFFFFF;
-                }
+            .atelie-laser-badge {
+                font-size: 12px;
+                font-weight: 700;
+                color: @nuvem-magenta-profundo;
             }
         }
 
-        .atelie-engraving-box {
-            .engraving-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
+        .atelie-laser-input {
+            width: 100%;
+            height: 44px;
+            padding: 8px 14px;
+            border: 1.6px solid @nuvem-magenta-profundo;
+            border-radius: 8px;
+            font-size: 14px;
+            color: @nuvem-grafite;
+            outline: none;
 
-                .engraving-price {
-                    font-size: 13px;
-                    font-weight: 700;
-                    color: @nuvem-magenta;
-                }
+            &:focus {
+                box-shadow: 0 0 0 2px fade(@nuvem-magenta-profundo, 20%);
             }
+        }
 
-            .atelie-rule-warning {
-                background: #FFF3CD;
-                color: #856404;
-                padding: 6px 10px;
-                border-radius: 6px;
-                font-size: 12px;
-                margin-bottom: 8px;
-            }
-
-            .engraving-input-wrap {
-                position: relative;
-
-                .engraving-input {
-                    width: 100%;
-                    height: 42px;
-                    border-radius: 8px;
-                    border: 2px solid @nuvem-border;
-                    padding: 8px 12px;
-                    font-size: 14px;
-                    letter-spacing: 0.05em;
-
-                    &:focus {
-                        border-color: @nuvem-magenta;
-                        box-shadow: none;
-                    }
-
-                    &:disabled {
-                        background: @nuvem-blocked-bg;
-                        cursor: not-allowed;
-                    }
-                }
-
-                .engraving-counter {
-                    display: block;
-                    text-align: right;
-                    font-size: 11px;
-                    color: @nuvem-muted;
-                    margin-top: 4px;
-                }
-            }
+        .atelie-laser-counter {
+            font-size: 12px;
+            color: @nuvem-grafite;
+            opacity: 0.7;
+            text-align: right;
+            margin-top: 4px;
         }
     }
 }

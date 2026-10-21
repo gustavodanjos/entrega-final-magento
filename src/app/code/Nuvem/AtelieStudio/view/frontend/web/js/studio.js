@@ -1,234 +1,135 @@
 define([
     'uiComponent',
-    'ko',
-    'underscore',
-    'mage/translate',
-    'Magento_Catalog/js/price-utils'
-], function (Component, ko, _, $t, priceUtils) {
+    'ko'
+], function (Component, ko) {
     'use strict';
 
     return Component.extend({
         defaults: {
-            template: 'Nuvem_AtelieStudio/studio',
-            studioData: {},
-            activeGroup: null,
-            selectedSize: null,
-            engravingText: ''
+            template: 'Nuvem_AtelieStudio/studio'
         },
 
         initObservable: function () {
             this._super();
-            this.observe(['activeGroup', 'selectedSize', 'engravingText']);
 
+            var self = this;
+            var config = this.configurador || {};
+            var grupos = config.grupos || [];
+            var regras = config.regras || [];
+
+            this.grupos = ko.observableArray(grupos);
+            this.activeTab = ko.observable(grupos.length > 0 ? grupos[0].codigo : '');
+            this.selectedSize = ko.observable('38');
+            this.laserText = ko.observable('');
+            this.laserPrice = ko.observable(29.90);
+            this.basePrice = ko.observable(config.preco_base ? parseFloat(config.preco_base) : 449.90);
+            this.activeTooltip = ko.observable(null);
+
+            // Mapeia observables reativos por grupo
             this.selections = {};
-            this.groups = (this.studioData && this.studioData.grupos) ? this.studioData.grupos : [];
-            this.product = (this.studioData && this.studioData.produto) ? this.studioData.produto : {};
-            this.rules = (this.studioData && this.studioData.regras) ? this.studioData.regras : [];
+            grupos.forEach(function (grupo) {
+                var initialOption = (grupo.opcoes && grupo.opcoes.length > 0) ? grupo.opcoes[0].codigo : '';
+                self.selections[grupo.codigo] = ko.observable(initialOption);
+            });
 
-            var initialConfig = (this.studioData && this.studioData.configuracao_inicial) ? this.studioData.configuracao_inicial : {};
-            var initialSelectionsMap = {};
+            // Mapa reativo de componentes bloqueados (suporte a bloqueia e exige)
+            this.blockedMap = ko.computed(function () {
+                var blocked = {};
 
-            if (initialConfig.selecoes && Array.isArray(initialConfig.selecoes)) {
-                _.each(initialConfig.selecoes, function (item) {
-                    initialSelectionsMap[item.grupo] = item.componente;
-                });
-            }
-
-            _.each(this.groups, function (group) {
-                var defaultCode = initialSelectionsMap[group.codigo];
-                if (!defaultCode) {
-                    var defaultComp = _.find(group.componentes || [], function (c) {
-                        return c.padrao;
+                function isSelected(code) {
+                    return Object.keys(self.selections).some(function (gCode) {
+                        return self.selections[gCode]() === code;
                     });
-                    defaultCode = defaultComp ? defaultComp.codigo : (group.componentes && group.componentes[0] ? group.componentes[0].codigo : null);
                 }
-                this.selections[group.codigo] = ko.observable(defaultCode);
-            }, this);
 
-            if (this.groups.length > 0 && !this.activeGroup()) {
-                this.activeGroup(this.groups[0].codigo);
-            }
+                regras.forEach(function (regra) {
+                    var origem = regra.origem_codigo || regra.origem;
+                    var alvo = regra.alvo_codigo || regra.alvo;
+                    var msg = regra.mensagem || 'Combinação indisponível para esta configuração.';
 
-            if (initialConfig.tamanho) {
-                this.selectedSize(initialConfig.tamanho);
-            } else if (this.product.grade_tamanhos && this.product.grade_tamanhos.length > 0) {
-                this.selectedSize(this.product.grade_tamanhos[0]);
-            }
+                    if (regra.tipo === 'bloqueia') {
+                        if (isSelected(origem)) {
+                            blocked[alvo] = msg;
+                        } else if (isSelected(alvo)) {
+                            blocked[origem] = msg;
+                        }
+                    } else if (regra.tipo === 'exige') {
+                        if (!isSelected(alvo)) {
+                            blocked[origem] = msg;
+                        }
+                    }
+                });
 
-            if (initialConfig.gravacao) {
-                this.engravingText(initialConfig.gravacao);
-            }
+                return blocked;
+            });
 
-            this.blockedMap = ko.pureComputed(this.computeBlockedMap, this);
-            this.mirrorPrice = ko.pureComputed(this.calculatePrice, this);
-            this.formattedMirrorPrice = ko.pureComputed(function () {
-                return this.formatCurrency(this.mirrorPrice());
-            }, this);
+            // Preço espelho calculado dinamicamente
+            this.mirrorPrice = ko.computed(function () {
+                var total = self.basePrice();
 
-            this.canonicalSelections = ko.pureComputed(this.computeCanonicalSelections, this);
+                grupos.forEach(function (grupo) {
+                    var selectedCode = self.selections[grupo.codigo]();
+                    var found = (grupo.opcoes || []).find(function (opt) {
+                        return opt.codigo === selectedCode;
+                    });
+                    if (found && found.acrescimo) {
+                        total += parseFloat(found.acrescimo);
+                    }
+                });
 
-            this.remainingEngravingChars = ko.pureComputed(function () {
-                var limit = (this.product.gravacao && this.product.gravacao.limite_caracteres) ? this.product.gravacao.limite_caracteres : 12;
-                return Math.max(0, limit - (this.engravingText() || '').length);
-            }, this);
+                if (self.laserText().trim().length > 0) {
+                    total += self.laserPrice();
+                }
+
+                return total;
+            });
+
+            this.formattedMirrorPrice = ko.computed(function () {
+                return self.mirrorPrice().toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                });
+            });
+
+            this.laserRemainingChars = ko.computed(function () {
+                var max = 12;
+                return Math.max(0, max - self.laserText().length);
+            });
 
             return this;
         },
 
-        selectGroup: function (groupCode) {
-            this.activeGroup(groupCode);
+        isBlocked: function (optionCode) {
+            return !!this.blockedMap()[optionCode];
         },
 
-        isActiveGroup: function (groupCode) {
-            return this.activeGroup() === groupCode;
+        getBlockReason: function (optionCode) {
+            return this.blockedMap()[optionCode] || '';
         },
 
-        selectComponent: function (groupCode, component) {
-            if (this.isComponentBlocked(groupCode, component.codigo)) {
+        isSelected: function (groupCode, optionCode) {
+            return this.selections[groupCode]() === optionCode;
+        },
+
+        selectOption: function (groupCode, option) {
+            if (this.isBlocked(option.codigo)) {
+                // Bloqueado não é desabilitado: abre/fecha balão com o motivo
+                var current = this.activeTooltip();
+                this.activeTooltip(current === option.codigo ? null : option.codigo);
                 return;
             }
-            if (this.selections[groupCode]) {
-                this.selections[groupCode](component.codigo);
-            }
+
+            this.activeTooltip(null);
+            this.selections[groupCode](option.codigo);
         },
 
-        isComponentSelected: function (groupCode, componentCode) {
-            return this.selections[groupCode] ? this.selections[groupCode]() === componentCode : false;
+        closeTooltip: function () {
+            this.activeTooltip(null);
         },
 
-        selectSize: function (size) {
-            this.selectedSize(size);
-        },
-
-        isSizeSelected: function (size) {
-            return this.selectedSize() === size;
-        },
-
-        findComponent: function (groupCode, componentCode) {
-            var group = _.find(this.groups, function (g) {
-                return g.codigo === groupCode;
-            });
-            if (!group || !group.componentes) {
-                return null;
-            }
-            return _.find(group.componentes, function (c) {
-                return c.codigo === componentCode;
-            }) || null;
-        },
-
-        calculatePrice: function () {
-            var total = parseFloat(this.product.preco_base || 0);
-
-            _.each(this.groups, function (group) {
-                var selectedCode = this.selections[group.codigo] ? this.selections[group.codigo]() : null;
-                if (selectedCode) {
-                    var component = this.findComponent(group.codigo, selectedCode);
-                    if (component && component.preco_adicional) {
-                        total += parseFloat(component.preco_adicional);
-                    }
-                }
-            }, this);
-
-            var text = (this.engravingText() || '').trim();
-            if (text.length > 0 && this.product.gravacao && this.product.gravacao.permitida) {
-                total += parseFloat(this.product.gravacao.preco || 0);
-            }
-
-            return Math.round(total * 100) / 100;
-        },
-
-        computeBlockedMap: function () {
-            var blocked = {};
-            var activeComponents = {};
-            var activeFinishes = {};
-
-            _.each(this.groups, function (group) {
-                var selectedCode = this.selections[group.codigo] ? this.selections[group.codigo]() : null;
-                if (selectedCode) {
-                    activeComponents[selectedCode] = true;
-                    var comp = this.findComponent(group.codigo, selectedCode);
-                    if (comp && comp.acabamento) {
-                        activeFinishes[comp.acabamento] = true;
-                    }
-                }
-            }, this);
-
-            _.each(this.rules, function (rule) {
-                var isOriginActive = (rule.origem_tipo === 'componente' && activeComponents[rule.origem_codigo]) ||
-                                     (rule.origem_tipo === 'acabamento' && activeFinishes[rule.origem_codigo]);
-
-                if (isOriginActive && rule.tipo === 'bloqueia') {
-                    if (rule.alvo_tipo === 'componente') {
-                        blocked[rule.alvo_codigo] = rule.mensagem || $t('Combinação indisponível');
-                    } else if (rule.alvo_tipo === 'acabamento') {
-                        blocked['finish:' + rule.alvo_codigo] = rule.mensagem || $t('Acabamento incompatível');
-                    } else if (rule.alvo_tipo === 'gravacao') {
-                        blocked['gravacao'] = rule.mensagem || $t('Gravação incompatível com esta seleção');
-                    }
-                }
-            }, this);
-
-            return blocked;
-        },
-
-        isComponentBlocked: function (groupCode, componentCode) {
-            var map = this.blockedMap();
-            if (map[componentCode]) {
-                return true;
-            }
-            var comp = this.findComponent(groupCode, componentCode);
-            return !!(comp && comp.acabamento && map['finish:' + comp.acabamento]);
-        },
-
-        getBlockedReason: function (groupCode, componentCode) {
-            var map = this.blockedMap();
-            if (map[componentCode]) {
-                return map[componentCode];
-            }
-            var comp = this.findComponent(groupCode, componentCode);
-            return (comp && comp.acabamento && map['finish:' + comp.acabamento]) ? map['finish:' + comp.acabamento] : '';
-        },
-
-        isEngravingBlocked: function () {
-            return !!this.blockedMap()['gravacao'];
-        },
-
-        getEngravingBlockedReason: function () {
-            return this.blockedMap()['gravacao'] || '';
-        },
-
-        computeCanonicalSelections: function () {
-            var list = [];
-            var index = 0;
-            _.each(this.groups, function (group) {
-                var code = this.selections[group.codigo] ? this.selections[group.codigo]() : null;
-                if (code) {
-                    list.push({
-                        index: index++,
-                        grupo: group.codigo,
-                        componente: code
-                    });
-                }
-            }, this);
-            return list;
-        },
-
-        formatCurrency: function (value) {
-            var priceFormat = (window.checkoutConfig && window.checkoutConfig.priceFormat) ? window.checkoutConfig.priceFormat : {
-                pattern: 'R$ %s',
-                precision: 2,
-                requiredPrecision: 2,
-                decimalSymbol: ',',
-                groupSymbol: '.',
-                groupLength: 3,
-                integerRequired: 1
-            };
-            return priceUtils.formatPrice(value, priceFormat);
-        },
-
-        formatExtraPrice: function (component) {
-            var extra = parseFloat(component.preco_adicional || 0);
-            return extra > 0 ? '+ ' + this.formatCurrency(extra) : '';
+        setActiveTab: function (tabCode) {
+            this.activeTab(tabCode);
+            this.activeTooltip(null);
         }
     });
 });
