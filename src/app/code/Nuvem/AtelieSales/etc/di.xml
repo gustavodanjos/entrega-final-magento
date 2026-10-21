@@ -3,4 +3,8 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Nuvem\AtelieSales\Api\ComponentStockInterface"
                 type="Nuvem\AtelieSales\Model\ComponentStock"/>
+    <type name="Magento\Quote\Model\QuoteManagement">
+        <plugin name="nuvem_atelie_sales_compensate_failed_submission"
+                type="Nuvem\AtelieSales\Plugin\QuoteManagement\CompensateFailedSubmission"/>
+    </type>
 </config>
