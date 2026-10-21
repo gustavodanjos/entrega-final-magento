@@ -101,4 +101,85 @@ class ConfigurationSerializerTest extends TestCase
 
         (new ConfigurationSerializer())->serialize($configuration);
     }
+
+    public function testUnserializeRoundTripsSerializedConfigurations(): void
+    {
+        $serializer = new ConfigurationSerializer();
+        $configuration = new Configuration(40, ' LUIZ ', [
+            new Selection('solado', 'SOL-LUA-HOLO'),
+            new Selection('cabedal', 'CAB-TRICO-LAVANDA'),
+        ]);
+
+        $this->assertSame(
+            $serializer->serialize($configuration),
+            $serializer->serialize($serializer->unserialize($serializer->serialize($configuration)))
+        );
+    }
+
+    public function testUnserializeKeepsTheContractValues(): void
+    {
+        $unserialized = (new ConfigurationSerializer())->unserialize(
+            '{"tamanho":38,"gravacao":"LUIZ","selecoes":['
+            . '{"grupo":"cabedal","componente":"CAB-TRICO-LAVANDA"}]}'
+        );
+
+        $this->assertSame(38, $unserialized->getSize());
+        $this->assertSame('LUIZ', $unserialized->getEngraving());
+        $this->assertCount(1, $unserialized->getSelections());
+        $this->assertSame('cabedal', $unserialized->getSelections()[0]->getGroup());
+        $this->assertSame('CAB-TRICO-LAVANDA', $unserialized->getSelections()[0]->getComponent());
+    }
+
+    public function testUnserializeTreatsNullEngravingAsAbsent(): void
+    {
+        $unserialized = (new ConfigurationSerializer())->unserialize(
+            '{"tamanho":38,"gravacao":null,"selecoes":[]}'
+        );
+
+        $this->assertNull($unserialized->getEngraving());
+        $this->assertSame([], $unserialized->getSelections());
+    }
+
+    public function testUnserializeRejectsMalformedJson(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        (new ConfigurationSerializer())->unserialize('{not json');
+    }
+
+    public function testUnserializeRejectsMissingContractFields(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        (new ConfigurationSerializer())->unserialize('{"tamanho":38}');
+    }
+
+    public function testUnserializeRejectsFieldsWithTheWrongType(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        (new ConfigurationSerializer())->unserialize(
+            '{"tamanho":"38","gravacao":null,"selecoes":[]}'
+        );
+    }
+
+    public function testUnserializeRejectsIncompleteSelections(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        (new ConfigurationSerializer())->unserialize(
+            '{"tamanho":38,"gravacao":null,"selecoes":[{"grupo":"solado"}]}'
+        );
+    }
+
+    public function testUnserializeRejectsDuplicatedGroups(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        (new ConfigurationSerializer())->unserialize(
+            '{"tamanho":38,"gravacao":null,"selecoes":['
+            . '{"grupo":"solado","componente":"SOL-LUA-HOLO"},'
+            . '{"grupo":"solado","componente":"SOL-BORRACHA-LAVANDA"}]}'
+        );
+    }
 }
