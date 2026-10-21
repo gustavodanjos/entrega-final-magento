@@ -2,7 +2,7 @@
     <!-- Cabeçalho e Preço Espelho -->
     <div class="atelie-header">
         <div class="atelie-header-info">
-            <h2 class="atelie-title">Nuvem Runner</h2>
+            <h2 class="atelie-title" data-bind="text: productName">Nuvem Runner</h2>
             <p class="atelie-subtitle">Feito sob encomenda em até 12 dias úteis</p>
         </div>
         <div class="atelie-mirror-price">
@@ -11,72 +11,68 @@
         </div>
     </div>
 
-    <!-- Navegação por Abas dos Grupos -->
-    <nav class="atelie-tabs-nav" aria-label="Partes do Calçado">
+    <!-- Navegação em Abas (Pílulas) -->
+    <nav class="atelie-tabs-nav" role="tablist">
         <!-- ko foreach: { data: grupos, as: 'grupo' } -->
         <button type="button"
                 class="atelie-tab-btn"
+                role="tab"
                 data-bind="
                     text: grupo.nome,
                     css: { 'is-active': $parent.activeTab() === grupo.codigo },
-                    click: function () { $parent.setActiveTab(grupo.codigo); },
-                    attr: { 'aria-selected': $parent.activeTab() === grupo.codigo ? 'true' : 'false' }">
+                    click: function () { $parent.switchTab(grupo.codigo); }">
         </button>
         <!-- /ko -->
     </nav>
 
-    <!-- Painéis dos Grupos -->
-    <!-- ko foreach: { data: grupos, as: 'grupo' } -->
-    <!-- ko if: $parent.activeTab() === grupo.codigo -->
+    <!-- Painel do Grupo Ativo -->
     <div class="atelie-tab-panel" role="tabpanel">
         <div class="atelie-group-header">
-            <h3 class="atelie-group-title" data-bind="text: grupo.nome"></h3>
-            <!-- ko if: grupo.descricao -->
-            <p class="atelie-group-desc" data-bind="text: grupo.descricao"></p>
+            <h3 class="atelie-group-title" data-bind="text: currentGroup().nome"></h3>
+            <!-- ko if: currentGroup().descricao -->
+            <p class="atelie-group-desc" data-bind="text: currentGroup().descricao"></p>
             <!-- /ko -->
         </div>
 
-        <!-- Grade de Amostras -->
+        <!-- Grade de Amostras de Nível Único -->
         <div class="atelie-options-grid">
-            <!-- ko foreach: { data: grupo.opcoes, as: 'option' } -->
+            <!-- ko foreach: { data: currentOptions, as: 'option' } -->
             <div class="atelie-swatch-wrapper">
                 <button type="button"
                         class="atelie-swatch"
                         data-bind="
                             css: {
-                                'is-selected': $parents[1].isSelected(grupo.codigo, option.codigo),
-                                'is-blocked': $parents[1].isBlocked(option.codigo)
+                                'is-selected': $parent.isSelected($parent.activeTab(), option.codigo),
+                                'is-blocked': $parent.isBlocked(option.codigo)
                             },
-                            click: function () { $parents[1].selectOption(grupo.codigo, option); },
+                            click: function () { $parent.selectOption($parent.activeTab(), option); },
                             attr: {
-                                'aria-label': option.nome + ($parents[1].isBlocked(option.codigo) ? ' (Indisponível: ' + $parents[1].getBlockReason(option.codigo) + ')' : '')
+                                'aria-label': option.nome + ($parent.isBlocked(option.codigo) ? ' (Indisponível: ' + $parent.getBlockReason(option.codigo) + ')' : '')
                             }">
                     <span class="atelie-swatch-color"
-                          data-bind="style: { backgroundColor: option.hex || '#E6E1F2' }"></span>
+                          data-bind="style: { backgroundColor: $parent.getOptionColor(option) }"></span>
                     <span class="atelie-swatch-info">
                         <span class="atelie-swatch-name" data-bind="text: option.nome"></span>
                         <span class="atelie-swatch-finish" data-bind="text: option.acabamento || 'Liso'"></span>
-                        <!-- ko if: parseFloat(option.acrescimo) > 0 -->
-                        <span class="atelie-swatch-badge" data-bind="text: '+ R$ ' + parseFloat(option.acrescimo).toFixed(2).replace('.', ',')"></span>
+                        <!-- ko if: $parent.getOptionPrice(option) > 0 -->
+                        <span class="atelie-swatch-badge" data-bind="text: '+ R$ ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',')"></span>
                         <!-- /ko -->
                     </span>
                 </button>
 
-                <!-- Balão explicativo amigável -->
-                <!-- ko if: $parents[1].isBlocked(option.codigo) && $parents[1].activeTooltip() === option.codigo -->
-                <div class="atelie-block-balloon" role="alert">
-                    <span class="atelie-balloon-text" data-bind="text: $parents[1].getBlockReason(option.codigo)"></span>
-                    <button type="button" class="atelie-balloon-close" data-bind="click: function () { $parents[1].closeTooltip(); }" aria-label="Fechar">&times;</button>
+                <!-- Balão Explicativo Amigável -->
+                <div class="atelie-block-balloon"
+                     role="alert"
+                     data-bind="visible: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo">
+                    <span class="atelie-balloon-text" data-bind="text: $parent.getBlockReason(option.codigo)"></span>
+                    <button type="button" class="atelie-balloon-close" data-bind="click: function () { $parent.closeTooltip(); }" aria-label="Fechar">&times;</button>
                 </div>
-                <!-- /ko -->
             </div>
             <!-- /ko -->
         </div>
     </div>
-    <!-- /ko -->
-    <!-- /ko -->
 
-    <!-- Seção de Tamanho com grade dinâmica -->
+    <!-- Seção de Tamanho (Grade Dinâmica) -->
     <div class="atelie-size-section">
         <span class="atelie-section-label">Tamanho (Grade)</span>
         <div class="atelie-size-grid">
@@ -86,13 +82,13 @@
                     data-bind="
                         text: $data,
                         css: { 'is-selected': $parent.selectedSize() === $data },
-                        click: function () { $parent.selectedSize($data); }">
+                        click: function () { $parent.selectSize($data); }">
             </button>
             <!-- /ko -->
         </div>
     </div>
 
-    <!-- Seção de Gravação a Laser Dinâmica -->
+    <!-- Personalização a Laser -->
     <!-- ko if: permiteGravacao -->
     <div class="atelie-laser-section">
         <div class="atelie-laser-header">
@@ -103,16 +99,15 @@
                class="atelie-laser-input"
                placeholder="Ex: NUVEM"
                data-bind="
-                   value: laserText,
-                   valueUpdate: 'afterkeydown',
-                   attr: { maxlength: laserLimit }" />
+                   textInput: laserText,
+                   attr: { maxlength: laserLimit }">
         <div class="atelie-laser-counter">
-            <span data-bind="text: laserRemainingChars() + ' restantes'"></span>
+            <span data-bind="text: laserRemainingChars"></span> restantes
         </div>
     </div>
     <!-- /ko -->
 
-    <!-- Inputs Ocultos no formato estrito do contrato: atelie[selecoes][i][grupo] e [componente] -->
+    <!-- Inputs Ocultos de Submissão no Contrato Estrito -->
     <div class="atelie-hidden-inputs">
         <!-- ko foreach: { data: grupos, as: 'grupo' } -->
         <input type="hidden"
@@ -121,24 +116,16 @@
                    attr: {
                        name: 'atelie[selecoes][' + $index() + '][grupo]',
                        value: grupo.codigo
-                   }" />
+                   }">
         <input type="hidden"
                form="product_addtocart_form"
                data-bind="
                    attr: {
                        name: 'atelie[selecoes][' + $index() + '][componente]',
-                       value: $parent.selections[grupo.codigo]()
-                   }" />
+                       value: $parent.selections[grupo.codigo] ? $parent.selections[grupo.codigo]() : ''
+                   }">
         <!-- /ko -->
-        <input type="hidden"
-               name="atelie[tamanho]"
-               form="product_addtocart_form"
-               data-bind="value: selectedSize" />
-        <!-- ko if: permiteGravacao -->
-        <input type="hidden"
-               name="atelie[gravacao]"
-               form="product_addtocart_form"
-               data-bind="value: laserText" />
-        <!-- /ko -->
+        <input type="hidden" name="atelie[tamanho]" form="product_addtocart_form" data-bind="value: selectedSize">
+        <input type="hidden" name="atelie[gravacao_texto]" form="product_addtocart_form" data-bind="value: laserText">
     </div>
 </div>

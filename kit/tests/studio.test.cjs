@@ -59,8 +59,8 @@ test('uses the ViewModel contract for options, size, engraving and initial selec
     const data = contract();
     const instance = studio(data);
     assert.equal(instance.grupos().length, 1);
-    assert.equal(instance.grupos()[0].opcoes[0].hex, '#DCCFF7');
-    assert.equal(instance.grupos()[0].opcoes[0].acrescimo, 39.90);
+    assert.equal(instance.getOptionColor(instance.currentOptions()[0]), '#DCCFF7');
+    assert.equal(instance.getOptionPrice(instance.currentOptions()[0]), 39.90);
     assert.equal(instance.selectedSize(), 38);
     assert.equal(instance.selections.cabedal(), 'CAB-MENTA');
     assert.equal(instance.laserLimit(), 12);
@@ -70,7 +70,7 @@ test('uses the ViewModel contract for options, size, engraving and initial selec
 
 test('updates mirror price when a component and engraving change', () => {
     const instance = studio(contract());
-    instance.selectOption('cabedal', instance.grupos()[0].opcoes[0]);
+    instance.selectOption('cabedal', instance.currentOptions()[0]);
     instance.laserText('LUIZ');
     assert.ok(Math.abs(instance.mirrorPrice() - 519.70) < 0.001);
 });
