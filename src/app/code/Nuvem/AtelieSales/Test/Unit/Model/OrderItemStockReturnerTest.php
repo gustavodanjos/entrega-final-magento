@@ -3,13 +3,10 @@ declare(strict_types=1);
 
 namespace Nuvem\AtelieSales\Test\Unit\Model;
 
-use Exception;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Adapter\AdapterInterface;
-use Magento\Sales\Api\Data\CreditmemoInterface;
-use Magento\Sales\Api\Data\CreditmemoItemInterface;
-use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\Data\OrderItemInterface;
+use Magento\Sales\Model\Order;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
 use Nuvem\AtelieSales\Model\OrderItemConfigurationReader;
 use Nuvem\AtelieSales\Model\OrderItemStockReturner;
@@ -19,266 +16,128 @@ use PHPUnit\Framework\TestCase;
 
 class OrderItemStockReturnerTest extends TestCase
 {
-    /**
-     * @var ComponentStockInterface|MockObject
-     */
-    private MockObject $componentStockMock;
-
-    /**
-     * @var Movimentacao|MockObject
-     */
-    private MockObject $movimentacaoResourceMock;
-
-    /**
-     * @var OrderItemConfigurationReader|MockObject
-     */
-    private MockObject $configurationReaderMock;
-
-    /**
-     * @var ResourceConnection|MockObject
-     */
-    private MockObject $resourceConnectionMock;
-
-    /**
-     * @var AdapterInterface|MockObject
-     */
-    private MockObject $connectionMock;
-
+    private ComponentStockInterface&MockObject $componentStock;
+    private Movimentacao&MockObject $stockLedger;
+    private OrderItemConfigurationReader&MockObject $configurationReader;
+    private AdapterInterface&MockObject $connection;
     private OrderItemStockReturner $returner;
-
-    private const SAMPLE_SEVEN_COMPONENTS = [
-        'CAB-TRICO-LAVANDA',
-        'FOR-ESPUMA-BRANCO',
-        'CAD-ALGODAO-BRANCO',
-        'PAL-ANAT-NATURAL',
-        'SOL-LUA-HOLO',
-        'ENT-EVA-BRANCO',
-        'TAL-SUEDE-ROSA',
-    ];
+    private array $movements = [];
+    private array $components = ['SOL-LUA-HOLO' => 1];
 
     protected function setUp(): void
     {
-        $this->componentStockMock = $this->createMock(ComponentStockInterface::class);
-        $this->movimentacaoResourceMock = $this->createMock(Movimentacao::class);
-        $this->configurationReaderMock = $this->createMock(OrderItemConfigurationReader::class);
-        $this->resourceConnectionMock = $this->createMock(ResourceConnection::class);
-        $this->connectionMock = $this->createMock(AdapterInterface::class);
-
-        $this->resourceConnectionMock->method('getConnection')->willReturn($this->connectionMock);
-
+        $this->componentStock = $this->createMock(ComponentStockInterface::class);
+        $this->stockLedger = $this->createMock(Movimentacao::class);
+        $this->configurationReader = $this->createMock(OrderItemConfigurationReader::class);
+        $resource = $this->createMock(ResourceConnection::class);
+        $this->connection = $this->createMock(AdapterInterface::class);
+        $resource->method('getConnection')->willReturn($this->connection);
+        $this->configurationReader->method('getComponentQuantities')
+            ->willReturnCallback(fn (): array => $this->components);
+        $this->stockLedger->method('getReturnedQuantitiesByOrderItemId')
+            ->willReturnCallback(function (int $itemId, ?string $note = null): array {
+                $totals = [];
+                foreach ($this->movements as $movement) {
+                    if ($movement['itemId'] === $itemId && ($note === null || $movement['note'] === $note)) {
+                        $code = $movement['code'];
+                        $totals[$code] = ($totals[$code] ?? 0) + $movement['quantity'];
+                    }
+                }
+                return $totals;
+            });
+        $this->componentStock->method('return')->willReturnCallback(
+            function (string $code, int $quantity, ?int $orderId, ?int $itemId, ?string $note): void {
+                $this->movements[] = compact('code', 'quantity', 'orderId', 'itemId', 'note');
+            }
+        );
         $this->returner = new OrderItemStockReturner(
-            $this->componentStockMock,
-            $this->movimentacaoResourceMock,
-            $this->configurationReaderMock,
-            $this->resourceConnectionMock
+            $this->componentStock,
+            $this->stockLedger,
+            $this->configurationReader,
+            $resource
         );
     }
 
-    public function testReturnOrderReturnsAllSevenComponents(): void
+    public function testCancellationReturnsAllSevenComponentsOnce(): void
     {
-        $orderMock = $this->createMock(OrderInterface::class);
-        $orderMock->method('getEntityId')->willReturn(101);
-
-        $orderItemMock = $this->createMock(OrderItemInterface::class);
-        $orderItemMock->method('getItemId')->willReturn(202);
-        $orderItemMock->method('getQtyOrdered')->willReturn(1.0);
-        $orderItemMock->method('getOrderId')->willReturn(101);
-
-        $orderMock->method('getItems')->willReturn([$orderItemMock]);
-
-        $this->configurationReaderMock->method('getComponentCodes')
-            ->with($orderItemMock)
-            ->willReturn(self::SAMPLE_SEVEN_COMPONENTS);
-
-        $this->movimentacaoResourceMock->method('getReturnedQuantitiesByOrderItemId')
-            ->with(202)
-            ->willReturn([]);
-
-        $this->connectionMock->expects($this->once())->method('beginTransaction');
-        $this->connectionMock->expects($this->once())->method('commit');
-
-        $this->componentStockMock->expects($this->exactly(7))
-            ->method('return')
-            ->willReturnCallback(function (string $code, int $qty, ?int $orderId, ?int $orderItemId) {
-                $this->assertContains($code, self::SAMPLE_SEVEN_COMPONENTS);
-                $this->assertSame(1, $qty);
-                $this->assertSame(101, $orderId);
-                $this->assertSame(202, $orderItemId);
-            });
-
-        $this->returner->returnOrder($orderMock);
-    }
-
-    public function testReturnOrderIsIdempotentWhenAlreadyReturned(): void
-    {
-        $orderMock = $this->createMock(OrderInterface::class);
-        $orderMock->method('getEntityId')->willReturn(101);
-
-        $orderItemMock = $this->createMock(OrderItemInterface::class);
-        $orderItemMock->method('getItemId')->willReturn(202);
-        $orderItemMock->method('getQtyOrdered')->willReturn(1.0);
-
-        $orderMock->method('getItems')->willReturn([$orderItemMock]);
-
-        $this->configurationReaderMock->method('getComponentCodes')
-            ->with($orderItemMock)
-            ->willReturn(self::SAMPLE_SEVEN_COMPONENTS);
-
-        $alreadyReturned = [];
-        foreach (self::SAMPLE_SEVEN_COMPONENTS as $code) {
-            $alreadyReturned[$code] = 1;
+        $this->components = array_fill_keys([
+            'CAB-TRICO-LAVANDA', 'BIQ-LISA-CEU', 'CAL-ACOLCHOADO-CEU', 'CAD-ELASTICO-MENTA',
+            'EMB-NUVEM-PESSEGO', 'ENT-EVA-NUVEM', 'SOL-LUA-HOLO',
+        ], 1);
+        $order = $this->order($this->item(2, 2));
+        $this->stockLedger->expects($this->exactly(2))->method('lockOrder')->with(101);
+        $this->returner->returnOrder($order);
+        $this->returner->returnOrder($order);
+        self::assertCount(7, $this->movements);
+        foreach ($this->movements as $movement) {
+            self::assertSame(2, $movement['quantity']);
+            self::assertSame(101, $movement['orderId']);
+            self::assertSame(202, $movement['itemId']);
+            self::assertSame('cancel:101', $movement['note']);
         }
-
-        $this->movimentacaoResourceMock->method('getReturnedQuantitiesByOrderItemId')
-            ->with(202)
-            ->willReturn($alreadyReturned);
-
-        $this->connectionMock->expects($this->once())->method('beginTransaction');
-        $this->connectionMock->expects($this->once())->method('commit');
-        $this->componentStockMock->expects($this->never())->method('return');
-
-        $this->returner->returnOrder($orderMock);
     }
 
-    public function testReturnOrderSkipsNonAtelieItems(): void
+    public function testPartialCancellationKeepsInvoicedUnitsReserved(): void
     {
-        $orderMock = $this->createMock(OrderInterface::class);
-        $orderMock->method('getEntityId')->willReturn(101);
-
-        $regularItemMock = $this->createMock(OrderItemInterface::class);
-        $regularItemMock->method('getItemId')->willReturn(303);
-
-        $orderMock->method('getItems')->willReturn([$regularItemMock]);
-
-        $this->configurationReaderMock->method('getComponentCodes')
-            ->with($regularItemMock)
-            ->willReturn([]);
-
-        $this->connectionMock->expects($this->once())->method('beginTransaction');
-        $this->connectionMock->expects($this->once())->method('commit');
-        $this->componentStockMock->expects($this->never())->method('return');
-
-        $this->returner->returnOrder($orderMock);
+        $this->returner->returnOrder($this->order($this->item(3, 1)));
+        self::assertSame([1], array_column($this->movements, 'quantity'));
     }
 
-    public function testReturnOrderRollsBackOnException(): void
+    public function testLaterCancellationOnlyReturnsItsIncrement(): void
     {
-        $orderMock = $this->createMock(OrderInterface::class);
-        $orderMock->method('getEntityId')->willReturn(101);
-
-        $orderItemMock = $this->createMock(OrderItemInterface::class);
-        $orderItemMock->method('getItemId')->willReturn(202);
-        $orderItemMock->method('getQtyOrdered')->willReturn(1.0);
-
-        $orderMock->method('getItems')->willReturn([$orderItemMock]);
-
-        $this->configurationReaderMock->method('getComponentCodes')
-            ->with($orderItemMock)
-            ->willReturn(['SOL-LUA-HOLO']);
-
-        $this->movimentacaoResourceMock->method('getReturnedQuantitiesByOrderItemId')
-            ->willReturn([]);
-
-        $this->componentStockMock->method('return')
-            ->willThrowException(new Exception('Database deadlock'));
-
-        $this->connectionMock->expects($this->once())->method('beginTransaction');
-        $this->connectionMock->expects($this->once())->method('rollBack');
-        $this->connectionMock->expects($this->never())->method('commit');
-
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('Database deadlock');
-
-        $this->returner->returnOrder($orderMock);
+        $this->returner->returnOrder($this->order($this->item(3, 1)));
+        $this->returner->returnOrder($this->order($this->item(3, 2)));
+        self::assertSame([1, 1], array_column($this->movements, 'quantity'));
     }
 
-    public function testReturnCreditmemoReturnsWhenBackToStockIsTrue(): void
+    public function testUncancelledOrderDoesNotStartStockTransaction(): void
     {
-        $creditmemoMock = $this->createMock(CreditmemoInterface::class);
-        $creditmemoMock->method('getOrderId')->willReturn(101);
-
-        $creditmemoItemMock = $this->getMockBuilder(CreditmemoItemInterface::class)
-            ->addMethods(['getBackToStock', 'getOrderItem'])
-            ->getMockForAbstractClass();
-        $creditmemoItemMock->method('getBackToStock')->willReturn(true);
-        $creditmemoItemMock->method('getQty')->willReturn(1.0);
-
-        $orderItemMock = $this->createMock(OrderItemInterface::class);
-        $orderItemMock->method('getItemId')->willReturn(202);
-        $orderItemMock->method('getQtyOrdered')->willReturn(2.0);
-        $creditmemoItemMock->method('getOrderItem')->willReturn($orderItemMock);
-
-        $creditmemoMock->method('getItems')->willReturn([$creditmemoItemMock]);
-
-        $this->configurationReaderMock->method('getComponentCodes')
-            ->with($orderItemMock)
-            ->willReturn(['SOL-LUA-HOLO']);
-
-        $this->movimentacaoResourceMock->method('getReturnedQuantitiesByOrderItemId')
-            ->with(202)
-            ->willReturn([]);
-
-        $this->connectionMock->expects($this->once())->method('beginTransaction');
-        $this->connectionMock->expects($this->once())->method('commit');
-
-        $this->componentStockMock->expects($this->once())
-            ->method('return')
-            ->with('SOL-LUA-HOLO', 1, 101, 202);
-
-        $this->returner->returnCreditmemo($creditmemoMock);
+        $this->connection->expects($this->never())->method('beginTransaction');
+        $this->returner->returnOrder($this->order($this->item(3, 0)));
     }
 
-    public function testReturnCreditmemoIgnoresItemsWithoutBackToStock(): void
+    public function testStandardProductDoesNotReturnComponents(): void
     {
-        $creditmemoMock = $this->createMock(CreditmemoInterface::class);
-        $creditmemoItemMock = $this->getMockBuilder(CreditmemoItemInterface::class)
-            ->addMethods(['getBackToStock', 'getOrderItem'])
-            ->getMockForAbstractClass();
-        $creditmemoItemMock->method('getBackToStock')->willReturn(false);
-
-        $creditmemoMock->method('getItems')->willReturn([$creditmemoItemMock]);
-
-        $this->connectionMock->expects($this->once())->method('beginTransaction');
-        $this->connectionMock->expects($this->once())->method('commit');
-        $this->componentStockMock->expects($this->never())->method('return');
-
-        $this->returner->returnCreditmemo($creditmemoMock);
+        $this->components = [];
+        $this->returner->returnOrder($this->order($this->item(1, 1)));
+        self::assertSame([], $this->movements);
     }
 
-    public function testReturnCreditmemoCapsToRemainingUnreturnedQty(): void
+    public function testAllItemsRollBackOnThrowable(): void
     {
-        $creditmemoMock = $this->createMock(CreditmemoInterface::class);
-        $creditmemoMock->method('getOrderId')->willReturn(101);
-
-        $creditmemoItemMock = $this->getMockBuilder(CreditmemoItemInterface::class)
-            ->addMethods(['getBackToStock', 'getOrderItem'])
-            ->getMockForAbstractClass();
-        $creditmemoItemMock->method('getBackToStock')->willReturn(true);
-        $creditmemoItemMock->method('getQty')->willReturn(2.0);
-
-        $orderItemMock = $this->createMock(OrderItemInterface::class);
-        $orderItemMock->method('getItemId')->willReturn(202);
-        $orderItemMock->method('getQtyOrdered')->willReturn(2.0);
-        $creditmemoItemMock->method('getOrderItem')->willReturn($orderItemMock);
-
-        $creditmemoMock->method('getItems')->willReturn([$creditmemoItemMock]);
-
-        $this->configurationReaderMock->method('getComponentCodes')
-            ->with($orderItemMock)
-            ->willReturn(['SOL-LUA-HOLO']);
-
-        // 1 was already returned previously, so only 1 remains available out of 2 requested
-        $this->movimentacaoResourceMock->method('getReturnedQuantitiesByOrderItemId')
-            ->with(202)
-            ->willReturn(['SOL-LUA-HOLO' => 1]);
-
-        $this->connectionMock->expects($this->once())->method('beginTransaction');
-        $this->connectionMock->expects($this->once())->method('commit');
-
-        $this->componentStockMock->expects($this->once())
-            ->method('return')
-            ->with('SOL-LUA-HOLO', 1, 101, 202);
-
-        $this->returner->returnCreditmemo($creditmemoMock);
+        $this->configurationReader->method('getComponentQuantities')->willThrowException(new \Error('Failure'));
+        $this->connection->expects($this->once())->method('rollBack');
+        $this->connection->expects($this->never())->method('commit');
+        $this->expectException(\Error::class);
+        $this->returner->returnOrder($this->order($this->item(1, 1)));
     }
+
+    public function testRepeatedComponentUsesItsActualDemand(): void
+    {
+        $this->components = ['SOL-LUA-HOLO' => 2];
+        $order = $this->order($this->item(2, 2));
+        $this->returner->returnOrder($order);
+        $this->returner->returnOrder($order);
+        self::assertSame([4], array_column($this->movements, 'quantity'));
+    }
+
+    private function item(int $ordered, int $canceled = 0): OrderItemInterface
+    {
+        $item = $this->createMock(OrderItemInterface::class);
+        $item->method('getItemId')->willReturn(202);
+        $item->method('getProductType')->willReturn('atelie');
+        $item->method('getQtyOrdered')->willReturn($ordered);
+        $item->method('getQtyCanceled')->willReturn($canceled);
+        return $item;
+    }
+
+    private function order(OrderItemInterface $item): Order
+    {
+        $order = $this->createMock(Order::class);
+        $order->method('getEntityId')->willReturn(101);
+        $order->method('getAllItems')->willReturn([$item]);
+        return $order;
+    }
+
+
 }
