@@ -1,3 +1,147 @@
-<div class="atelie-studio-placeholder">
-    <!-- Componente Knockout inicializado (F3.1 Stub) -->
+<div class="atelie-studio-layout">
+    <div class="atelie-studio-header">
+        <div class="atelie-product-meta">
+            <h1 class="atelie-product-title" data-bind="text: product.nome"></h1>
+            <span class="atelie-lead-time">
+                <!-- ko i18n: 'Feito sob encomenda em até' --><!-- /ko -->
+                <strong data-bind="text: product.prazo_producao_dias"></strong>
+                <!-- ko i18n: 'dias úteis' --><!-- /ko -->
+            </span>
+        </div>
+        <div class="atelie-price-box">
+            <span class="price-label"><!-- ko i18n: 'Preço Total' --><!-- /ko --></span>
+            <span class="price-value" data-bind="text: formattedMirrorPrice"></span>
+        </div>
+    </div>
+
+    <div class="atelie-hidden-inputs">
+        <input type="hidden"
+               form="product_addtocart_form"
+               name="atelie[tamanho]"
+               data-bind="value: selectedSize" />
+
+        <input type="hidden"
+               form="product_addtocart_form"
+               name="atelie[gravacao]"
+               data-bind="value: engravingText" />
+
+        <!-- ko foreach: canonicalSelections -->
+        <input type="hidden"
+               form="product_addtocart_form"
+               data-bind="attr: {
+                   name: 'atelie[selecoes][' + $index() + '][grupo]',
+                   value: grupo
+               }" />
+        <input type="hidden"
+               form="product_addtocart_form"
+               data-bind="attr: {
+                   name: 'atelie[selecoes][' + $index() + '][componente]',
+                   value: componente
+               }" />
+        <!-- /ko -->
+    </div>
+
+    <div class="atelie-customizer-container">
+        <nav class="atelie-tabs-navigation" aria-label="Grupos de Personalização">
+            <ul class="atelie-tabs-list" data-bind="foreach: groups">
+                <li class="atelie-tab-item" data-bind="css: { 'active': $parent.isActiveGroup(codigo) }">
+                    <button type="button"
+                            class="atelie-tab-button"
+                            data-bind="click: function() { $parent.selectGroup(codigo); },
+                                       attr: { 'aria-selected': $parent.isActiveGroup(codigo) ? 'true' : 'false' }">
+                        <span class="tab-title" data-bind="text: nome"></span>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="atelie-tabs-content" data-bind="foreach: groups">
+            <div class="atelie-group-panel"
+                 data-bind="visible: $parent.isActiveGroup(codigo),
+                            attr: { 'data-group': codigo }">
+
+                <div class="panel-header">
+                    <h2 class="group-title" data-bind="text: nome"></h2>
+                    <span class="group-hint"><!-- ko i18n: 'Escolha a cor e acabamento para esta parte' --><!-- /ko --></span>
+                </div>
+
+                <div class="atelie-swatches-grid" data-bind="foreach: { data: componentes, as: 'component' }">
+                    <button type="button"
+                            class="atelie-swatch-card"
+                            data-bind="css: {
+                                'selected': $parents[1].isComponentSelected($parent.codigo, component.codigo),
+                                'blocked': $parents[1].isComponentBlocked($parent.codigo, component.codigo)
+                            },
+                            attr: {
+                                'title': $parents[1].isComponentBlocked($parent.codigo, component.codigo) ? $parents[1].getBlockedReason($parent.codigo, component.codigo) : component.nome,
+                                'aria-label': component.nome,
+                                'disabled': $parents[1].isComponentBlocked($parent.codigo, component.codigo)
+                            },
+                            click: function() { $parents[1].selectComponent($parent.codigo, component); }">
+
+                        <span class="swatch-color-pill" data-bind="style: { backgroundColor: component.cor_hex }"></span>
+
+                        <div class="swatch-details">
+                            <span class="swatch-name" data-bind="text: component.nome"></span>
+                            <span class="swatch-finish" data-bind="text: component.acabamento"></span>
+
+                            <!-- ko if: $parents[1].formatExtraPrice(component) -->
+                            <span class="swatch-extra-price" data-bind="text: $parents[1].formatExtraPrice(component)"></span>
+                            <!-- /ko -->
+
+                            <!-- ko if: $parents[1].isComponentBlocked($parent.codigo, component.codigo) -->
+                            <span class="swatch-blocked-msg" data-bind="text: $parents[1].getBlockedReason($parent.codigo, component.codigo)"></span>
+                            <!-- /ko -->
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="atelie-global-options">
+            <div class="atelie-option-box atelie-size-box">
+                <label class="option-label"><!-- ko i18n: 'Tamanho (Grade)' --><!-- /ko --></label>
+                <div class="atelie-sizes-grid" data-bind="foreach: product.grade_tamanhos">
+                    <button type="button"
+                            class="size-pill"
+                            data-bind="text: $data,
+                                       css: { 'selected': $parent.isSizeSelected($data) },
+                                       click: function() { $parent.selectSize($data); }">
+                    </button>
+                </div>
+            </div>
+
+            <!-- ko if: product.gravacao && product.gravacao.permitida -->
+            <div class="atelie-option-box atelie-engraving-box"
+                 data-bind="css: { 'disabled-rule': isEngravingBlocked() }">
+                <div class="engraving-header">
+                    <label class="option-label" for="atelie-engraving-input">
+                        <!-- ko i18n: 'Gravação a Laser Personalizada' --><!-- /ko -->
+                    </label>
+                    <span class="engraving-price" data-bind="text: '+ ' + formatCurrency(product.gravacao.preco)"></span>
+                </div>
+
+                <!-- ko if: isEngravingBlocked -->
+                <div class="atelie-rule-warning" data-bind="text: getEngravingBlockedReason()"></div>
+                <!-- /ko -->
+
+                <div class="engraving-input-wrap">
+                    <input type="text"
+                           id="atelie-engraving-input"
+                           class="input-text engraving-input"
+                           data-bind="textInput: engravingText,
+                                      attr: {
+                                          placeholder: product.gravacao.placeholder,
+                                          maxlength: product.gravacao.limite_caracteres,
+                                          disabled: isEngravingBlocked()
+                                      }" />
+                    <span class="engraving-counter">
+                        <span data-bind="text: remainingEngravingChars"></span>
+                        <!-- ko i18n: 'restantes' --><!-- /ko -->
+                    </span>
+                </div>
+            </div>
+            <!-- /ko -->
+        </div>
+    </div>
 </div>
