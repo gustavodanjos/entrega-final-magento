@@ -3,185 +3,136 @@ declare(strict_types=1);
 
 namespace Nuvem\AtelieSales\Model;
 
-use Exception;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Sales\Api\Data\CreditmemoInterface;
-use Magento\Sales\Api\Data\CreditmemoItemInterface;
-use Magento\Sales\Api\Data\OrderInterface;
 use Magento\Sales\Api\Data\OrderItemInterface;
+use Magento\Sales\Model\Order;
+use Magento\Sales\Model\Order\Creditmemo;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 
-/**
- * Handles idempotent return of atelie components to stock on cancellation or refund.
- *
- * Uses the stock ledger (nuvem_atelie_movimentacao) as memory to guarantee that no
- * order item can ever return more component units than originally ordered.
- */
 class OrderItemStockReturner
 {
     /**
      * @param ComponentStockInterface $componentStock
-     * @param Movimentacao $movimentacaoResource
+     * @param Movimentacao $stockLedger
      * @param OrderItemConfigurationReader $configurationReader
      * @param ResourceConnection $resourceConnection
      */
     public function __construct(
         private readonly ComponentStockInterface $componentStock,
-        private readonly Movimentacao $movimentacaoResource,
+        private readonly Movimentacao $stockLedger,
         private readonly OrderItemConfigurationReader $configurationReader,
         private readonly ResourceConnection $resourceConnection
     ) {
     }
 
     /**
-     * Return remaining unreturned components of an order when it is cancelled.
+     * Return components in one transaction across all configured order items.
      *
-     * @param OrderInterface $order
+     * @param Order $order
      * @return void
-     * @throws Exception
      */
-    public function returnOrder(OrderInterface $order): void
+    public function returnOrder(Order $order): void
     {
-        $items = method_exists($order, 'getAllItems') ? $order->getAllItems() : $order->getItems();
-        if (empty($items)) {
+        $returns = [];
+        foreach ($order->getAllItems() as $item) {
+            $quantity = $this->quantity($item->getQtyOrdered());
+            if ($quantity > 0) {
+                $returns[] = ['item' => $item, 'qty' => $quantity];
+            }
+        }
+        $orderId = (int) $order->getEntityId();
+        $this->returnItems($orderId, $returns, 'cancel:' . $orderId);
+    }
+
+    /**
+     * @param Creditmemo $creditmemo
+     * @return void
+     */
+    public function returnCreditmemo(Creditmemo $creditmemo): void
+    {
+        $returns = [];
+        foreach ($creditmemo->getAllItems() as $item) {
+            if (!$item->getBackToStock()) {
+                continue;
+            }
+            $orderItem = $item->getOrderItem();
+            $quantity = $this->quantity($item->getQty());
+            if ($quantity > 0) {
+                $returns[] = ['item' => $orderItem, 'qty' => $quantity];
+            }
+        }
+        $this->returnItems(
+            (int) $creditmemo->getOrderId(),
+            $returns,
+            'creditmemo:' . $creditmemo->getEntityId()
+        );
+    }
+
+    /**
+     * @param int $orderId
+     * @param array<int, array{item: OrderItemInterface, qty: int}> $returns
+     * @param string $note
+     * @return void
+     */
+    private function returnItems(int $orderId, array $returns, string $note): void
+    {
+        if ($orderId <= 0 || $returns === []) {
             return;
         }
-
-        $orderId = $order->getEntityId() !== null ? (int) $order->getEntityId() : null;
         $connection = $this->resourceConnection->getConnection();
-
         $connection->beginTransaction();
         try {
-            foreach ($items as $item) {
-                $this->processOrderItemReturn($item, null, $orderId);
+            $this->stockLedger->lockOrder($orderId);
+            foreach ($returns as $return) {
+                $this->returnItem($return['item'], $return['qty'], $orderId, $note);
             }
             $connection->commit();
-        } catch (Exception $exception) {
+        } catch (\Throwable $exception) {
             $connection->rollBack();
             throw $exception;
         }
     }
 
     /**
-     * Return components for items marked "back to stock" in a creditmemo refund.
-     *
-     * @param CreditmemoInterface $creditmemo
+     * @param OrderItemInterface $item
+     * @param int $requestedQuantity cumulative quantity for this return document
+     * @param int $orderId
+     * @param string $note
      * @return void
-     * @throws Exception
      */
-    public function returnCreditmemo(CreditmemoInterface $creditmemo): void
+    private function returnItem(OrderItemInterface $item, int $requestedQuantity, int $orderId, string $note): void
     {
-        $items = method_exists($creditmemo, 'getAllItems') ? $creditmemo->getAllItems() : $creditmemo->getItems();
-        if (empty($items)) {
+        $itemId = (int) $item->getItemId();
+        $componentQuantities = $this->configurationReader->getComponentQuantities($item, 1);
+        if ($itemId <= 0 || $componentQuantities === []) {
             return;
         }
-
-        $orderId = $creditmemo->getOrderId() !== null ? (int) $creditmemo->getOrderId() : null;
-        $connection = $this->resourceConnection->getConnection();
-
-        $connection->beginTransaction();
-        try {
-            foreach ($items as $creditmemoItem) {
-                if (!$this->isBackToStock($creditmemoItem)) {
-                    continue;
-                }
-
-                $orderItem = method_exists($creditmemoItem, 'getOrderItem')
-                    ? $creditmemoItem->getOrderItem()
-                    : null;
-
-                if ($orderItem === null && method_exists($creditmemo, 'getOrder') && $creditmemo->getOrder() !== null) {
-                    $orderItem = $creditmemo->getOrder()->getItemById($creditmemoItem->getOrderItemId());
-                }
-
-                if ($orderItem === null) {
-                    continue;
-                }
-
-                $qtyToRefund = (int) $creditmemoItem->getQty();
-                if ($qtyToRefund <= 0) {
-                    continue;
-                }
-
-                $this->processOrderItemReturn($orderItem, $qtyToRefund, $orderId);
+        $orderedQuantity = $this->quantity($item->getQtyOrdered());
+        $returned = $this->stockLedger->getReturnedQuantitiesByOrderItemId($itemId, null, $orderId);
+        ksort($componentQuantities);
+        foreach ($componentQuantities as $code => $unitsPerItem) {
+            $remaining = $orderedQuantity * $unitsPerItem - ($returned[$code] ?? 0);
+            $requested = $requestedQuantity * $unitsPerItem;
+            $quantity = min($remaining, $requested);
+            if ($quantity > 0) {
+                $this->componentStock->return($code, $quantity, $orderId, $itemId, $note);
             }
-            $connection->commit();
-        } catch (Exception $exception) {
-            $connection->rollBack();
-            throw $exception;
         }
     }
 
     /**
-     * Return components for a single order item with ledger-based idempotency.
-     *
-     * @param OrderItemInterface $orderItem
-     * @param int|null $requestedQty units to return (null means all remaining from qty_ordered)
-     * @param int|null $orderId
-     * @return void
+     * @param mixed $value
+     * @return int
      * @throws LocalizedException
      */
-    private function processOrderItemReturn(
-        OrderItemInterface $orderItem,
-        ?int $requestedQty,
-        ?int $orderId
-    ): void {
-        $orderItemId = $orderItem->getItemId() !== null ? (int) $orderItem->getItemId() : null;
-        if ($orderItemId === null) {
-            return;
-        }
-
-        $componentCodes = $this->configurationReader->getComponentCodes($orderItem);
-        if ($componentCodes === []) {
-            return;
-        }
-
-        $qtyOrdered = (int) $orderItem->getQtyOrdered();
-        if ($qtyOrdered <= 0) {
-            return;
-        }
-
-        $returnedQuantities = $this->movimentacaoResource->getReturnedQuantitiesByOrderItemId($orderItemId);
-        $resolvedOrderId = $orderId ?? ($orderItem->getOrderId() !== null ? (int) $orderItem->getOrderId() : null);
-
-        foreach ($componentCodes as $code) {
-            $alreadyReturned = $returnedQuantities[$code] ?? 0;
-            $maxAvailableToReturn = max(0, $qtyOrdered - $alreadyReturned);
-
-            if ($maxAvailableToReturn <= 0) {
-                continue;
-            }
-
-            $unitsToReturn = $requestedQty !== null
-                ? min($requestedQty, $maxAvailableToReturn)
-                : $maxAvailableToReturn;
-
-            if ($unitsToReturn <= 0) {
-                continue;
-            }
-
-            $this->componentStock->return($code, $unitsToReturn, $resolvedOrderId, $orderItemId);
-        }
-    }
-
-    /**
-     * Check whether a creditmemo item is flagged to return to stock.
-     *
-     * @param CreditmemoItemInterface $creditmemoItem
-     * @return bool
-     */
-    private function isBackToStock(CreditmemoItemInterface $creditmemoItem): bool
+    private function quantity(mixed $value): int
     {
-        if (method_exists($creditmemoItem, 'getBackToStock')) {
-            return (bool) $creditmemoItem->getBackToStock();
+        $quantity = (float) $value;
+        if (!is_finite($quantity) || $quantity < 0 || floor($quantity) !== $quantity || $quantity >= PHP_INT_MAX) {
+            throw new LocalizedException(__('A quantidade de componentes a devolver deve ser um inteiro não negativo.'));
         }
-
-        if ($creditmemoItem instanceof \Magento\Framework\DataObject) {
-            return (bool) $creditmemoItem->getData('back_to_stock');
-        }
-
-        return false;
+        return (int) $quantity;
     }
 }
