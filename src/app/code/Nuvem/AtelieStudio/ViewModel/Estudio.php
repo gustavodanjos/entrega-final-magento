@@ -16,6 +16,14 @@ use Nuvem\Atelie\Model\Config;
 
 class Estudio implements ArgumentInterface
 {
+    /**
+     * @param Registry $registry
+     * @param AtelieCatalogInterface $atelieCatalog
+     * @param ScopeConfigInterface $scopeConfig
+     * @param UrlInterface $urlBuilder
+     * @param PriceCurrencyInterface $priceCurrency
+     * @param Json $jsonSerializer
+     */
     public function __construct(
         private readonly Registry $registry,
         private readonly AtelieCatalogInterface $atelieCatalog,
@@ -26,12 +34,18 @@ class Estudio implements ArgumentInterface
     ) {
     }
 
+    /**
+     * @return Product|null
+     */
     public function getProduct(): ?Product
     {
         $product = $this->registry->registry('current_product');
         return $product instanceof Product ? $product : null;
     }
 
+    /**
+     * @return array
+     */
     public function getStudioData(): array
     {
         $product = $this->getProduct();
@@ -80,20 +94,19 @@ class Estudio implements ArgumentInterface
             }
         }
 
+        // Resolucao de preco direto do produto (sem fallbacks fixos arbitrarios)
         $basePrice = 0.0;
-        if ($product) {
-            $basePrice = (float) (
-                $product->getFinalPrice()
-                ?: $product->getPrice()
-                ?: $product->getData('price')
-                ?: ($product->getPriceInfo() ? $product->getPriceInfo()->getPrice('final_price')->getAmount()->getValue() : 0.0)
-            );
+        $finalPrice = $product->getFinalPrice();
+        if ($finalPrice !== null && (float) $finalPrice > 0) {
+            $basePrice = (float) $finalPrice;
+        } elseif ($product->getPrice() !== null && (float) $product->getPrice() > 0) {
+            $basePrice = (float) $product->getPrice();
+        } elseif ($product->getPriceInfo() && $product->getPriceInfo()->getPrice('final_price')) {
+            $basePrice = (float) $product->getPriceInfo()->getPrice('final_price')->getAmount()->getValue();
         }
-        if ($basePrice <= 0 && !empty($catalog['preco_base'])) {
+
+        if ($basePrice <= 0.0 && !empty($catalog['preco_base'])) {
             $basePrice = (float) $catalog['preco_base'];
-        }
-        if ($basePrice <= 0) {
-            $basePrice = 449.90;
         }
 
         return [
@@ -126,34 +139,36 @@ class Estudio implements ArgumentInterface
         ];
     }
 
+    /**
+     * @param array|string $jsLayout
+     * @return string
+     */
     public function getMergedJsLayout(array|string $jsLayout = []): string
     {
         if (is_string($jsLayout)) {
-            $decoded = json_decode($jsLayout, true);
-            $jsLayout = is_array($decoded) ? $decoded : [];
+            $jsLayout = $this->jsonSerializer->unserialize($jsLayout);
         }
         if (!is_array($jsLayout)) {
             $jsLayout = [];
         }
 
         $studioData = $this->getStudioData();
-
         if (!isset($jsLayout['components']['atelieStudio'])) {
             $jsLayout['components']['atelieStudio'] = [
                 'component' => 'Nuvem_AtelieStudio/js/studio'
             ];
         }
-
         $jsLayout['components']['atelieStudio']['config']['studioData'] = $studioData;
-        $jsLayout['components']['atelieStudio']['config']['configurador'] = $studioData;
         $jsLayout['components']['atelieStudio']['studioData'] = $studioData;
-        $jsLayout['components']['atelieStudio']['configurador'] = $studioData;
 
-        return (string) json_encode($jsLayout, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return $this->jsonSerializer->serialize($jsLayout);
     }
 
+    /**
+     * @return string
+     */
     public function getStudioJson(): string
     {
-        return (string) json_encode($this->getStudioData(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return $this->jsonSerializer->serialize($this->getStudioData());
     }
 }
