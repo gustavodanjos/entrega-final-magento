@@ -6,16 +6,17 @@ namespace Nuvem\AtelieSales\Model;
 use JsonException;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Api\Data\OrderItemInterface;
+use Nuvem\Atelie\Model\Product\Type\Atelie;
 
 /**
  * Extracts component demand of an order item from stored product options.
  *
- * Items without atelie configuration are standard catalog products and consume nothing.
+ * Standard catalog products without atelie configuration consume nothing.
  * Corrupted atelie configurations fail loudly to prevent partial or untracked stock operations.
  */
 class OrderItemConfigurationReader
 {
-    public const OPTION_CODE = 'atelie_configuracao';
+    public const OPTION_CODE = Atelie::CUSTOM_OPTION_CONFIGURACAO;
 
     private const OPTION_CODE_ALT = 'configuracao';
 
@@ -34,19 +35,18 @@ class OrderItemConfigurationReader
         }
 
         $selections = $configuration['selecoes'] ?? $configuration['selections'] ?? null;
-        if (!is_array($selections)) {
-            throw new LocalizedException(
-                __('A configuração do item "%1" está corrompida e não pôde ser lida.', $item->getSku())
-            );
+        if (!is_array($selections) || $selections === []) {
+            throw $this->invalidConfiguration($item);
         }
 
         $codes = [];
         foreach ($selections as $selection) {
+            if (!is_array($selection)) {
+                throw $this->invalidConfiguration($item);
+            }
             $componentCode = $selection['componente'] ?? $selection['component'] ?? null;
-            if (!is_string($componentCode) || $componentCode === '') {
-                throw new LocalizedException(
-                    __('A configuração do item "%1" está corrompida e não pôde ser lida.', $item->getSku())
-                );
+            if (!is_string($componentCode) || trim($componentCode) === '') {
+                throw $this->invalidConfiguration($item);
             }
             $codes[] = $componentCode;
         }
@@ -93,7 +93,7 @@ class OrderItemConfigurationReader
     {
         $options = $item->getProductOptions();
         if (!is_array($options)) {
-            return null;
+            $options = [];
         }
 
         $raw = $options[self::OPTION_CODE] ?? $options[self::OPTION_CODE_ALT] ?? null;
@@ -104,6 +104,9 @@ class OrderItemConfigurationReader
         }
 
         if ($raw === null) {
+            if ($item->getProductType() === Atelie::TYPE_CODE) {
+                throw $this->invalidConfiguration($item);
+            }
             return null;
         }
 
@@ -112,25 +115,30 @@ class OrderItemConfigurationReader
         }
 
         if (!is_string($raw)) {
-            throw new LocalizedException(
-                __('A configuração do item "%1" está corrompida e não pôde ser lida.', $item->getSku())
-            );
+            throw $this->invalidConfiguration($item);
         }
 
         try {
             $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            throw new LocalizedException(
-                __('A configuração do item "%1" está corrompida e não pôde ser lida.', $item->getSku())
-            );
+            throw $this->invalidConfiguration($item);
         }
 
         if (!is_array($decoded)) {
-            throw new LocalizedException(
-                __('A configuração do item "%1" está corrompida e não pôde ser lida.', $item->getSku())
-            );
+            throw $this->invalidConfiguration($item);
         }
 
         return $decoded;
+    }
+
+    /**
+     * @param OrderItemInterface $item
+     * @return LocalizedException
+     */
+    private function invalidConfiguration(OrderItemInterface $item): LocalizedException
+    {
+        return new LocalizedException(
+            __('A configuração do item "%1" está corrompida e não pôde ser lida.', $item->getSku())
+        );
     }
 }
