@@ -14,4 +14,7 @@
     <event name="sales_order_place_before">
         <observer name="nuvem_atelie_sales_test_fail_after_reservation" instance="Nuvem\AtelieSales\Observer\FailAfterReservationTestObserver"/>
     </event>
+    <event name="order_cancel_after">
+        <observer name="nuvem_atelie_sales_return_stock_on_cancel" instance="Nuvem\AtelieSales\Observer\ReturnStockOnOrderCancel"/>
+    </event>
 </config>
