@@ -5,8 +5,11 @@ namespace Nuvem\AtelieSales\Test\Unit\Model;
 
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\DB\Adapter\AdapterInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Sales\Api\Data\OrderItemInterface;
 use Magento\Sales\Model\Order;
+use Magento\Sales\Model\Order\Creditmemo;
+use Magento\Sales\Model\Order\Creditmemo\Item as CreditmemoItem;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
 use Nuvem\AtelieSales\Model\OrderItemConfigurationReader;
 use Nuvem\AtelieSales\Model\OrderItemStockReturner;
@@ -112,6 +115,58 @@ class OrderItemStockReturnerTest extends TestCase
         $this->returner->returnOrder($this->order($this->item(1, 1)));
     }
 
+    public function testRepeatedPartialRefundDoesNotPreventNextDistinctRefund(): void
+    {
+        $item = $this->item(3);
+        $first = $this->creditmemo($item, 1, true, 301);
+        $this->returner->returnCreditmemo($first);
+        $this->returner->returnCreditmemo($first);
+        $this->returner->returnCreditmemo($this->creditmemo($item, 1, true, 302));
+        self::assertSame([1, 1], array_column($this->movements, 'quantity'));
+        self::assertSame(['creditmemo:301', 'creditmemo:302'], array_column($this->movements, 'note'));
+    }
+
+    public function testRefundWithoutBackToStockDoesNotStartStockTransaction(): void
+    {
+        $this->connection->expects($this->never())->method('beginTransaction');
+        $this->returner->returnCreditmemo($this->creditmemo($this->item(3), 1, false));
+    }
+
+    public function testOpenCreditmemoDoesNotReturnStock(): void
+    {
+        $this->connection->expects($this->never())->method('beginTransaction');
+        $this->returner->returnCreditmemo($this->creditmemo($this->item(3), 1, true, 301, Creditmemo::STATE_OPEN));
+    }
+
+    public function testCanceledCreditmemoDoesNotReturnStock(): void
+    {
+        $this->connection->expects($this->never())->method('beginTransaction');
+        $this->returner->returnCreditmemo($this->creditmemo($this->item(3), 1, true, 301, Creditmemo::STATE_CANCELED));
+    }
+
+    public function testUnsavedCreditmemoDoesNotReturnStock(): void
+    {
+        $this->connection->expects($this->never())->method('beginTransaction');
+        $this->returner->returnCreditmemo($this->creditmemo($this->item(3), 1, true, 0));
+    }
+
+    public function testRefundAndCancellationRespectOverallOrderedLimit(): void
+    {
+        $item = $this->item(3, 2);
+        $this->returner->returnCreditmemo($this->creditmemo($item, 2, true));
+        $this->returner->returnOrder($this->order($item));
+        self::assertSame([2, 1], array_column($this->movements, 'quantity'));
+    }
+
+    public function testCancellationAndRefundRemainIndependent(): void
+    {
+        $item = $this->item(3, 1);
+        $this->returner->returnOrder($this->order($item));
+        $this->returner->returnCreditmemo($this->creditmemo($item, 1, true));
+        $this->returner->returnOrder($this->order($item));
+        self::assertSame([1, 1], array_column($this->movements, 'quantity'));
+    }
+
     public function testRepeatedComponentUsesItsActualDemand(): void
     {
         $this->components = ['SOL-LUA-HOLO' => 2];
@@ -119,6 +174,12 @@ class OrderItemStockReturnerTest extends TestCase
         $this->returner->returnOrder($order);
         $this->returner->returnOrder($order);
         self::assertSame([4], array_column($this->movements, 'quantity'));
+    }
+
+    public function testFractionalReturnIsRejected(): void
+    {
+        $this->expectException(LocalizedException::class);
+        $this->returner->returnCreditmemo($this->creditmemo($this->item(3), 0.5, true));
     }
 
     private function item(int $ordered, int $canceled = 0): OrderItemInterface
@@ -139,5 +200,24 @@ class OrderItemStockReturnerTest extends TestCase
         return $order;
     }
 
-
+    private function creditmemo(
+        OrderItemInterface $item,
+        float $quantity,
+        bool $backToStock,
+        int $id = 301,
+        int $state = Creditmemo::STATE_REFUNDED
+    ): Creditmemo {
+        $creditmemoItem = $this->getMockBuilder(CreditmemoItem::class)->disableOriginalConstructor()
+            ->onlyMethods(['getOrderItem', 'getQty', 'isDeleted'])->addMethods(['getBackToStock'])->getMock();
+        $creditmemoItem->method('getOrderItem')->willReturn($item);
+        $creditmemoItem->method('getQty')->willReturn($quantity);
+        $creditmemoItem->method('getBackToStock')->willReturn($backToStock);
+        $creditmemoItem->method('isDeleted')->willReturn(false);
+        $creditmemo = $this->createMock(Creditmemo::class);
+        $creditmemo->method('getEntityId')->willReturn($id);
+        $creditmemo->method('getOrderId')->willReturn(101);
+        $creditmemo->method('getState')->willReturn($state);
+        $creditmemo->method('getAllItems')->willReturn([$creditmemoItem]);
+        return $creditmemo;
+    }
 }
