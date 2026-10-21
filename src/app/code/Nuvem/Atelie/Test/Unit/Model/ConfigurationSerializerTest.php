@@ -1,4 +1,7 @@
 <?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
 declare(strict_types=1);
 
 namespace Nuvem\Atelie\Test\Unit\Model;
@@ -124,10 +127,15 @@ class ConfigurationSerializerTest extends TestCase
         );
 
         $this->assertSame(38, $unserialized->getSize());
+        $this->assertSame(38, $unserialized->getTamanho());
         $this->assertSame('LUIZ', $unserialized->getEngraving());
+        $this->assertSame('LUIZ', $unserialized->getGravacao());
         $this->assertCount(1, $unserialized->getSelections());
+        $this->assertCount(1, $unserialized->getSelecoes());
         $this->assertSame('cabedal', $unserialized->getSelections()[0]->getGroup());
+        $this->assertSame('cabedal', $unserialized->getSelections()[0]->getGrupo());
         $this->assertSame('CAB-TRICO-LAVANDA', $unserialized->getSelections()[0]->getComponent());
+        $this->assertSame('CAB-TRICO-LAVANDA', $unserialized->getSelections()[0]->getComponente());
     }
 
     public function testUnserializeTreatsNullEngravingAsAbsent(): void
