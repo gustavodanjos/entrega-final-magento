@@ -9,6 +9,7 @@
     "require": {
         "php": "~8.2.0||~8.3.0||~8.4.0",
         "magento/framework": "*",
+        "magento/module-quote": "*",
         "nuvem/module-atelie": "*"
     },
     "autoload": {

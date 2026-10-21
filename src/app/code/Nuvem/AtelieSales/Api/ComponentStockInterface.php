@@ -22,10 +22,17 @@ interface ComponentStockInterface
      * @param int $qty units to reserve, must be positive
      * @param int|null $orderId
      * @param int|null $orderItemId
+     * @param int|null $quoteId quote the reservation belongs to, recorded in the ledger so a failed submission can be compensated
      * @return bool true when the reservation succeeded
      * @throws \Magento\Framework\Exception\LocalizedException when the component does not exist, the quantity is not positive or the available stock is insufficient
      */
-    public function reserve(string $componentCode, int $qty, ?int $orderId = null, ?int $orderItemId = null): bool;
+    public function reserve(
+        string $componentCode,
+        int $qty,
+        ?int $orderId = null,
+        ?int $orderItemId = null,
+        ?int $quoteId = null
+    ): bool;
 
     /**
      * Release a reservation when the order fails after the reservation.
@@ -36,10 +43,11 @@ interface ComponentStockInterface
      * @param string $componentCode component code (e.g. "SOL-LUA-HOLO")
      * @param int $qty units to release, must be positive
      * @param int|null $orderId
+     * @param int|null $quoteId quote the compensation refers to, recorded in the ledger so the compensation is idempotent per quote
      * @return void
      * @throws \Magento\Framework\Exception\LocalizedException when the component does not exist or the quantity is not positive
      */
-    public function compensate(string $componentCode, int $qty, ?int $orderId = null): void;
+    public function compensate(string $componentCode, int $qty, ?int $orderId = null, ?int $quoteId = null): void;
 
     /**
      * Give units back to stock after a cancellation or a refund.
