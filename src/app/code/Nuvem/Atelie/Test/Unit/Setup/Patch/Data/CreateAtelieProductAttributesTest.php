@@ -15,6 +15,7 @@ use Magento\Eav\Setup\EavSetupFactory;
 use Magento\Framework\Setup\ModuleDataSetupInterface;
 use Nuvem\Atelie\Model\Product\Type\Atelie;
 use Nuvem\Atelie\Setup\Patch\Data\CreateAtelieProductAttributes;
+use Nuvem\Atelie\Setup\Patch\Data\EnableProductAttributesForAtelie;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -142,9 +143,12 @@ class CreateAtelieProductAttributesTest extends TestCase
         );
     }
 
-    public function testGetDependenciesReturnsEmptyArray(): void
+    public function testGetDependenciesReturnsEnableProductAttributesPatch(): void
     {
-        $this->assertSame([], CreateAtelieProductAttributes::getDependencies());
+        $this->assertSame(
+            [EnableProductAttributesForAtelie::class],
+            CreateAtelieProductAttributes::getDependencies()
+        );
     }
 
     public function testGetAliasesReturnsEmptyArray(): void
