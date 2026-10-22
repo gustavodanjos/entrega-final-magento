@@ -1,0 +1,35 @@
+<div class="atelie-save-creation">
+    <h3 class="atelie-section-label">Salvar minha criação</h3>
+
+    <div class="atelie-save-form">
+        <label for="atelie-creation-name">Nome da criação</label>
+
+        <input type="text"
+               id="atelie-creation-name"
+               class="input-text"
+               maxlength="80"
+               placeholder="Ex: Meu Nuvem personalizado"
+               data-bind="textInput: creationName,
+                          disable: isSaving">
+
+        <button type="button"
+                class="action primary"
+                data-bind="click: save,
+                           disable: isSaving">
+            <span data-bind="text: isSaving() ? 'Salvando...' : 'Salvar criação'"></span>
+        </button>
+    </div>
+
+    <!-- ko if: errorMessage -->
+    <div class="message error" role="alert">
+        <span data-bind="text: errorMessage"></span>
+    </div>
+    <!-- /ko -->
+
+    <!-- ko if: savedLink -->
+    <div class="message success" role="status">
+        <p>Criação salva com sucesso!</p>
+        <a data-bind="attr: { href: savedLink }, text: savedLink"></a>
+    </div>
+    <!-- /ko -->
+</div>

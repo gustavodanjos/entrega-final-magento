@@ -1,0 +1,131 @@
+<div class="atelie-studio">
+    <div class="atelie-header">
+        <div class="atelie-header-info">
+            <h2 class="atelie-title" data-bind="text: productName"></h2>
+            <p class="atelie-subtitle">Feito sob encomenda em até 12 dias úteis</p>
+        </div>
+        <div class="atelie-mirror-price">
+            <span class="atelie-price-label">Preço Total</span>
+            <span class="atelie-price-value" data-bind="text: formattedMirrorPrice"></span>
+        </div>
+    </div>
+
+    <nav class="atelie-tabs-nav" role="tablist">
+        <!-- ko foreach: { data: grupos, as: 'grupo' } -->
+        <button type="button"
+                class="atelie-tab-btn"
+                role="tab"
+                data-bind="
+                    text: grupo.nome,
+                    css: { 'is-active': $parent.activeTab() === grupo.codigo },
+                    click: function () { $parent.switchTab(grupo.codigo); }">
+        </button>
+        <!-- /ko -->
+    </nav>
+
+    <div class="atelie-tab-panel" role="tabpanel">
+        <div class="atelie-group-header">
+            <h3 class="atelie-group-title" data-bind="text: currentGroup().nome"></h3>
+            <!-- ko if: currentGroup().descricao -->
+            <p class="atelie-group-desc" data-bind="text: currentGroup().descricao"></p>
+            <!-- /ko -->
+        </div>
+
+        <div class="atelie-options-grid">
+            <!-- ko foreach: { data: currentOptions, as: 'option' } -->
+            <div class="atelie-swatch-wrapper">
+                <button type="button"
+                        class="atelie-swatch"
+                        data-bind="
+                            css: {
+                                'is-selected': $parent.isSelected($parent.activeTab(), option.codigo),
+                                'is-blocked': $parent.isBlocked(option.codigo)
+                            },
+                            click: function (data, event) { $parent.selectOption($parent.activeTab(), option, event); },
+                            attr: {
+                                'aria-label': option.nome + ($parent.isBlocked(option.codigo) ? ' (Indisponível: ' + $parent.getBlockReason(option.codigo) + ')' : ''),
+                                'aria-disabled': $parent.isBlocked(option.codigo) ? 'true' : 'false'
+                            }">
+                    <span class="atelie-swatch-color"
+                          data-bind="style: { backgroundColor: $parent.getOptionColor(option) }"></span>
+                    <span class="atelie-swatch-info">
+                        <span class="atelie-swatch-name" data-bind="text: option.nome"></span>
+                        <span class="atelie-swatch-finish" data-bind="text: option.acabamento || 'Padrão'"></span>
+                        <!-- ko if: $parent.getOptionPrice(option) > 0 -->
+                        <span class="atelie-swatch-badge" data-bind="text: '+ R$ ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',')"></span>
+                        <!-- /ko -->
+                    </span>
+                </button>
+
+                <div class="atelie-block-balloon"
+                     role="alert"
+                     data-bind="visible: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo">
+                    <span class="atelie-balloon-text" data-bind="text: $parent.getBlockReason(option.codigo)"></span>
+                    <button type="button"
+                            class="atelie-balloon-close"
+                            data-bind="click: function (data, event) { event.stopPropagation(); $parent.closeTooltip(); }"
+                            aria-label="Fechar">&times;</button>
+                </div>
+            </div>
+            <!-- /ko -->
+        </div>
+    </div>
+
+    <div class="atelie-size-section">
+        <span class="atelie-section-label">Tamanho (Grade)</span>
+        <div class="atelie-size-grid">
+            <!-- ko foreach: gradeTamanhos -->
+            <button type="button"
+                    class="atelie-size-btn"
+                    data-bind="
+                        text: $data,
+                        css: { 'is-selected': $parent.selectedSize() === $data },
+                        click: function () { $parent.selectSize($data); }">
+            </button>
+            <!-- /ko -->
+        </div>
+    </div>
+
+    <!-- ko if: permiteGravacao -->
+    <div class="atelie-laser-section">
+        <div class="atelie-laser-header">
+            <span class="atelie-section-label">Gravação a Laser Personalizada</span>
+            <span class="atelie-laser-badge" data-bind="text: '+ R$ ' + laserPrice().toFixed(2).replace('.', ',')"></span>
+        </div>
+        <input type="text"
+               class="atelie-laser-input"
+               placeholder="Ex: NUVEM"
+               data-bind="
+                   textInput: laserText,
+                   attr: { maxlength: laserLimit }">
+        <div class="atelie-laser-counter">
+            <span data-bind="text: laserRemainingChars"></span> restantes
+        </div>
+    </div>
+    <!-- /ko -->
+
+    <div class="atelie-hidden-inputs">
+        <!-- ko foreach: { data: grupos, as: 'grupo' } -->
+        <input type="hidden"
+               form="product_addtocart_form"
+               data-bind="
+                   attr: {
+                       name: 'atelie[selecoes][' + $index() + '][grupo]',
+                       value: grupo.codigo
+                   }">
+        <input type="hidden"
+               form="product_addtocart_form"
+               data-bind="
+                   attr: {
+                       name: 'atelie[selecoes][' + $index() + '][componente]',
+                       value: $parent.getSelectedComponent(grupo.codigo)
+                   }">
+        <!-- /ko -->
+        <input type="hidden" name="atelie[tamanho]" form="product_addtocart_form" data-bind="value: selectedSize">
+        <input type="hidden" name="atelie[gravacao]" form="product_addtocart_form" data-bind="value: laserText">
+    </div>
+    <!-- F5.1: Saved creation actions -->
+    <!-- ko foreach: getRegion('creationActions') -->
+        <!-- ko template: getTemplate() --><!-- /ko -->
+    <!-- /ko -->
+</div>
