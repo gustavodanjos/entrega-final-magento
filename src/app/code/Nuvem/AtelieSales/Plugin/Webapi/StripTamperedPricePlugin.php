@@ -1,4 +1,7 @@
 <?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
 declare(strict_types=1);
 
 namespace Nuvem\AtelieSales\Plugin\Webapi;
@@ -7,11 +10,21 @@ use Magento\Framework\Webapi\ServiceInputProcessor;
 
 /**
  * The cart item payload never carries a price: the server always recalculates.
- * `custom_price` is not part of the CartItem contract, so tampering attempts
- * are stripped before the payload is processed.
+ * Both `price` and `custom_price` are stripped from cart item payloads before
+ * processing to prevent price tampering via WebAPI.
  */
 class StripTamperedPricePlugin
 {
+    /**
+     * Strip price and custom_price from cart item payloads.
+     *
+     * @param ServiceInputProcessor $subject
+     * @param callable $proceed
+     * @param string $serviceClassName
+     * @param string $serviceMethodName
+     * @param array $inputArray
+     * @return mixed
+     */
     public function aroundProcess(
         ServiceInputProcessor $subject,
         callable $proceed,
@@ -19,8 +32,13 @@ class StripTamperedPricePlugin
         string $serviceMethodName,
         array $inputArray
     ) {
-        if (isset($inputArray['cartItem']['custom_price'])) {
-            unset($inputArray['cartItem']['custom_price']);
+        foreach (['cartItem', 'item', 'cart_item'] as $key) {
+            if (isset($inputArray[$key]) && is_array($inputArray[$key])) {
+                unset(
+                    $inputArray[$key]['custom_price'],
+                    $inputArray[$key]['price']
+                );
+            }
         }
 
         return $proceed($serviceClassName, $serviceMethodName, $inputArray);
