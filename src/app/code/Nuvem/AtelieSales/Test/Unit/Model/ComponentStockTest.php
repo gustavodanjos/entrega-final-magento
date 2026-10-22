@@ -142,7 +142,7 @@ class ComponentStockTest extends TestCase
             );
         $this->eventManagerMock->expects($this->once())->method('dispatch');
 
-        $this->assertTrue($this->componentStock->reserve('SOL-LUA-HOLO', 2, null, null, 99));
+        $this->assertTrue($this->componentStock->reserveForQuote('SOL-LUA-HOLO', 2, 99));
     }
 
     public function testReserveRefusesWhenStockIsInsufficient(): void
@@ -157,6 +157,32 @@ class ComponentStockTest extends TestCase
         $this->expectExceptionMessage('O componente "Sola Lua" esgotou enquanto você finalizava.');
 
         $this->componentStock->reserve('SOL-LUA-HOLO', 2);
+    }
+
+    public function testOriginalReservePreservesOrderMetadataWithoutQuoteOwnership(): void
+    {
+        $this->connectionMock->method('update')->willReturn(1);
+        $this->movimentacaoResourceMock->expects($this->never())->method('lockQuote');
+        $this->connectionMock->expects($this->once())->method('insert')->with(
+            'nuvem_atelie_movimentacao',
+            $this->callback(static fn (array $row): bool => $row['order_id'] === 11
+                && $row['order_item_id'] === 12 && $row['quote_id'] === null && $row['quantidade'] === -2)
+        );
+
+        $this->assertTrue($this->componentStock->reserve('SOL-LUA-HOLO', 2, 11, 12));
+    }
+
+    public function testOriginalCompensationPreservesOrderMetadataWithoutQuoteOwnership(): void
+    {
+        $this->movimentacaoResourceMock->expects($this->never())->method('lockQuote');
+        $this->movimentacaoResourceMock->expects($this->never())->method('getReservedQuantity');
+        $this->connectionMock->expects($this->once())->method('insert')->with(
+            'nuvem_atelie_movimentacao',
+            $this->callback(static fn (array $row): bool => $row['order_id'] === 11
+                && $row['quote_id'] === null && $row['quantidade'] === 2)
+        );
+
+        $this->componentStock->compensate('SOL-LUA-HOLO', 2, 11);
     }
 
     public function testReserveWrapsUnknownComponentIntoLocalizedMessage(): void
@@ -224,7 +250,7 @@ class ComponentStockTest extends TestCase
                 ]
             );
 
-        $this->componentStock->compensate('SOL-LUA-HOLO', 2, null, 99);
+        $this->componentStock->compensateForQuote('SOL-LUA-HOLO', 2, 99);
     }
 
     public function testReturnRecordsDevolutionLedgerMovement(): void
@@ -345,7 +371,7 @@ class ComponentStockTest extends TestCase
         );
         $this->connectionMock->expects($this->never())->method('update');
         $this->connectionMock->expects($this->never())->method('insert');
-        $service->compensate('SOL-LUA-HOLO', 10, null, 99);
+        $service->compensateForQuote('SOL-LUA-HOLO', 10, 99);
     }
 
     public function testCompensationCannotExceedOutstandingReservation(): void
@@ -355,7 +381,7 @@ class ComponentStockTest extends TestCase
             $this->callback(static fn (array $data): bool => (string) $data['estoque'] === 'estoque + 2'),
             ['componente_id = ?' => 7]
         );
-        $this->componentStock->compensate('SOL-LUA-HOLO', 10, null, 99);
+        $this->componentStock->compensateForQuote('SOL-LUA-HOLO', 10, 99);
     }
 
     public function testAvailabilityReportsFlagsWithoutQuantities(): void

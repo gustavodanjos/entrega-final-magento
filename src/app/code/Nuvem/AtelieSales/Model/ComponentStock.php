@@ -15,6 +15,7 @@ use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Api\Data\ComponentInterface;
 use Nuvem\Atelie\Model\Config;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
+use Nuvem\AtelieSales\Api\QuoteComponentStockInterface;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 use Zend_Db_Expr;
 
@@ -29,7 +30,7 @@ use Zend_Db_Expr;
  * stock change, so the ledger always explains the stock. When a component
  * sells out its cache identities are invalidated for the storefront.
  */
-class ComponentStock implements ComponentStockInterface
+class ComponentStock implements ComponentStockInterface, QuoteComponentStockInterface
 {
     private const TABLE_COMPONENTE = 'nuvem_atelie_componente';
 
@@ -90,12 +91,33 @@ class ComponentStock implements ComponentStockInterface
     /**
      * @inheritDoc
      */
-    public function reserve(
+    public function reserve(string $componentCode, int $qty, ?int $orderId = null, ?int $orderItemId = null): bool
+    {
+        return $this->reserveStock($componentCode, $qty, $orderId, $orderItemId, null);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function reserveForQuote(string $componentCode, int $qty, int $quoteId): bool
+    {
+        return $this->reserveStock($componentCode, $qty, null, null, $quoteId);
+    }
+
+    /**
+     * @param string $componentCode
+     * @param int $qty
+     * @param int|null $orderId
+     * @param int|null $orderItemId
+     * @param int|null $quoteId
+     * @return bool
+     */
+    private function reserveStock(
         string $componentCode,
         int $qty,
-        ?int $orderId = null,
-        ?int $orderItemId = null,
-        ?int $quoteId = null
+        ?int $orderId,
+        ?int $orderItemId,
+        ?int $quoteId
     ): bool {
         $this->assertPositiveQuantity($qty);
         $component = $this->resolveComponent($componentCode);
@@ -146,7 +168,27 @@ class ComponentStock implements ComponentStockInterface
     /**
      * @inheritDoc
      */
-    public function compensate(string $componentCode, int $qty, ?int $orderId = null, ?int $quoteId = null): void
+    public function compensate(string $componentCode, int $qty, ?int $orderId = null): void
+    {
+        $this->compensateStock($componentCode, $qty, $orderId, null);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function compensateForQuote(string $componentCode, int $qty, int $quoteId): void
+    {
+        $this->compensateStock($componentCode, $qty, null, $quoteId);
+    }
+
+    /**
+     * @param string $componentCode
+     * @param int $qty
+     * @param int|null $orderId
+     * @param int|null $quoteId
+     * @return void
+     */
+    private function compensateStock(string $componentCode, int $qty, ?int $orderId, ?int $quoteId): void
     {
         $this->assertPositiveQuantity($qty);
         $component = $this->resolveComponent($componentCode);

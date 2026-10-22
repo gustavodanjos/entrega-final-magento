@@ -7,7 +7,7 @@ use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Model\Quote;
 use Magento\Sales\Api\OrderRepositoryInterface;
-use Nuvem\AtelieSales\Api\ComponentStockInterface;
+use Nuvem\AtelieSales\Api\QuoteComponentStockInterface;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 
 class QuoteStockReservation
@@ -15,14 +15,14 @@ class QuoteStockReservation
     private const RESERVED_FLAG = 'atelie_stock_reserved';
 
     /**
-     * @param ComponentStockInterface $componentStock
+     * @param QuoteComponentStockInterface $componentStock
      * @param QuoteItemConfigurationReader $configurationReader
      * @param Movimentacao $movimentacaoResource
      * @param OrderRepositoryInterface $orderRepository
      * @param SearchCriteriaBuilder $searchCriteriaBuilder
      */
     public function __construct(
-        private readonly ComponentStockInterface $componentStock,
+        private readonly QuoteComponentStockInterface $componentStock,
         private readonly QuoteItemConfigurationReader $configurationReader,
         private readonly Movimentacao $movimentacaoResource,
         private readonly OrderRepositoryInterface $orderRepository,
@@ -56,7 +56,7 @@ class QuoteStockReservation
                 throw new LocalizedException(__('Este carrinho já está sendo finalizado. Atualize a página.'));
             }
             foreach ($demand as $code => $qty) {
-                $this->componentStock->reserve($code, $qty, null, null, $quoteId);
+                $this->componentStock->reserveForQuote($code, $qty, $quoteId);
             }
             $connection->commit();
         } catch (\Throwable $exception) {
@@ -83,7 +83,7 @@ class QuoteStockReservation
                 usort($movements, static fn (array $left, array $right): int => $left['codigo'] <=> $right['codigo']);
                 foreach ($movements as $movement) {
                     if ($movement['net'] < 0) {
-                        $this->componentStock->compensate($movement['codigo'], -$movement['net'], null, $quoteId);
+                        $this->componentStock->compensateForQuote($movement['codigo'], -$movement['net'], $quoteId);
                     }
                 }
             }

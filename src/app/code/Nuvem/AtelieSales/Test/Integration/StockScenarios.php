@@ -17,6 +17,7 @@ use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Model\Component;
 use Nuvem\Atelie\Model\ComponentFactory;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
+use Nuvem\AtelieSales\Api\QuoteComponentStockInterface;
 use Nuvem\AtelieSales\Model\ComponentStock;
 use Nuvem\AtelieSales\Model\QuoteItemConfigurationReader;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
@@ -63,13 +64,16 @@ assertStockScenario(
 );
 $objectManager->get(State::class)->setAreaCode('frontend');
 $stock = $objectManager->get(ComponentStockInterface::class);
+$quoteStock = $objectManager->get(QuoteComponentStockInterface::class);
 $repository = $objectManager->get(ComponentRepositoryInterface::class);
 $ledger = $objectManager->get(Movimentacao::class);
 $command = $argv[1] ?? 'transactions';
 $fixture = new CheckoutFixture($objectManager);
 ConcurrentStockScenarios::waitForStart($argv);
 
-if (in_array($command, ['prepare', 'submit', 'race', 'duplicate', 'concurrent-compensation', 'compensate-quote'], true)) {
+if (in_array($command, [
+    'reset-fixture', 'prepare', 'submit', 'race', 'duplicate', 'concurrent-compensation', 'compensate-quote',
+], true)) {
     require __DIR__ . '/CheckoutScenarios.php';
 } elseif ($command === 'transactions') {
     $template = $repository->getByCodigo('SOL-LUA-HOLO');
@@ -85,7 +89,7 @@ if (in_array($command, ['prepare', 'submit', 'race', 'duplicate', 'concurrent-co
     try {
         $cache->save('cached', $cacheKey, [$tag]);
         $connection->beginTransaction();
-        $stock->reserve($code, 1, null, null, $quoteId);
+        $quoteStock->reserveForQuote($code, 1, $quoteId);
         assertStockScenario($cache->load($cacheKey) === 'cached', 'Cache invalidated before outer commit.');
         $connection->rollBack();
         assertStockScenario($cache->load($cacheKey) === 'cached', 'Rollback did not discard cache callback.');
@@ -93,12 +97,12 @@ if (in_array($command, ['prepare', 'submit', 'race', 'duplicate', 'concurrent-co
         assertStockScenario($ledger->getNetQuantitiesByQuoteId($quoteId) === [], 'Rollback left ledger rows.');
 
         $connection->beginTransaction();
-        $stock->reserve($code, 1, null, null, $quoteId);
+        $quoteStock->reserveForQuote($code, 1, $quoteId);
         $connection->commit();
         assertStockScenario($cache->load($cacheKey) === false, 'Outer commit did not invalidate FPC.');
         $cache->save('cached', $cacheKey, [$tag]);
-        $stock->compensate($code, 50, null, $quoteId);
-        $stock->compensate($code, 50, null, $quoteId);
+        $quoteStock->compensateForQuote($code, 50, $quoteId);
+        $quoteStock->compensateForQuote($code, 50, $quoteId);
         assertStockScenario($repository->getByCodigo($code)->getEstoque() === 10, 'Compensation exceeded reservation.');
         assertStockScenario($ledger->getNetQuantitiesByQuoteId($quoteId)[0]['net'] === 0, 'Compensation ledger unbalanced.');
         assertStockScenario($cache->load($cacheKey) === false, 'Replenishment did not invalidate FPC.');
@@ -108,7 +112,7 @@ if (in_array($command, ['prepare', 'submit', 'race', 'duplicate', 'concurrent-co
         ]);
         $connection->beginTransaction();
         try {
-            $brokenStock->reserve($code, 1, null, null, $quoteId);
+            $brokenStock->reserveForQuote($code, 1, $quoteId);
             throw new LogicException('Expected SQL ledger failure.');
         } catch (LogicException $exception) {
             throw $exception;
@@ -193,7 +197,7 @@ if (in_array($command, ['prepare', 'submit', 'race', 'duplicate', 'concurrent-co
         if ($command === 'reserve-held') {
             $connection->beginTransaction();
         }
-        $stock->reserve('SOL-LUA-HOLO', $qty, null, null, $quoteId);
+        $quoteStock->reserveForQuote('SOL-LUA-HOLO', $qty, $quoteId);
         if ($command === 'reserve-held') {
             echo "LOCKED\n";
             flush();
@@ -201,7 +205,7 @@ if (in_array($command, ['prepare', 'submit', 'race', 'duplicate', 'concurrent-co
             $connection->commit();
         }
     } else {
-        $stock->compensate('SOL-LUA-HOLO', $qty, null, $quoteId);
+        $quoteStock->compensateForQuote('SOL-LUA-HOLO', $qty, $quoteId);
     }
     echo "PASS: $command\n";
 } elseif ($command === 'adjust') {

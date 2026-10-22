@@ -11,7 +11,7 @@ use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\Quote\Item;
 use Magento\Sales\Api\Data\OrderSearchResultInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
-use Nuvem\AtelieSales\Api\ComponentStockInterface;
+use Nuvem\AtelieSales\Api\QuoteComponentStockInterface;
 use Nuvem\AtelieSales\Model\QuoteItemConfigurationReader;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
@@ -20,7 +20,7 @@ use PHPUnit\Framework\TestCase;
 
 class QuoteStockReservationTest extends TestCase
 {
-    private ComponentStockInterface&MockObject $stock;
+    private QuoteComponentStockInterface&MockObject $stock;
     private Movimentacao&MockObject $ledger;
     private AdapterInterface&MockObject $connection;
     private QuoteItemConfigurationReader&MockObject $reader;
@@ -30,7 +30,7 @@ class QuoteStockReservationTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->stock = $this->createMock(ComponentStockInterface::class);
+        $this->stock = $this->createMock(QuoteComponentStockInterface::class);
         $this->ledger = $this->createMock(Movimentacao::class);
         $this->connection = $this->createMock(AdapterInterface::class);
         $this->ledger->method('getConnection')->willReturn($this->connection);
@@ -56,8 +56,8 @@ class QuoteStockReservationTest extends TestCase
         $this->ledger->expects($this->once())->method('lockQuote')->with(99)->willReturnCallback(
             static function () use (&$calls): void { $calls[] = 'lock'; }
         );
-        $this->stock->method('reserve')->willReturnCallback(
-            static function (string $code, int $qty, ?int $orderId, ?int $itemId, ?int $quoteId) use (&$calls): bool {
+        $this->stock->method('reserveForQuote')->willReturnCallback(
+            static function (string $code, int $qty, int $quoteId) use (&$calls): bool {
                 $calls[] = [$code, $qty, $quoteId];
                 return true;
             }
@@ -71,7 +71,7 @@ class QuoteStockReservationTest extends TestCase
     public function testPartialReservationFailureRollsBackAndDoesNotOwnTheAttempt(): void
     {
         $this->reader->method('getComponentQuantities')->willReturn(['CAB' => 1, 'SOL' => 1]);
-        $this->stock->method('reserve')->willReturnCallback(static function (string $code): bool {
+        $this->stock->method('reserveForQuote')->willReturnCallback(static function (string $code): bool {
             if ($code === 'SOL') {
                 throw new \RuntimeException('ledger failed');
             }
@@ -91,7 +91,7 @@ class QuoteStockReservationTest extends TestCase
     {
         $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
         $this->ledger->method('getNetQuantitiesByQuoteId')->willReturn([['codigo' => 'SOL', 'net' => -1]]);
-        $this->stock->expects($this->never())->method('reserve');
+        $this->stock->expects($this->never())->method('reserveForQuote');
         $this->connection->expects($this->once())->method('rollBack');
         $this->expectException(LocalizedException::class);
         $this->reservation->reserve($this->quote);
@@ -114,7 +114,7 @@ class QuoteStockReservationTest extends TestCase
             $this->assertTrue($locked);
             return [['codigo' => 'SOL', 'net' => -2], ['codigo' => 'CAB', 'net' => 0]];
         });
-        $this->stock->expects($this->once())->method('compensate')->with('SOL', 2, null, 99);
+        $this->stock->expects($this->once())->method('compensateForQuote')->with('SOL', 2, 99);
         $this->reservation->compensate($this->quote);
     }
 
@@ -122,14 +122,14 @@ class QuoteStockReservationTest extends TestCase
     {
         $this->orders->method('getTotalCount')->willReturn(1);
         $this->ledger->expects($this->never())->method('getNetQuantitiesByQuoteId');
-        $this->stock->expects($this->never())->method('compensate');
+        $this->stock->expects($this->never())->method('compensateForQuote');
         $this->reservation->compensate($this->quote);
     }
 
     public function testBalancedLedgerDoesNotReleaseStock(): void
     {
         $this->ledger->method('getNetQuantitiesByQuoteId')->willReturn([['codigo' => 'SOL', 'net' => 0]]);
-        $this->stock->expects($this->never())->method('compensate');
+        $this->stock->expects($this->never())->method('compensateForQuote');
         $this->reservation->compensate($this->quote);
     }
 
@@ -138,7 +138,7 @@ class QuoteStockReservationTest extends TestCase
         $this->ledger->method('getNetQuantitiesByQuoteId')->willReturn([
             ['codigo' => 'CAB', 'net' => -1], ['codigo' => 'SOL', 'net' => -1],
         ]);
-        $this->stock->method('compensate')->willReturnCallback(static function (string $code): void {
+        $this->stock->method('compensateForQuote')->willReturnCallback(static function (string $code): void {
             if ($code === 'SOL') {
                 throw new \Error('stock failure');
             }

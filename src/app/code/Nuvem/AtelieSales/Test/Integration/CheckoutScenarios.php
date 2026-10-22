@@ -41,6 +41,15 @@ assertStockScenario(is_array($payload), 'Pass the official fixture JSON through 
 $codes = array_column($payload['configuracao']['selecoes'] ?? [], 'componente');
 assertStockScenario(count(array_unique($codes)) === 7 && in_array('SOL-LUA-HOLO', $codes, true),
     'Expected the official seven-component Lua fixture.');
+if ($command === 'reset-fixture') {
+    foreach ($codes as $code) {
+        $stock->adjust($code, 10, 'F2.3 isolated fixture preparation');
+    }
+    echo json_encode(['database' => $database, 'stock' => $fixture->stocks($codes)],
+        JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), "\n";
+    echo "PASS: reset-fixture\n";
+    return;
+}
 if ($command === 'race') {
     $stock->adjust('SOL-LUA-HOLO', 10, 'F2.3 isolated race preparation');
 }
