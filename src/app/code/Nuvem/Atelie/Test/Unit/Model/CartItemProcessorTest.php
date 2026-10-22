@@ -103,7 +103,7 @@ class CartItemProcessorTest extends TestCase
     {
         $cartItem = $this->createMock(CartItemInterface::class);
         $productOption = $this->createMock(ProductOptionInterface::class);
-        $extension = $this->createMock(ProductOptionExtensionInterface::class);
+        $extension = $this->createMock(ProductOptionExtensionStubInterface::class);
         $extension->method('getAtelieConfiguracao')->willReturn(null);
 
         $productOption->method('getExtensionAttributes')->willReturn($extension);
@@ -122,7 +122,7 @@ class CartItemProcessorTest extends TestCase
             new Selection('solado', 'SOL-TRANSLUCIDO-GELO'),
         ]);
 
-        $extension = $this->createMock(ProductOptionExtensionInterface::class);
+        $extension = $this->createMock(ProductOptionExtensionStubInterface::class);
         $extension->method('getAtelieConfiguracao')->willReturn($config);
 
         $productOption->method('getExtensionAttributes')->willReturn($extension);
@@ -187,7 +187,7 @@ class CartItemProcessorTest extends TestCase
         $productOptionMock = $this->createMock(ProductOption::class);
         $this->productOptionFactoryMock->method('create')->willReturn($productOptionMock);
 
-        $extensionMock = $this->createMock(ProductOptionExtensionInterface::class);
+        $extensionMock = $this->createMock(ProductOptionExtensionStubInterface::class);
         $this->extensionFactoryMock->method('create')->willReturn($extensionMock);
 
         $extensionMock->expects($this->once())
@@ -232,7 +232,7 @@ class CartItemProcessorTest extends TestCase
         $productOptionMock = $this->createMock(ProductOption::class);
         $this->productOptionFactoryMock->method('create')->willReturn($productOptionMock);
 
-        $extensionMock = $this->createMock(ProductOptionExtensionInterface::class);
+        $extensionMock = $this->createMock(ProductOptionExtensionStubInterface::class);
         $this->extensionFactoryMock->method('create')->willReturn($extensionMock);
 
         $extensionMock->expects($this->once())
@@ -271,7 +271,7 @@ class CartItemProcessorTest extends TestCase
         $productOptionMock = $this->createMock(ProductOption::class);
         $this->productOptionFactoryMock->method('create')->willReturn($productOptionMock);
 
-        $extensionMock = $this->createMock(ProductOptionExtensionInterface::class);
+        $extensionMock = $this->createMock(ProductOptionExtensionStubInterface::class);
         $this->extensionFactoryMock->method('create')->willReturn($extensionMock);
 
         $extensionMock->expects($this->once())
