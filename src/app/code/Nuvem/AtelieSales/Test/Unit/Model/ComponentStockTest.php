@@ -10,6 +10,7 @@ use Magento\Framework\DB\Select;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
+use Magento\Store\Model\ScopeInterface;
 use Nuvem\Atelie\Api\AtelieCatalogInterface;
 use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Model\Component;
@@ -380,7 +381,7 @@ class ComponentStockTest extends TestCase
             'SOL-BORRACHA-GRAFITE' => 30,
         ]);
         $this->scopeConfigMock->method('getValue')
-            ->with(Config::XML_PATH_STOCK_LAST_UNITS)
+            ->with(Config::XML_PATH_STOCK_LAST_UNITS, ScopeInterface::SCOPE_STORE)
             ->willReturn('5');
 
         $this->assertSame(
