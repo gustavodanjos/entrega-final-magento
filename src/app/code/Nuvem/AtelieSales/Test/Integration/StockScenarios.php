@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 use Magento\Framework\App\Bootstrap;
+use Magento\Framework\App\ObjectManager;
 use Magento\PageCache\Model\Cache\Type as FullPageCache;
-use Magento\Framework\App\DeploymentConfig;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\App\State;
 use Magento\Framework\Event\Config\Data as EventConfig;
@@ -18,9 +18,12 @@ use Nuvem\Atelie\Model\Component;
 use Nuvem\Atelie\Model\ComponentFactory;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
 use Nuvem\AtelieSales\Model\ComponentStock;
+use Nuvem\AtelieSales\Model\QuoteItemConfigurationReader;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 
 require dirname(__DIR__, 6) . '/app/bootstrap.php';
+require __DIR__ . '/CheckoutFixture.php';
+require __DIR__ . '/ConcurrentStockScenarios.php';
 
 final class FailingStockLedger extends Movimentacao
 {
@@ -32,8 +35,13 @@ final class FailingStockLedger extends Movimentacao
 
 final class FailingSubmissionObserver implements ObserverInterface
 {
+    public static array $codes = [];
+    public static array $atFailure = [];
+
     public function execute(Observer $observer): void
     {
+        $manager = ObjectManager::getInstance();
+        self::$atFailure = (new CheckoutFixture($manager))->stocks(self::$codes);
         throw new LocalizedException(__('F2.3 integration: forced submission failure.'));
     }
 }
@@ -46,20 +54,24 @@ function assertStockScenario(bool $condition, string $message): void
 }
 
 $objectManager = Bootstrap::create(BP, $_SERVER)->getObjectManager();
-$database = $objectManager->get(DeploymentConfig::class)->get('db/connection/default/dbname');
+$resource = $objectManager->get(ResourceConnection::class);
+$connection = $resource->getConnection();
+$database = (string) $connection->fetchOne('SELECT DATABASE()');
 assertStockScenario(
-    is_string($database) && str_starts_with($database, 'f23_validation_'),
+    str_starts_with($database, 'f23_validation_'),
     'Run exclusively against an isolated database named f23_validation_*.'
 );
 $objectManager->get(State::class)->setAreaCode('frontend');
-$resource = $objectManager->get(ResourceConnection::class);
-$connection = $resource->getConnection();
 $stock = $objectManager->get(ComponentStockInterface::class);
 $repository = $objectManager->get(ComponentRepositoryInterface::class);
 $ledger = $objectManager->get(Movimentacao::class);
 $command = $argv[1] ?? 'transactions';
+$fixture = new CheckoutFixture($objectManager);
+ConcurrentStockScenarios::waitForStart($argv);
 
-if ($command === 'transactions') {
+if (in_array($command, ['prepare', 'submit', 'race', 'duplicate', 'concurrent-compensation', 'compensate-quote'], true)) {
+    require __DIR__ . '/CheckoutScenarios.php';
+} elseif ($command === 'transactions') {
     $template = $repository->getByCodigo('SOL-LUA-HOLO');
     $component = $objectManager->get(ComponentFactory::class)->create();
     $component->setData($template->getData());
@@ -124,7 +136,14 @@ if ($command === 'transactions') {
     $quote = $objectManager->get(CartRepositoryInterface::class)->get($quoteId);
     $quote->setCustomerIsGuest(true)->setCustomerEmail('f23-integration@example.test');
     $quote->getPayment()->setMethod('checkmo');
-    $before = $repository->getByCodigo('SOL-LUA-HOLO')->getEstoque();
+    $codes = [];
+    $configurationReader = $objectManager->get(QuoteItemConfigurationReader::class);
+    foreach ($quote->getAllVisibleItems() as $item) {
+        $codes = array_merge($codes, array_keys($configurationReader->getComponentQuantities($item)));
+    }
+    assertStockScenario(count(array_unique($codes)) === 7, 'Expected seven persisted components.');
+    FailingSubmissionObserver::$codes = $codes;
+    $before = $fixture->stocks($codes);
     $events = $objectManager->get(EventConfig::class);
     $events->get($event);
     $events->merge([$event => ['f23_integration_failure' => [
@@ -142,11 +161,30 @@ if ($command === 'transactions') {
     $persisted = $event === 'sales_model_service_quote_submit_success';
     assertStockScenario(count($net) === 7 && count(array_unique($net)) === 1, 'Expected all seven ledger balances.');
     assertStockScenario($net[0] === ($persisted ? -1 : 0), 'Unexpected checkout compensation balance.');
-    assertStockScenario(
-        $repository->getByCodigo('SOL-LUA-HOLO')->getEstoque() === $before - (int) $persisted,
-        'Unexpected checkout stock after failure.'
-    );
+    $after = $fixture->stocks($codes);
+    $movements = $fixture->movements([$quoteId]);
+    $orderCount = (int) $connection->fetchOne($connection->select()
+        ->from($resource->getTableName('sales_order'), ['COUNT(*)'])->where('quote_id = ?', $quoteId));
+    assertStockScenario($orderCount === (int) $persisted, 'Unexpected persisted order after forced failure.');
+    foreach ($before as $code => $quantity) {
+        assertStockScenario(FailingSubmissionObserver::$atFailure[$code] === $quantity - 1,
+            "Missing reservation at failure for $code.");
+        assertStockScenario($after[$code] === $quantity - (int) $persisted,
+            "Unexpected stock after failure for $code.");
+        $componentMovements = array_values(array_filter($movements,
+            static fn (array $row): bool => $row['codigo'] === $code));
+        $expectedTypes = $persisted ? ['reserva'] : ['reserva', 'compensacao'];
+        $expectedQuantities = $persisted ? [-1] : [-1, 1];
+        assertStockScenario(array_column($componentMovements, 'tipo') === $expectedTypes
+            && array_map('intval', array_column($componentMovements, 'quantidade')) === $expectedQuantities,
+            "Unexpected signed movements for $code.");
+    }
     assertStockScenario($connection->getTransactionLevel() === 0, 'Checkout leaked transaction.');
+    echo json_encode(['event' => $event, 'database' => $database, 'quote_id' => $quoteId,
+        'orders' => $orderCount, 'before' => $before,
+        'at_failure' => FailingSubmissionObserver::$atFailure, 'after' => $after,
+        'movements' => $movements,
+        'balances' => $ledger->getNetQuantitiesByQuoteId($quoteId)], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), "\n";
     echo 'PASS: ', $event, $persisted ? ' preserves persisted order stock' : ' compensates all seven components', "\n";
 } elseif ($command === 'reserve' || $command === 'reserve-held' || $command === 'compensate') {
     $quoteId = (int) ($argv[2] ?? 0);
