@@ -110,7 +110,7 @@ class Configuration implements ConfigurationInterface
      */
     public function setSelections(array $selections): static
     {
-        $this->selections = self::filterSelections($selections);
+        $this->selections = $this->filterSelections($selections);
 
         return $this;
     }
@@ -138,7 +138,7 @@ class Configuration implements ConfigurationInterface
      * @return SelectionInterface[]
      * @throws \InvalidArgumentException
      */
-    private static function filterSelections(array $selections): array
+    private function filterSelections(array $selections): array
     {
         foreach ($selections as $selection) {
             if (!$selection instanceof SelectionInterface) {

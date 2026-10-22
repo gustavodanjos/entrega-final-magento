@@ -2,7 +2,7 @@
 
 ## Estado da integração
 
-Verificado em 22/10/2026: a F2.1 está integrada à `dev` pelo PR #20 (`ee433f2`). A branch da F2.2 contém a `dev` em `31f1b0a` e utiliza a mesma calculadora e o mesmo price model. **A dependência da F2.1 está atendida.**
+Verificado em 22/10/2026: F2.1 e F1.5 estão integradas à `dev`, pelos PRs #20 (`ee433f2`) e #24 (`0aa5367`). A consolidação da F2.2 incorpora essa versão da `dev`, preservando a calculadora e o price model nativos. **As dependências da F2.1 e da F1.5 estão atendidas na `dev`.**
 
 | Frente | Entrega | Estado |
 | --- | --- | --- |
@@ -10,7 +10,7 @@ Verificado em 22/10/2026: a F2.1 está integrada à `dev` pelo PR #20 (`ee433f2`
 | F1.2 | Atributos e produtos | Integrada à `dev` |
 | F1.3 | Tipo `atelie`, validação/persistência pelo buy request e opções do pedido | Integrada à `dev` |
 | F1.4 | Validador de configuração | Integrada à `dev` |
-| F1.5 | Processador REST e extension attribute do carrinho | Incorporada à F2.2; PR #24 ainda aberto |
+| F1.5 | Processador REST e extension attribute do carrinho | Integrada à `dev` pelo PR #24; conflitos resolvidos na F2.2 |
 | F2.1 | Calculadora, price model e proteção contra preço adulterado | Integrada à `dev` pelo PR #20 |
 | F3.2 | Configurador Knockout | Incorporado à F2.2; PR #22 ainda aberto |
 | F3.6 | Preview personalizado no servidor | Pendente; consumidor usa `PreviewInterface` |
@@ -36,7 +36,7 @@ Especiais, tiers e regras de catálogo continuam seguindo o core sobre a base. A
 | Sem gravação | R$ 559,50 |
 | Com gravação e especial de 10% sobre a base | R$ 544,41 |
 
-`cartItem.price` não determina a cobrança. O plugin `StripTamperedPricePlugin` remove `custom_price` antes do processamento REST. A F2.2 mantém o resultado do servidor nas três superfícies, sem calcular preço em renderers ou templates.
+`cartItem.price` não determina a cobrança. O plugin `StripTamperedPricePlugin` remove `price`, `custom_price` e `customPrice` antes do processamento REST, incluindo os formatos de item/lote e os campos na raiz de serviços de carrinho/quote entregues pela F1.5. A F2.2 mantém o resultado do servidor nas três superfícies, sem calcular preço em renderers ou templates.
 
 Sem configuração, o price model preserva o preço base do core. JSON corrompido falha com `InvalidArgumentException`; componentes desconhecidos e gravação não permitida falham com `LocalizedException`. Os caches da calculadora e do price model duram apenas o request.
 
@@ -60,7 +60,7 @@ A opção canônica `atelie_configuracao` é uma string JSON gerada por `Configu
 }
 ```
 
-O formulário envia `atelie[tamanho]`, `atelie[gravacao]` e `atelie[selecoes]`. REST recebe o objeto em `product_option.extension_attributes.atelie_configuracao`; o processador F1.5 converte os campos para o buy request da F1.3. A leitura REST devolve a configuração pelo mesmo extension attribute.
+O formulário envia `atelie[tamanho]`, `atelie[gravacao]` e `atelie[selecoes]`. REST recebe o objeto em `product_option.extension_attributes.atelie_configuracao`; o processador F1.5 converte os campos para o buy request da F1.3. A leitura REST devolve a configuração pelo mesmo extension attribute. O `CartItemProcessor::processOptions()` da F1.5 também sincroniza a configuração canônica como custom option do item e do produto, mantendo a fonte utilizada pela ficha F2.2 e pelo preço F2.1. A resolução conserva a prioridade existente: extension attributes, opção do item/produto e buy request.
 
 Configurações equivalentes do mesmo produto somam quantidade; configurações diferentes mantêm linhas distintas. A ficha lê a opção do item por `OptionListBuilder`; o preço lê a opção do produto reidratada pelo Magento. Ambos devem conservar o mesmo conteúdo após salvar/recarregar e recalcular totais.
 
@@ -89,6 +89,8 @@ bin/clinotty php app/code/Nuvem/AtelieSales/Test/Smoke/cart-price-configuration.
 ```
 
 O novo smoke é exclusivo do ambiente local descartável. Cria carrinhos e cliente de teste, processa payload com preço adulterado, recarrega por repositories novos, confere preço/subtotal/ficha e modifica temporariamente o especial do produto para testar o desconto sobre a base. Tudo fica em uma transação revertida em `finally`; nenhum pedido é criado. Processos separados isolam os caches Magento entre cenários promocionais. No perfil de cliente, o contexto de sessão é preparado como AJAX, assim como o checkout, sem desativar a autorização de carrinho.
+
+Na resolução do merge F1.5/F2.2, os testes mantêm o stub próprio da F2.2 e a fixture da F1.5 apenas como fallback quando a interface gerada não pode ser carregada. As regressões cobrem serialização por aliases REST/inglês e persistência da mesma configuração no item e produto.
 
 Os smokes verificam serviços reais, persistência e DI; não substituem HTTP nem navegador. Conferir também visitante e cliente autenticada em desktop/mobile: carrinho, minicart e checkout, preço unitário/subtotal, gravação ausente, quantidade e totais REST. A imagem personalizada continua com aceite pendente até a F3.6 entregar o preview real.
 
