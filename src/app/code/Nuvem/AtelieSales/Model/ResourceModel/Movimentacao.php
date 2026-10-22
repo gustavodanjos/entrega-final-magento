@@ -90,7 +90,7 @@ class Movimentacao extends AbstractDb
                 ['movimentacao' => $this->getMainTable()],
                 [
                     'componente_id' => 'movimentacao.componente_id',
-                    'net' => 'SUM(movimentacao.quantidade)',
+                    'quantidade' => 'movimentacao.quantidade',
                 ]
             )
             ->join(
@@ -99,15 +99,21 @@ class Movimentacao extends AbstractDb
                 ['codigo' => 'componente.codigo']
             )
             ->where('movimentacao.quote_id = ?', $quoteId)
-            ->group('movimentacao.componente_id');
+            ->forUpdate(true);
 
-        return array_map(
-            static fn (array $row): array => [
-                'componente_id' => (int) $row['componente_id'],
-                'codigo' => (string) $row['codigo'],
-                'net' => (int) $row['net'],
-            ],
-            $connection->fetchAll($select)
-        );
+        // A locking read sees committed movements even when an outer transaction has an older snapshot.
+        $balances = [];
+        foreach ($connection->fetchAll($select) as $row) {
+            $componentId = (int) $row['componente_id'];
+            if (!isset($balances[$componentId])) {
+                $balances[$componentId] = [
+                    'componente_id' => $componentId,
+                    'codigo' => (string) $row['codigo'],
+                    'net' => 0,
+                ];
+            }
+            $balances[$componentId]['net'] += (int) $row['quantidade'];
+        }
+        return array_values($balances);
     }
 }
