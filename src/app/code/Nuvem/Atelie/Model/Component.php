@@ -16,6 +16,8 @@ class Component extends AbstractModel implements ComponentInterface, IdentityInt
 {
     public const CACHE_TAG = 'nuvem_atelie_componente';
 
+    public const STOREFRONT_CACHE_TAG_PREFIX = 'atelie_comp_';
+
     /**
      * @var string
      */
@@ -43,7 +45,13 @@ class Component extends AbstractModel implements ComponentInterface, IdentityInt
      */
     public function getIdentities(): array
     {
-        return [self::CACHE_TAG . '_' . $this->getId()];
+        $identities = [self::CACHE_TAG . '_' . $this->getId()];
+        $codigo = $this->getCodigo();
+        if ($codigo !== null && $codigo !== '') {
+            $identities[] = self::STOREFRONT_CACHE_TAG_PREFIX . $codigo;
+        }
+
+        return $identities;
     }
 
     /**

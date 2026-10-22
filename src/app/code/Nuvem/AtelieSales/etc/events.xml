@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="sales_model_service_quote_submit_before">
+        <observer name="nuvem_atelie_sales_reserve_component_stock" instance="Nuvem\AtelieSales\Observer\ReserveStockOnQuoteSubmitBefore"/>
+    </event>
+    <event name="sales_model_service_quote_submit_failure">
+        <observer name="nuvem_atelie_sales_compensate_component_stock" instance="Nuvem\AtelieSales\Observer\CompensateStockOnQuoteSubmitFailure"/>
+    </event>
+    <event name="sales_order_save_after">
+        <observer name="nuvem_atelie_sales_return_stock_on_cancel" instance="Nuvem\AtelieSales\Observer\ReturnStockOnOrderCancel"/>
+    </event>
+    <event name="sales_order_creditmemo_save_after">
+        <observer name="nuvem_atelie_sales_return_stock_on_creditmemo" instance="Nuvem\AtelieSales\Observer\ReturnStockOnCreditmemoRefund"/>
+    </event>
+</config>
