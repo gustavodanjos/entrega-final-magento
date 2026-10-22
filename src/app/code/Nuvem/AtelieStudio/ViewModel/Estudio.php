@@ -1,11 +1,18 @@
 <?php
+/**
+ * Nuvem AtelieStudio Module
+ *
+ * @category Nuvem
+ * @package  Nuvem_AtelieStudio
+ * @author   Jhonatan Lobo
+ */
 declare(strict_types=1);
 
 namespace Nuvem\AtelieStudio\ViewModel;
 
-use Magento\Catalog\Model\Product;
+use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\Pricing\PriceCurrencyInterface;
+use Magento\Framework\DataObject;
 use Magento\Framework\Registry;
 use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
@@ -17,38 +24,99 @@ use Nuvem\Atelie\Model\Config;
 class Estudio implements ArgumentInterface
 {
     /**
-     * Estudio constructor.
-     *
+     * @var Registry
+     */
+    private Registry $registry;
+
+    /**
+     * @var AtelieCatalogInterface
+     */
+    private AtelieCatalogInterface $atelieCatalog;
+
+    /**
+     * @var ScopeConfigInterface
+     */
+    private ScopeConfigInterface $scopeConfig;
+
+    /**
+     * @var UrlInterface
+     */
+    private UrlInterface $urlBuilder;
+
+    /**
+     * @var Json
+     */
+    private Json $jsonSerializer;
+
+    /**
      * @param Registry $registry
      * @param AtelieCatalogInterface $atelieCatalog
      * @param ScopeConfigInterface $scopeConfig
      * @param UrlInterface $urlBuilder
-     * @param PriceCurrencyInterface $priceCurrency
      * @param Json $jsonSerializer
      */
     public function __construct(
-        private readonly Registry $registry,
-        private readonly AtelieCatalogInterface $atelieCatalog,
-        private readonly ScopeConfigInterface $scopeConfig,
-        private readonly UrlInterface $urlBuilder,
-        private readonly PriceCurrencyInterface $priceCurrency,
-        private readonly Json $jsonSerializer
+        Registry $registry,
+        AtelieCatalogInterface $atelieCatalog,
+        ScopeConfigInterface $scopeConfig,
+        UrlInterface $urlBuilder,
+        Json $jsonSerializer
     ) {
+        $this->registry = $registry;
+        $this->atelieCatalog = $atelieCatalog;
+        $this->scopeConfig = $scopeConfig;
+        $this->urlBuilder = $urlBuilder;
+        $this->jsonSerializer = $jsonSerializer;
     }
 
     /**
-     * Retrieve current product instance.
+     * Obter o produto atual do registo.
      *
-     * @return Product|null
+     * @return ProductInterface|null
      */
-    public function getProduct(): ?Product
+    public function getProduct(): ?ProductInterface
     {
-        $product = $this->registry->registry('current_product');
-        return $product instanceof Product ? $product : null;
+        return $this->registry->registry('current_product');
     }
 
     /**
-     * Get studio configuration data.
+     * Mesclar os dados de configuracao do estudio na arvore jsLayout.
+     *
+     * @param array|string $jsLayout
+     * @return string
+     */
+    public function getMergedJsLayout(array|string $jsLayout = []): string
+    {
+        if (is_string($jsLayout)) {
+            $jsLayout = $this->jsonSerializer->unserialize($jsLayout);
+        }
+        if (!is_array($jsLayout)) {
+            $jsLayout = [];
+        }
+
+        $studioData = $this->getStudioData();
+        if (!isset($jsLayout['components']['atelieStudio'])) {
+            $jsLayout['components']['atelieStudio'] = [
+                'component' => 'Nuvem_AtelieStudio/js/studio'
+            ];
+        }
+
+        if (!isset($jsLayout['components']['atelieStudio']['config'])) {
+            $jsLayout['components']['atelieStudio']['config'] = [];
+        }
+
+        $jsLayout['components']['atelieStudio']['config'] = array_replace_recursive(
+            $jsLayout['components']['atelieStudio']['config'],
+            $studioData
+        );
+        $jsLayout['components']['atelieStudio']['config']['studioData'] = $studioData;
+        $jsLayout['components']['atelieStudio']['studioData'] = $studioData;
+
+        return $this->jsonSerializer->serialize($jsLayout);
+    }
+
+    /**
+     * Obter a arvore canonica de dados do estudio para o produto.
      *
      * @return array
      */
@@ -100,7 +168,49 @@ class Estudio implements ArgumentInterface
             }
         }
 
-        // 1. Tenta obter o preco dinamico diretamente do produto do Magento
+        // Restaura valores pre-configurados do carrinho caso seja edicao
+        $initialGravacao = null;
+        $buyRequestData = [];
+        $preconfigured = $product->getPreconfiguredValues();
+
+        if ($preconfigured instanceof DataObject) {
+            $buyRequestData = $preconfigured->getData();
+        } elseif ($product->getCustomOption('info_buyRequest')) {
+            $val = $product->getCustomOption('info_buyRequest')->getValue();
+            $buyRequestData = is_string($val) ? ($this->jsonSerializer->unserialize($val) ?? []) : (array) $val;
+        }
+
+        $atelieData = $buyRequestData['atelie'] ?? $buyRequestData;
+        if (is_array($atelieData)) {
+            if (isset($atelieData['gravacao']) && $atelieData['gravacao'] !== '') {
+                $initialGravacao = (string) $atelieData['gravacao'];
+            }
+            if (!empty($atelieData['tamanho'])) {
+                $preSize = (int) $atelieData['tamanho'];
+                if (in_array($preSize, $sizes, true)) {
+                    $defaultSize = $preSize;
+                }
+            }
+            if (!empty($atelieData['selecoes']) && is_array($atelieData['selecoes'])) {
+                $preSelections = [];
+                foreach ($atelieData['selecoes'] as $item) {
+                    if (isset($item['grupo'], $item['componente'])) {
+                        $preSelections[$item['grupo']] = (string) $item['componente'];
+                    }
+                }
+                if (!empty($preSelections)) {
+                    foreach ($initialSelections as &$sel) {
+                        $groupKey = $sel['grupo'];
+                        if (isset($preSelections[$groupKey])) {
+                            $sel['componente'] = $preSelections[$groupKey];
+                        }
+                    }
+                    unset($sel);
+                }
+            }
+        }
+
+        // Resolucao dinamica de preco do produto
         $basePrice = 0.0;
         if ($product) {
             $finalPrice = $product->getFinalPrice();
@@ -118,12 +228,10 @@ class Estudio implements ArgumentInterface
             }
         }
 
-        // 2. Tenta obter o preco canonico retornado pelo AtelieCatalog
-        if ($basePrice <= 0.0 && !empty($catalog['preco_base']) && (float) $catalog['preco_base'] > 0) {
+        if ($basePrice <= 0.0 && !empty($catalog['preco_base'])) {
             $basePrice = (float) $catalog['preco_base'];
         }
 
-        // 3. Fallback canonico do briefing/manual de marca caso produto e catalogo retornem 0
         if ($basePrice <= 0.0) {
             $sku = (string) ($catalog['sku'] ?? ($product ? $product->getSku() : ''));
             $basePrice = (stripos($sku, 'MINI') !== false) ? 329.90 : 449.90;
@@ -145,7 +253,7 @@ class Estudio implements ArgumentInterface
             ],
             'configuracao_inicial' => [
                 'tamanho' => $defaultSize,
-                'gravacao' => null,
+                'gravacao' => $initialGravacao,
                 'selecoes' => $initialSelections,
             ],
             'grupos' => $catalog['grupos'] ?? [],
@@ -154,45 +262,7 @@ class Estudio implements ArgumentInterface
                 'disponibilidade' => $this->urlBuilder->getUrl('atelie/estoque/disponibilidade'),
                 'validar' => $this->urlBuilder->getUrl('atelie/configuracao/validar'),
                 'preview' => $this->urlBuilder->getUrl('atelie/preview/render'),
-                'adicionar_carrinho' => $this->urlBuilder->getUrl('checkout/cart/add'),
             ],
         ];
-    }
-
-    /**
-     * Merge studio data into jsLayout.
-     *
-     * @param array|string $jsLayout
-     * @return string
-     */
-    public function getMergedJsLayout(array|string $jsLayout = []): string
-    {
-        if (is_string($jsLayout)) {
-            $jsLayout = $this->jsonSerializer->unserialize($jsLayout);
-        }
-        if (!is_array($jsLayout)) {
-            $jsLayout = [];
-        }
-
-        $studioData = $this->getStudioData();
-        if (!isset($jsLayout['components']['atelieStudio'])) {
-            $jsLayout['components']['atelieStudio'] = [
-                'component' => 'Nuvem_AtelieStudio/js/studio'
-            ];
-        }
-        $jsLayout['components']['atelieStudio']['config']['studioData'] = $studioData;
-        $jsLayout['components']['atelieStudio']['studioData'] = $studioData;
-
-        return $this->jsonSerializer->serialize($jsLayout);
-    }
-
-    /**
-     * Get studio data serialized as JSON.
-     *
-     * @return string
-     */
-    public function getStudioJson(): string
-    {
-        return $this->jsonSerializer->serialize($this->getStudioData());
     }
 }

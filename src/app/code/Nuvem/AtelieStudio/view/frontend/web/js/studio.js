@@ -4,17 +4,6 @@ define([
 ], function (Component, ko) {
     'use strict';
 
-    function normalizeStr(val) {
-        if (!val) {
-            return '';
-        }
-        return String(val)
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .trim();
-    }
-
     return Component.extend({
         defaults: {
             template: 'Nuvem_AtelieStudio/studio'
@@ -22,126 +11,131 @@ define([
 
         initObservable: function () {
             this._super();
+
             var self = this;
-
-            var config = this.studioData || (this.config && this.config.studioData) || {};
+            var config = this.studioData || (this.config && this.config.studioData) || this.config || {};
             var produto = config.produto || {};
+            var gravacao = produto.gravacao || {};
+            var initial = config.configuracao_inicial || {};
             var grupos = config.grupos || [];
-            var regras = config.regras || [];
-            var gravacao = produto.gravacao || config.gravacao || {};
 
-            grupos.forEach(function (group) {
-                group.itens = group.componentes || group.opcoes || group.itens || [];
-            });
-
+            this.config = config;
             this.grupos = ko.observableArray(grupos);
-            this.productName = ko.observable(produto.nome || produto.name || 'Nuvem Runner');
-            this.activeTab = ko.observable(grupos.length > 0 ? grupos[0].codigo : '');
-            this.activeTooltip = ko.observable(null);
+            this.activeGroupCode = ko.observable(grupos.length > 0 ? grupos[0].codigo : '');
 
-            this.currentGroup = ko.computed(function () {
-                var tab = self.activeTab();
-                var list = self.grupos();
-                for (var i = 0; i < list.length; i++) {
-                    if (list[i].codigo === tab) {
-                        return list[i];
-                    }
-                }
-                return list[0] || { codigo: '', nome: '', itens: [] };
-            });
-
-            this.currentOptions = ko.computed(function () {
-                return self.currentGroup().itens || [];
-            });
-
-            var gradeDisponivel = produto.grade_tamanhos || config.grade_tamanhos || ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44'];
-            this.gradeTamanhos = ko.observableArray(gradeDisponivel);
-
-            var initialSize = (config.configuracao_inicial && config.configuracao_inicial.tamanho)
-                ? config.configuracao_inicial.tamanho
-                : (gradeDisponivel.indexOf('38') !== -1 ? '38' : gradeDisponivel[0]);
-            this.selectedSize = ko.observable(initialSize);
-
-            var isGravacaoPermitida = gravacao.permitida !== undefined
-                ? Boolean(gravacao.permitida)
-                : (gravacao.permitido !== undefined ? Boolean(gravacao.permitido) : true);
-            this.permiteGravacao = ko.observable(isGravacaoPermitida);
-            this.laserPrice = ko.observable(gravacao.preco !== undefined ? parseFloat(gravacao.preco) : 29.90);
-            this.laserLimit = ko.observable(parseInt(gravacao.limite_caracteres || gravacao.limite || 12, 10));
-            this.laserText = ko.observable('');
-
-            var rawBasePrice = produto.preco_base !== undefined ? produto.preco_base : config.preco_base;
-            this.basePrice = ko.observable(rawBasePrice !== undefined && rawBasePrice !== null ? parseFloat(rawBasePrice) : 0.0);
+            this.selectedSize = ko.observable(
+                initial.tamanho || (produto.grade_tamanhos && produto.grade_tamanhos.length > 0 ? produto.grade_tamanhos[0] : 38)
+            );
 
             this.selections = {};
             grupos.forEach(function (grupo) {
-                var initialOption = '';
-                if (config.configuracao_inicial) {
-                    var initSel = config.configuracao_inicial.selecoes || config.configuracao_inicial;
-                    if (Array.isArray(initSel)) {
-                        var found = initSel.find(function (s) {
-                            return (s.grupo || s.grupo_codigo) === grupo.codigo;
-                        });
-                        if (found) {
-                            initialOption = found.componente || found.componente_codigo;
-                        }
-                    } else if (typeof initSel === 'object' && initSel[grupo.codigo]) {
-                        initialOption = initSel[grupo.codigo];
+                var initialComp = null;
+                if (initial.selecoes && initial.selecoes.length > 0) {
+                    var found = initial.selecoes.find(function (s) {
+                        return s.grupo === grupo.codigo;
+                    });
+                    if (found) {
+                        initialComp = found.componente;
                     }
                 }
-                if (!initialOption && grupo.itens && grupo.itens.length > 0) {
-                    initialOption = grupo.itens[0].codigo;
+                if (!initialComp && grupo.componentes && grupo.componentes.length > 0) {
+                    var defaultComp = grupo.componentes.find(function (c) {
+                        return c.padrao;
+                    });
+                    initialComp = defaultComp ? defaultComp.codigo : grupo.componentes[0].codigo;
                 }
-                self.selections[grupo.codigo] = ko.observable(initialOption);
+                self.selections[grupo.codigo] = ko.observable(initialComp);
             });
 
-            this.blockedMap = ko.computed(function () {
-                var blocked = {};
-                var activeOptions = [];
+            this.currentGroup = ko.pureComputed(function () {
+                var code = self.activeGroupCode();
+                return grupos.find(function (g) {
+                    return g.codigo === code;
+                }) || null;
+            });
 
-                grupos.forEach(function (g) {
-                    var selectedCode = self.selections[g.codigo] ? self.selections[g.codigo]() : null;
-                    if (selectedCode && g.itens) {
-                        var opt = g.itens.find(function (o) { return o.codigo === selectedCode; });
-                        if (opt) {
-                            activeOptions.push(opt);
-                        }
-                    }
+            this.currentOptions = ko.pureComputed(function () {
+                var group = self.currentGroup();
+                return group && group.componentes ? group.componentes : [];
+            });
+
+            var isGravacaoPermitida = false;
+            if (gravacao.permitida !== undefined) {
+                isGravacaoPermitida = Boolean(gravacao.permitida);
+            } else if (config.permite_gravacao !== undefined) {
+                isGravacaoPermitida = Boolean(config.permite_gravacao);
+            }
+
+            this.permiteGravacao = ko.observable(isGravacaoPermitida);
+            this.laserPrice = ko.observable(gravacao.preco !== undefined ? parseFloat(gravacao.preco) : 29.90);
+            this.laserLimit = ko.observable(parseInt(gravacao.limite_caracteres || gravacao.limite || 12, 10));
+
+            var initialLaserText = (initial.gravacao !== undefined && initial.gravacao !== null) ? String(initial.gravacao) : '';
+            this.laserText = ko.observable(initialLaserText);
+
+            var rawBasePrice = produto.preco_base !== undefined ? produto.preco_base : config.preco_base;
+            this.basePrice = ko.observable(rawBasePrice !== undefined && rawBasePrice !== null ? parseFloat(rawBasePrice) : 449.90);
+
+            this.regras = config.regras || [];
+
+            function isCodeSelected(code) {
+                if (!code) {
+                    return false;
+                }
+                return Object.keys(self.selections).some(function (groupCode) {
+                    return self.selections[groupCode]() === code;
                 });
+            }
 
-                function isCodeSelected(target) {
-                    var normalizedTarget = normalizeStr(target);
-                    return activeOptions.some(function (opt) {
-                        return normalizeStr(opt.codigo) === normalizedTarget;
-                    });
+            function isRequirementSatisfied(requirement) {
+                if (!requirement) {
+                    return true;
                 }
+                var codeMatch = isCodeSelected(requirement);
+                if (codeMatch) {
+                    return true;
+                }
+                var reqLower = requirement.toLowerCase();
+                return Object.keys(self.selections).some(function (groupCode) {
+                    var selCode = (self.selections[groupCode]() || '').toLowerCase();
+                    return selCode.indexOf(reqLower) !== -1;
+                });
+            }
 
-                function isRequirementSatisfied(target) {
-                    var normalizedTarget = normalizeStr(target);
-                    return activeOptions.some(function (opt) {
-                        var optCode = normalizeStr(opt.codigo);
-                        var optAcab = normalizeStr(opt.acabamento);
-                        return optCode === normalizedTarget || optAcab === normalizedTarget;
-                    });
-                }
+            this.blockedMap = ko.pureComputed(function () {
+                var blocked = {};
+                var regras = self.regras || [];
 
                 regras.forEach(function (regra) {
+                    var tipo = (regra.tipo || '').toLowerCase();
+                    var alvoTipo = (regra.alvo_tipo || '').toLowerCase();
                     var origem = regra.origem_codigo || regra.origem || regra.componente_origem;
                     var alvo = regra.alvo_codigo || regra.alvo || regra.componente_alvo || regra.exige;
                     var msg = regra.mensagem || regra.descricao || 'Combinação indisponível para esta configuração.';
 
-                    if (!origem || !alvo) {
+                    if (!origem) {
                         return;
                     }
 
-                    if (regra.tipo === 'bloqueia') {
-                        if (isCodeSelected(origem)) {
-                            blocked[alvo] = msg;
-                        } else if (isCodeSelected(alvo)) {
-                            blocked[origem] = msg;
+                    var isGravacaoTarget = alvoTipo === 'gravacao' || alvo === '*' || alvo === 'GRAVACAO' || alvo === 'gravacao';
+
+                    if (tipo === 'bloqueia') {
+                        if (isGravacaoTarget) {
+                            if (isCodeSelected(origem)) {
+                                blocked['gravacao'] = msg;
+                            }
+                            if (self.laserText().trim().length > 0) {
+                                blocked[origem] = msg;
+                            }
+                        } else if (alvo) {
+                            if (isCodeSelected(origem)) {
+                                blocked[alvo] = msg;
+                            } else if (isCodeSelected(alvo)) {
+                                blocked[origem] = msg;
+                            }
                         }
-                    } else if (regra.tipo === 'exige') {
-                        if (!isRequirementSatisfied(alvo)) {
+                    } else if (tipo === 'exige') {
+                        if (alvo && !isRequirementSatisfied(alvo)) {
                             blocked[origem] = msg;
                         }
                     }
@@ -150,31 +144,43 @@ define([
                 return blocked;
             });
 
-            this.mirrorPrice = ko.computed(function () {
+            this.isLaserBlocked = ko.pureComputed(function () {
+                return Boolean(self.blockedMap()['gravacao']);
+            });
+
+            this.laserBlockReason = ko.pureComputed(function () {
+                return self.blockedMap()['gravacao'] || '';
+            });
+
+            this.mirrorPrice = ko.pureComputed(function () {
                 var total = self.basePrice();
+
                 grupos.forEach(function (grupo) {
                     var selectedCode = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
-                    var found = (grupo.itens || []).find(function (opt) {
-                        return opt.codigo === selectedCode;
+                    if (!selectedCode) {
+                        return;
+                    }
+                    var opt = (grupo.componentes || []).find(function (c) {
+                        return (c.codigo || c.code) === selectedCode;
                     });
-                    if (found) {
-                        total += self.getOptionPrice(found);
+                    if (opt) {
+                        total += self.getOptionPrice(opt);
                     }
                 });
 
-                if (self.permiteGravacao() && self.laserText().trim().length > 0) {
+                if (self.permiteGravacao() && !self.isLaserBlocked() && self.laserText().trim().length > 0) {
                     total += self.laserPrice();
                 }
 
-                return Math.round(total * 100) / 100;
+                return parseFloat(total.toFixed(2));
             });
 
-            this.formattedMirrorPrice = ko.computed(function () {
-                var val = self.mirrorPrice();
-                return 'R$ ' + val.toFixed(2).replace('.', ',');
+            this.formattedMirrorPrice = ko.pureComputed(function () {
+                var p = self.mirrorPrice();
+                return 'R$ ' + p.toFixed(2).replace('.', ',');
             });
 
-            this.laserRemainingChars = ko.computed(function () {
+            this.laserRemainingChars = ko.pureComputed(function () {
                 var max = self.laserLimit();
                 return Math.max(0, max - self.laserText().length);
             });
@@ -221,6 +227,10 @@ define([
             return this.blockedMap()[optionCode] || '';
         },
 
+        isSoldOut: function (opt) {
+            return opt && opt.estoque !== undefined && opt.estoque <= 0;
+        },
+
         isSelected: function (groupCode, optionCode) {
             if (!this.selections || !this.selections[groupCode]) {
                 return false;
@@ -228,41 +238,28 @@ define([
             return this.selections[groupCode]() === optionCode;
         },
 
-        getSelectedComponent: function (groupCode) {
-            if (this.selections && this.selections[groupCode]) {
-                return this.selections[groupCode]();
-            }
-            return '';
-        },
-
-        selectOption: function (groupCode, option, event) {
-            if (event && typeof event.preventDefault === 'function') {
-                event.preventDefault();
-            }
-
-            if (this.isBlocked(option.codigo)) {
-                var current = this.activeTooltip();
-                this.activeTooltip(current === option.codigo ? null : option.codigo);
+        selectOption: function (groupCode, option) {
+            if (this.isBlocked(option.codigo) || this.isSoldOut(option)) {
                 return;
             }
-
-            this.activeTooltip(null);
-            if (this.selections[groupCode]) {
+            if (this.selections && this.selections[groupCode]) {
                 this.selections[groupCode](option.codigo);
             }
         },
 
-        switchTab: function (groupCode) {
-            this.activeTab(groupCode);
-            this.activeTooltip(null);
+        selectGroup: function (groupCode) {
+            this.activeGroupCode(groupCode);
         },
 
         selectSize: function (size) {
             this.selectedSize(size);
         },
 
-        closeTooltip: function () {
-            this.activeTooltip(null);
+        getSelectedComponent: function (groupCode) {
+            if (this.selections && this.selections[groupCode]) {
+                return this.selections[groupCode]();
+            }
+            return '';
         }
     });
 });
