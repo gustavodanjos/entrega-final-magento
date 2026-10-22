@@ -35,6 +35,10 @@
         <index referenceId="NUVEM_ATELIE_MOV_COMPONENTE_ID" indexType="btree">
             <column name="componente_id"/>
         </index>
+        <index referenceId="NUVEM_ATELIE_MOV_QUOTE_COMPONENT" indexType="btree">
+            <column name="quote_id"/>
+            <column name="componente_id"/>
+        </index>
         <index referenceId="NUVEM_ATELIE_MOV_ORDER_ID" indexType="btree">
             <column name="order_id"/>
         </index>
