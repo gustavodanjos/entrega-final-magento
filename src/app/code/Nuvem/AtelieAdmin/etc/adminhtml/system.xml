@@ -4,6 +4,84 @@
     <system>
         <section id="nuvem_atelie">
             <resource>Nuvem_AtelieAdmin::configuration</resource>
+
+            <group id="engraving">
+                <field id="price"
+                       translate="label comment"
+                       type="text"
+                       sortOrder="10"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="0">
+                    <label>Preço da gravação</label>
+                    <comment>Preço por website. Use 0 para gravação gratuita.</comment>
+                    <validate>required-entry validate-number validate-zero-or-greater</validate>
+                    <config_path>nuvem_atelie/engraving/price</config_path>
+                </field>
+
+                <field id="limit"
+                       translate="label comment"
+                       type="text"
+                       sortOrder="20"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                    <label>Limite de caracteres</label>
+                    <comment>Quantidade máxima de caracteres da gravação.</comment>
+                    <validate>required-entry validate-digits</validate>
+                    <config_path>nuvem_atelie/engraving/limit</config_path>
+                </field>
+
+                <field id="forbidden_words"
+                       translate="label comment"
+                       type="textarea"
+                       sortOrder="30"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                    <label>Palavras proibidas</label>
+                    <comment>Separe os termos por vírgula ou por quebra de linha.</comment>
+                    <config_path>nuvem_atelie/engraving/forbidden_words</config_path>
+                </field>
+            </group>
+
+            <group id="stock">
+                <field id="last_units"
+                       translate="label comment"
+                       type="text"
+                       sortOrder="10"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                    <label>Limite de últimas unidades</label>
+                    <comment>Quantidade usada para apresentar o aviso de últimas unidades.</comment>
+                    <validate>required-entry validate-digits</validate>
+                    <config_path>nuvem_atelie/stock/last_units</config_path>
+                </field>
+            </group>
+
+            <group id="factory"
+                   translate="label"
+                   type="text"
+                   sortOrder="30"
+                   showInDefault="1"
+                   showInWebsite="0"
+                   showInStore="0">
+                <label>Fábrica</label>
+
+                <field id="email"
+                       translate="label comment"
+                       type="textarea"
+                       sortOrder="10"
+                       showInDefault="1"
+                       showInWebsite="0"
+                       showInStore="0">
+                    <label>E-mails da fábrica</label>
+                    <comment>Separe os destinatários por vírgula ou por quebra de linha. Configuração global.</comment>
+                    <backend_model>Nuvem\AtelieAdmin\Model\Config\Backend\FactoryEmails</backend_model>
+                    <config_path>nuvem_atelie/factory/email</config_path>
+                </field>
+            </group>
         </section>
     </system>
 </config>

@@ -19,7 +19,7 @@ Sem F1.2 e F1.3, nenhum item chega ao carrinho com configuração: o preço cai 
 ## 1. Fluxo de preço (já implementado pela F2.1)
 
 1. O item de carrinho carrega o produto com a opção `atelie_configuracao` (JSON — ver §3).
-2. O tipo `atelie` resolve o price model `Nuvem\AtelieSales\Model\Product\Price` (declarado em `Nuvem/AtelieSales/etc/product_types.xml`).
+2. O tipo `atelie` resolve o price model `Nuvem\AtelieSales\Model\Product\Price` declarado nativamente na linha `priceModel` de `Nuvem/Atelie/etc/product_types.xml` — o mesmo mecanismo core que resolve, por exemplo, o price model do `configurable`. Por ser a declaração do tipo, todos os caminhos de compra (PDP, quote/totals, checkout, pedido) passam pelo mesmo cálculo.
 3. `Price::getFinalPrice()` lê a configuração via `readConfiguration()` (`Nuvem\AtelieSales\Model\Product\Price`). Sem configuração → preço base do core, fim.
 4. Com configuração → `Nuvem\AtelieSales\Model\PriceCalculator::calculate()` monta o preço cheio a partir do catálogo (`AtelieCatalogInterface::getBySku`): `preco_base + Σ preco_adicional(das seleções) + preco_da_gravacao`.
 5. O preço final é **delta**: `parent::getFinalPrice($qty, $product) + (calculado − preco_base_do_catálogo)`. Assim especiais, *tiers* e regras de catálogo do core seguem incidindo apenas sobre a base — nunca sobre adicionais/gravação.
@@ -36,17 +36,21 @@ Sem F1.2 e F1.3, nenhum item chega ao carrinho com configuração: o preço cai 
 Arquivo: `Nuvem/Atelie/etc/product_types.xml` (módulo **F1** — `Nuvem_Atelie`).
 
 ```xml
-<type>
-    <name>atelie</name>
-    <label>Ateliê Personalizável</label>
-    <modelInstance>Nuvem\Atelie\Model\Product\Type\Atelie</modelInstance>
-    <isQtyQuantityDecimals>true</isQtyQuantityDecimals>
+<type name="atelie"
+      label="Ateliê Product"
+      modelInstance="Nuvem\Atelie\Model\Product\Type\Atelie"
+      composite="false"
+      isQty="false"
+      canUseQtyDecimals="false"
+      sortOrder="70">
+    <priceModel instance="Nuvem\AtelieSales\Model\Product\Price" />
+    <indexerModel instance="Nuvem\Atelie\Model\ResourceModel\Product\Indexer\Price\AtelieProductPrice" />
 </type>
 ```
 
 Regras:
 
-- **Não declarar `<priceModel>` neste arquivo.** O price model é entregue pela F2.1 em `Nuvem/AtelieSales/etc/product_types.xml` (`Nuvem\AtelieSales\Model\Product\Price`). Como `AtelieSales` depende de `Atelie` (sequência de módulos), o XML dele é aplicado depois; uma declaração duplicada seria sobrescrita em silêncio — declarar nos dois módulos gera confusão de autoria sem efeito.
+- **A linha `priceModel` deste arquivo aponta para a F2.1:** `instance="Nuvem\AtelieSales\Model\Product\Price"`. A classe pertence ao módulo `Nuvem_AtelieSales` (F2.1); a declaração fica aqui porque este é o arquivo dono do type `atelie` — o mesmo padrão do `indexerModel` que a F1.3 ajustou neste arquivo. O módulo `AtelieSales` **não** redeclara o `<type>` (a XSD exige `label`/`modelInstance` completos; duplicar a definição entre módulos gera merge ambíguo) e depende de `Nuvem_Atelie` via `sequence` em `module.xml`, garantindo a classe quando o type a instanciar.
 - Atributos EAV usados pelo catálogo (com *fallback* nos dados do kit quando ausentes): `atelie_tamanho_min`, `atelie_tamanho_max`, `atelie_prazo_producao`, `atelie_permite_gravacao`.
 - Produtos `NUVEM-RUNNER` e `NUVEM-MINI` precisam existir com `type_id = atelie` e o atributo `price` preenchido — **`preco_base` do catálogo é o atributo `price` do produto** (`AtelieCatalog::loadProductData`), a mesma fonte que o core usa na base do delta. Se os produtos não existirem, o catálogo cai nos valores do kit (`DEFAULT_PRODUCTS`) — o E2E do carrinho, porém, exige o produto real.
 
