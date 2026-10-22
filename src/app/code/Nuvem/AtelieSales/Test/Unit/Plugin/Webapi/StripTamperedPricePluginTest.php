@@ -140,6 +140,38 @@ class StripTamperedPricePluginTest extends TestCase
     }
 
     /**
+     * Test price and custom_price are stripped from root payload for cart services.
+     */
+    public function testPriceAndCustomPriceAreStrippedFromRootPayloadForCartService(): void
+    {
+        $received = null;
+        $proceed = function (string $serviceClass, string $serviceMethod, array $input) use (&$received) {
+            $received = $input;
+
+            return 'ok';
+        };
+
+        $result = $this->plugin->aroundProcess(
+            $this->subjectMock,
+            $proceed,
+            \Magento\Quote\Api\CartItemRepositoryInterface::class,
+            'save',
+            [
+                'cartId' => 'cart-123',
+                'price' => 10,
+                'custom_price' => 10,
+                'customPrice' => 10,
+            ]
+        );
+
+        $this->assertSame('ok', $result);
+        $this->assertArrayNotHasKey('price', $received);
+        $this->assertArrayNotHasKey('custom_price', $received);
+        $this->assertArrayNotHasKey('customPrice', $received);
+        $this->assertSame('cart-123', $received['cartId']);
+    }
+
+    /**
      * Test payload without cart item passes through untouched.
      */
     public function testPayloadWithoutCartItemPassesThroughUntouched(): void

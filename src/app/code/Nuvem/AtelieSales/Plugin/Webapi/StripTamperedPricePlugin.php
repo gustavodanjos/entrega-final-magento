@@ -55,6 +55,14 @@ class StripTamperedPricePlugin
             }
         }
 
+        if (str_contains($serviceClassName, 'Cart') || str_contains($serviceClassName, 'Quote')) {
+            unset(
+                $inputArray['custom_price'],
+                $inputArray['customPrice'],
+                $inputArray['price']
+            );
+        }
+
         return $proceed($serviceClassName, $serviceMethodName, $inputArray);
     }
 }
