@@ -1,0 +1,193 @@
+<?xml version="1.0"?>
+<form xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">nuvem_atelie_component_form.component_form_data_source</item>
+        </item>
+        <item name="label" xsi:type="string" translate="true">Componente</item>
+        <item name="template" xsi:type="string">templates/form/collapsible</item>
+    </argument>
+
+    <settings>
+        <buttons>
+            <button name="back"
+                    class="Nuvem\AtelieAdmin\Block\Adminhtml\Component\Edit\BackButton"/>
+            <button name="save"
+                    class="Nuvem\AtelieAdmin\Block\Adminhtml\Component\Edit\SaveButton"/>
+        </buttons>
+        <namespace>nuvem_atelie_component_form</namespace>
+        <dataScope>data</dataScope>
+        <deps>
+            <dep>nuvem_atelie_component_form.component_form_data_source</dep>
+        </deps>
+    </settings>
+
+    <dataSource name="component_form_data_source">
+        <argument name="data" xsi:type="array">
+            <item name="js_config" xsi:type="array">
+                <item name="component" xsi:type="string">Magento_Ui/js/form/provider</item>
+            </item>
+        </argument>
+
+        <settings>
+            <submitUrl path="nuvem_atelieadmin/component/save"/>
+        </settings>
+
+        <dataProvider
+            class="Nuvem\AtelieAdmin\Ui\DataProvider\Component\FormDataProvider"
+            name="component_form_data_source">
+            <settings>
+                <requestFieldName>componente_id</requestFieldName>
+                <primaryFieldName>componente_id</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+
+    <fieldset name="general">
+        <settings>
+            <label translate="true">Dados do componente</label>
+        </settings>
+
+        <field name="componente_id" formElement="input">
+            <settings>
+                <dataType>text</dataType>
+                <visible>false</visible>
+                <dataScope>componente_id</dataScope>
+            </settings>
+        </field>
+
+        <field name="codigo" sortOrder="10" formElement="input">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Código</label>
+                <dataScope>codigo</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    <rule name="max_text_length" xsi:type="number">40</rule>
+                </validation>
+            </settings>
+        </field>
+
+        <field name="nome" sortOrder="20" formElement="input">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Nome</label>
+                <dataScope>nome</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    <rule name="max_text_length" xsi:type="number">80</rule>
+                </validation>
+            </settings>
+        </field>
+
+        <field name="grupo_id" sortOrder="30" formElement="select">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Grupo</label>
+                <dataScope>grupo_id</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                </validation>
+            </settings>
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="Nuvem\AtelieAdmin\Model\Source\Groups"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+
+        <field name="cor_hex" sortOrder="40" formElement="colorPicker">
+            <settings>
+                <dataType>text</dataType>
+                <componentType>colorPicker</componentType>
+                <label translate="true">Cor</label>
+                <dataScope>cor_hex</dataScope>
+                <notice translate="true">Informe uma cor no formato #RRGGBB.</notice>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    <rule name="validate-color" xsi:type="boolean">true</rule>
+                </validation>
+            </settings>
+            <formElements>
+                <colorPicker>
+                    <settings>
+                        <colorPickerMode>noalpha</colorPickerMode>
+                        <colorFormat>hex</colorFormat>
+                    </settings>
+                </colorPicker>
+            </formElements>
+        </field>
+
+        <field name="acabamento" sortOrder="50" formElement="input">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Acabamento</label>
+                <dataScope>acabamento</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    <rule name="max_text_length" xsi:type="number">32</rule>
+                </validation>
+            </settings>
+        </field>
+
+        <field name="preco_adicional" sortOrder="60" formElement="input">
+            <settings>
+                <dataType>number</dataType>
+                <label translate="true">Preço adicional</label>
+                <dataScope>preco_adicional</dataScope>
+                <notice translate="true">Use ponto como separador decimal, sem separador de milhares.</notice>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    <rule name="validate-number" xsi:type="boolean">true</rule>
+                    <rule name="validate-zero-or-greater" xsi:type="boolean">true</rule>
+                </validation>
+            </settings>
+        </field>
+
+        <field name="ativo" sortOrder="70" formElement="select">
+            <settings>
+                <dataType>number</dataType>
+                <label translate="true">Ativo</label>
+                <dataScope>ativo</dataScope>
+            </settings>
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+
+        <field name="padrao" sortOrder="80" formElement="select">
+            <settings>
+                <dataType>number</dataType>
+                <label translate="true">Padrão do grupo</label>
+                <dataScope>padrao</dataScope>
+            </settings>
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+
+        <field name="ordem" sortOrder="90" formElement="input">
+            <settings>
+                <dataType>number</dataType>
+                <label translate="true">Ordem</label>
+                <dataScope>ordem</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    <rule name="validate-number" xsi:type="boolean">true</rule>
+                </validation>
+            </settings>
+        </field>
+    </fieldset>
+</form>

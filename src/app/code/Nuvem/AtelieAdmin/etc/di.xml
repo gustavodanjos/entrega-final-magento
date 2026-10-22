@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Nuvem\Atelie\Api\ComponentRepositoryInterface">
+        <plugin name="nuvem_atelieadmin_component_invalidate_cache"
+                type="Nuvem\AtelieAdmin\Plugin\Component\InvalidateCache"/>
+    </type>
+</config>
