@@ -7,7 +7,6 @@ declare(strict_types=1);
 namespace Nuvem\Atelie\Test\Unit\Model;
 
 use Magento\Catalog\Model\Product;
-use Magento\Catalog\Model\Product\Configuration\Item\Option\OptionInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\DataObject\Factory as DataObjectFactory;
 use Magento\Quote\Api\Data\CartItemInterface;
@@ -19,7 +18,6 @@ use Magento\Quote\Model\Quote\Item\Option as QuoteItemOption;
 use Magento\Quote\Model\Quote\ProductOption;
 use Magento\Quote\Model\Quote\ProductOptionFactory;
 use Nuvem\Atelie\Api\Data\ConfigurationInterface;
-use Nuvem\Atelie\Api\Data\SelectionInterface;
 use Nuvem\Atelie\Model\CartItemProcessor;
 use Nuvem\Atelie\Model\Configuration;
 use Nuvem\Atelie\Model\ConfigurationSerializer;
@@ -64,6 +62,19 @@ class CartItemProcessorTest extends TestCase
      */
     private CartItemProcessor $processor;
 
+    /**
+     * @inheritdoc
+     */
+    public static function setUpBeforeClass(): void
+    {
+        if (!interface_exists(ProductOptionExtensionInterface::class, false)) {
+            require_once __DIR__ . '/Fixtures/ProductOptionExtensionInterface.php';
+        }
+    }
+
+    /**
+     * @inheritdoc
+     */
     protected function setUp(): void
     {
         $this->objectFactoryMock = $this->createMock(DataObjectFactory::class);
@@ -103,7 +114,7 @@ class CartItemProcessorTest extends TestCase
     {
         $cartItem = $this->createMock(CartItemInterface::class);
         $productOption = $this->createMock(ProductOptionInterface::class);
-        $extension = $this->createMock(ProductOptionExtensionStubInterface::class);
+        $extension = $this->createMock(ProductOptionExtensionInterface::class);
         $extension->method('getAtelieConfiguracao')->willReturn(null);
 
         $productOption->method('getExtensionAttributes')->willReturn($extension);
@@ -122,7 +133,7 @@ class CartItemProcessorTest extends TestCase
             new Selection('solado', 'SOL-TRANSLUCIDO-GELO'),
         ]);
 
-        $extension = $this->createMock(ProductOptionExtensionStubInterface::class);
+        $extension = $this->createMock(ProductOptionExtensionInterface::class);
         $extension->method('getAtelieConfiguracao')->willReturn($config);
 
         $productOption->method('getExtensionAttributes')->willReturn($extension);
@@ -147,7 +158,7 @@ class CartItemProcessorTest extends TestCase
         $this->assertSame($dataObject, $result);
     }
 
-    public function testProcessOptionsReturnsUntouchedWhenProductTypeIsNotAtelie(): void
+    public function testProcessOptionsReturnsSameItemWhenNotAtelieType(): void
     {
         $cartItem = $this->createMock(CartItemInterface::class);
         $cartItem->method('getProductType')->willReturn('simple');
@@ -156,14 +167,11 @@ class CartItemProcessorTest extends TestCase
         $this->assertSame($cartItem, $result);
     }
 
-    public function testProcessOptionsReturnsUntouchedWhenNoConfigCanBeResolved(): void
+    public function testProcessOptionsReturnsSameItemWhenNoConfigurationResolved(): void
     {
-        $cartItem = $this->createMock(Item::class);
+        $cartItem = $this->createMock(CartItemInterface::class);
         $cartItem->method('getProductType')->willReturn(Atelie::TYPE_CODE);
         $cartItem->method('getProductOption')->willReturn(null);
-        $cartItem->method('getOptionByCode')->with(Atelie::CUSTOM_OPTION_CONFIGURACAO)->willReturn(null);
-        $cartItem->method('getProduct')->willReturn(null);
-        $cartItem->method('getBuyRequest')->willReturn(null);
 
         $result = $this->processor->processOptions($cartItem);
         $this->assertSame($cartItem, $result);
@@ -187,7 +195,7 @@ class CartItemProcessorTest extends TestCase
         $productOptionMock = $this->createMock(ProductOption::class);
         $this->productOptionFactoryMock->method('create')->willReturn($productOptionMock);
 
-        $extensionMock = $this->createMock(ProductOptionExtensionStubInterface::class);
+        $extensionMock = $this->createMock(ProductOptionExtensionInterface::class);
         $this->extensionFactoryMock->method('create')->willReturn($extensionMock);
 
         $extensionMock->expects($this->once())
@@ -232,7 +240,7 @@ class CartItemProcessorTest extends TestCase
         $productOptionMock = $this->createMock(ProductOption::class);
         $this->productOptionFactoryMock->method('create')->willReturn($productOptionMock);
 
-        $extensionMock = $this->createMock(ProductOptionExtensionStubInterface::class);
+        $extensionMock = $this->createMock(ProductOptionExtensionInterface::class);
         $this->extensionFactoryMock->method('create')->willReturn($extensionMock);
 
         $extensionMock->expects($this->once())
@@ -271,7 +279,7 @@ class CartItemProcessorTest extends TestCase
         $productOptionMock = $this->createMock(ProductOption::class);
         $this->productOptionFactoryMock->method('create')->willReturn($productOptionMock);
 
-        $extensionMock = $this->createMock(ProductOptionExtensionStubInterface::class);
+        $extensionMock = $this->createMock(ProductOptionExtensionInterface::class);
         $this->extensionFactoryMock->method('create')->willReturn($extensionMock);
 
         $extensionMock->expects($this->once())
@@ -283,6 +291,55 @@ class CartItemProcessorTest extends TestCase
         $cartItem->expects($this->once())
             ->method('setProductOption')
             ->with($productOptionMock);
+
+        $result = $this->processor->processOptions($cartItem);
+        $this->assertSame($cartItem, $result);
+    }
+
+    public function testProcessOptionsSavesCustomOptionOnItemAndProduct(): void
+    {
+        $cartItem = $this->createMock(Item::class);
+        $cartItem->method('getProductType')->willReturn(Atelie::TYPE_CODE);
+        $cartItem->method('getProductOption')->willReturn(null);
+        $cartItem->method('getOptionByCode')->with(Atelie::CUSTOM_OPTION_CONFIGURACAO)->willReturn(null);
+
+        $productMock = $this->createMock(Product::class);
+        $productMock->method('getId')->willReturn(15);
+        $cartItem->method('getProduct')->willReturn($productMock);
+
+        $buyRequest = new DataObject([
+            'atelie' => [
+                'tamanho' => 39,
+                'gravacao' => 'NUVEM',
+                'selecoes' => [
+                    ['grupo' => 'cabedal', 'componente' => 'CAB-TRICO-LAVANDA'],
+                ],
+            ],
+        ]);
+        $cartItem->method('getBuyRequest')->willReturn($buyRequest);
+
+        $productOptionMock = $this->createMock(ProductOption::class);
+        $this->productOptionFactoryMock->method('create')->willReturn($productOptionMock);
+
+        $extensionMock = $this->createMock(ProductOptionExtensionInterface::class);
+        $this->extensionFactoryMock->method('create')->willReturn($extensionMock);
+
+        $cartItem->expects($this->once())
+            ->method('addOption')
+            ->with($this->callback(function (array $optionData) {
+                return $optionData['code'] === Atelie::CUSTOM_OPTION_CONFIGURACAO
+                    && $optionData['product_id'] === 15
+                    && str_contains((string) $optionData['value'], '"tamanho":39');
+            }));
+
+        $productMock->expects($this->once())
+            ->method('addCustomOption')
+            ->with(
+                Atelie::CUSTOM_OPTION_CONFIGURACAO,
+                $this->callback(function (string $serialized) {
+                    return str_contains($serialized, '"tamanho":39');
+                })
+            );
 
         $result = $this->processor->processOptions($cartItem);
         $this->assertSame($cartItem, $result);

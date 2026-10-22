@@ -92,6 +92,8 @@ class CartItemProcessor implements CartItemProcessorInterface
             return $cartItem;
         }
 
+        $this->saveConfigurationToCustomOption($cartItem, $configuration);
+
         $productOption = $cartItem->getProductOption() ?: $this->productOptionFactory->create();
         $extensionAttributes = $productOption->getExtensionAttributes()
             ?: $this->productOptionExtensionFactory->create();
@@ -103,6 +105,43 @@ class CartItemProcessor implements CartItemProcessorInterface
         }
 
         return $cartItem;
+    }
+
+    /**
+     * Save configuration as custom option on cart item and product.
+     *
+     * Persists configuration as quote item option so that Magento quote item rehydration,
+     * quote item repository, and the pricing model can resolve the configuration via
+     * getCustomOption(Atelie::CUSTOM_OPTION_CONFIGURACAO).
+     *
+     * @param CartItemInterface $cartItem
+     * @param ConfigurationInterface $configuration
+     * @return void
+     */
+    private function saveConfigurationToCustomOption(
+        CartItemInterface $cartItem,
+        ConfigurationInterface $configuration
+    ): void {
+        $serialized = $this->configurationSerializer->serialize($configuration);
+
+        if (method_exists($cartItem, 'addOption')) {
+            $productId = null;
+            if (method_exists($cartItem, 'getProduct') && $cartItem->getProduct()) {
+                $productId = $cartItem->getProduct()->getId();
+            }
+            $cartItem->addOption([
+                'product_id' => $productId,
+                'code' => Atelie::CUSTOM_OPTION_CONFIGURACAO,
+                'value' => $serialized,
+            ]);
+        }
+
+        if (method_exists($cartItem, 'getProduct')) {
+            $product = $cartItem->getProduct();
+            if ($product && method_exists($product, 'addCustomOption')) {
+                $product->addCustomOption(Atelie::CUSTOM_OPTION_CONFIGURACAO, $serialized);
+            }
+        }
     }
 
     /**

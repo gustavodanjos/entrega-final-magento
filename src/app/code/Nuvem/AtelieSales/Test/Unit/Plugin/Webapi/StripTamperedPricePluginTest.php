@@ -1,4 +1,7 @@
 <?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
 declare(strict_types=1);
 
 namespace Nuvem\AtelieSales\Test\Unit\Plugin\Webapi;
@@ -8,18 +11,34 @@ use Nuvem\AtelieSales\Plugin\Webapi\StripTamperedPricePlugin;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Unit tests for StripTamperedPricePlugin.
+ */
 class StripTamperedPricePluginTest extends TestCase
 {
+    /**
+     * @var ServiceInputProcessor|MockObject
+     */
     private ServiceInputProcessor|MockObject $subjectMock;
+
+    /**
+     * @var StripTamperedPricePlugin
+     */
     private StripTamperedPricePlugin $plugin;
 
+    /**
+     * @inheritdoc
+     */
     protected function setUp(): void
     {
         $this->subjectMock = $this->createMock(ServiceInputProcessor::class);
         $this->plugin = new StripTamperedPricePlugin();
     }
 
-    public function testCustomPriceIsStrippedFromCartItemPayload(): void
+    /**
+     * Test price and custom_price are stripped from cartItem payload.
+     */
+    public function testPriceAndCustomPriceAreStrippedFromCartItemPayload(): void
     {
         $received = null;
         $proceed = function (string $serviceClass, string $serviceMethod, array $input) use (&$received) {
@@ -45,9 +64,45 @@ class StripTamperedPricePluginTest extends TestCase
 
         $this->assertSame('ok', $result);
         $this->assertArrayNotHasKey('custom_price', $received['cartItem']);
-        $this->assertSame(1, $received['cartItem']['price']);
+        $this->assertArrayNotHasKey('price', $received['cartItem']);
+        $this->assertSame('NUVEM-RUNNER', $received['cartItem']['sku']);
+        $this->assertSame(1, $received['cartItem']['qty']);
     }
 
+    /**
+     * Test price and custom_price are stripped from item payload key.
+     */
+    public function testPriceAndCustomPriceAreStrippedFromItemKey(): void
+    {
+        $received = null;
+        $proceed = function (string $serviceClass, string $serviceMethod, array $input) use (&$received) {
+            $received = $input;
+
+            return 'ok';
+        };
+
+        $result = $this->plugin->aroundProcess(
+            $this->subjectMock,
+            $proceed,
+            'SomeCartService',
+            'save',
+            [
+                'item' => [
+                    'sku' => 'NUVEM-RUNNER',
+                    'price' => 50,
+                    'custom_price' => 25,
+                ],
+            ]
+        );
+
+        $this->assertSame('ok', $result);
+        $this->assertArrayNotHasKey('price', $received['item']);
+        $this->assertArrayNotHasKey('custom_price', $received['item']);
+    }
+
+    /**
+     * Test payload without cart item passes through untouched.
+     */
     public function testPayloadWithoutCartItemPassesThroughUntouched(): void
     {
         $input = ['product' => ['sku' => 'NUVEM-RUNNER']];
