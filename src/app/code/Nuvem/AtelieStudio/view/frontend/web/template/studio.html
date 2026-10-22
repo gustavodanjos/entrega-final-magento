@@ -1,3 +1,36 @@
+<style>
+.atelie-studio-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+.atelie-tabs {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.atelie-tabs::-webkit-scrollbar {
+    display: none;
+}
+@media screen and (min-width: 768px) {
+    .atelie-studio-layout {
+        flex-direction: row !important;
+        align-items: flex-start !important;
+        gap: 32px !important;
+    }
+    .atelie-studio-layout .atelie-stage {
+        flex: 0 0 55% !important;
+        width: 55% !important;
+        max-width: 55% !important;
+        position: relative !important;
+        top: auto !important;
+    }
+    .atelie-studio-layout .atelie-controls {
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+}
+</style>
+
 <div class="atelie-studio" data-bind="scope: 'atelieStudio'">
     <div class="atelie-studio-header">
         <h2 class="atelie-studio-title">Personalize seu Modelo</h2>
@@ -7,119 +40,211 @@
         </div>
     </div>
 
-    <!-- Navegação por Abas (Grupos) -->
-    <div class="atelie-tabs-scroll" role="tablist">
-        <div class="atelie-tabs">
-            <!-- ko foreach: { data: grupos, as: 'grupo' } -->
-            <button type="button"
-                    class="atelie-tab-btn"
-                    role="tab"
-                    data-bind="
-                        text: grupo.nome,
-                        css: { active: $parent.activeGroupCode() === grupo.codigo },
-                        click: function () { $parent.selectGroup(grupo.codigo); }">
-            </button>
-            <!-- /ko -->
-        </div>
-    </div>
-
-    <!-- Painel de Componentes do Grupo Ativo -->
-    <div class="atelie-options-grid" role="tabpanel">
-        <!-- ko foreach: { data: currentOptions, as: 'option' } -->
-        <div class="atelie-option-card"
-             data-bind="
-                 css: {
-                     selected: $parent.isSelected($parent.activeGroupCode(), option.codigo),
-                     blocked: $parent.isBlocked(option.codigo),
-                     esgotado: $parent.isSoldOut(option)
-                 }">
-            <!-- Botão Amostra Clicável sem atributo disabled -->
-            <button type="button"
-                    class="atelie-swatch-btn"
-                    data-bind="
-                        click: function () { $parent.selectOption($parent.activeGroupCode(), option); },
-                        style: { backgroundColor: $parent.getOptionColor(option) },
-                        attr: {
-                            title: $parent.isBlocked(option.codigo) ? $parent.getBlockReason(option.codigo) : ($parent.isSoldOut(option) ? 'Esgotado' : option.nome),
-                            'aria-disabled': ($parent.isBlocked(option.codigo) || $parent.isSoldOut(option)) ? 'true' : 'false'
-                        }">
-
-                <!-- Estado: Selecionado -->
-                <!-- ko if: $parent.isSelected($parent.activeGroupCode(), option.codigo) -->
-                <span class="atelie-swatch-check">✓</span>
-                <!-- /ko -->
-
-                <!-- Estado: Bloqueado por Regra (Véu translúcido + Linha Diagonal) -->
-                <!-- ko if: $parent.isBlocked(option.codigo) -->
-                <span class="atelie-swatch-veil"></span>
-                <span class="atelie-swatch-blocked-line"></span>
-                <!-- /ko -->
-
-                <!-- Estado: Esgotado -->
-                <!-- ko if: $parent.isSoldOut(option) -->
-                <span class="atelie-swatch-veil"></span>
-                <span class="atelie-swatch-esgotado-text">esgotado</span>
-                <!-- /ko -->
-            </button>
-
-            <div class="atelie-option-info">
-                <span class="atelie-option-name" data-bind="text: option.nome"></span>
-                <!-- ko if: $parent.getOptionPrice(option) > 0 -->
-                <span class="atelie-option-extra" data-bind="text: '+ R$ ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',')"></span>
-                <!-- /ko -->
-                <!-- ko if: $parent.getOptionPrice(option) === 0 -->
-                <span class="atelie-option-extra muted">incluso</span>
-                <!-- /ko -->
+    <div class="atelie-studio-layout">
+        <!-- Palco do Tênis / Pré-visualização SVG ao Vivo (Esquerda - 55% Fixo no Card) -->
+        <div class="atelie-stage">
+            <div class="atelie-preview-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     viewBox="0 0 620 290"
+                     class="atelie-shoe-svg"
+                     role="img"
+                     data-bind="attr: { 'aria-label': svgAriaLabel }">
+                    <g id="camada-sombra">
+                        <ellipse cx="314" cy="262" rx="262" ry="12" fill="#2E2A3B" opacity="0.10"/>
+                    </g>
+                    <g id="camada-solado" class="atelie-camada" data-grupo="solado"
+                       data-bind="atelieCamada: 'solado'">
+                        <path id="solado-cor" data-pintar="fill" d="M62,234 L562,234 Q570,246 552,252 L84,252 Q60,250 62,234 Z" fill="#DCCFF7" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                    </g>
+                    <g id="camada-entressola" class="atelie-camada" data-grupo="entressola"
+                       data-bind="atelieCamada: 'entressola'">
+                        <path id="entressola-cor" data-pintar="fill" d="M64,212 L566,212 Q572,224 562,234 L62,234 Q57,223 64,212 Z" fill="#FBFAFF" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                    </g>
+                    <g id="camada-cabedal" class="atelie-camada" data-grupo="cabedal"
+                       data-bind="atelieCamada: 'cabedal'">
+                        <path id="cabedal-cor" data-pintar="fill" d="M66,212 C58,170 60,122 78,92 Q122,96 160,116 Q186,126 200,108 L214,78 Q226,70 237,82 L252,102 Q330,140 412,160 Q500,176 548,190 Q570,199 566,212 Z" fill="#C6F0DC" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                    </g>
+                    <g id="camada-calcanhar" class="atelie-camada" data-grupo="calcanhar"
+                       data-bind="atelieCamada: 'calcanhar'">
+                        <path id="calcanhar-cor" data-pintar="fill" d="M66,212 C58,170 60,122 78,92 Q100,93 120,101 Q108,156 144,212 Z" fill="#F7C6E4" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                    </g>
+                    <g id="camada-biqueira" class="atelie-camada" data-grupo="biqueira"
+                       data-bind="atelieCamada: 'biqueira'">
+                        <path id="biqueira-cor" data-pintar="fill" d="M474,170 Q512,178 548,190 Q570,199 566,212 L466,212 Q452,190 474,170 Z" fill="#BEE3F8" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                    </g>
+                    <g id="camada-emblema" class="atelie-camada" data-grupo="emblema"
+                       data-bind="atelieCamada: 'emblema'">
+                        <path id="emblema-cor" data-pintar="fill" d="M258,198 a14,14 0 0,1 6,-27 a21,21 0 0,1 39,-8 a16,16 0 0,1 26,12 a13,13 0 0,1 -3,23 Z" fill="#FFD8C2" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                    </g>
+                    <g id="camada-cadarco" class="atelie-camada" data-grupo="cadarco"
+                       data-bind="atelieCamada: 'cadarco'">
+                        <g stroke="#2E2A3B" stroke-width="9" stroke-linecap="round">
+                            <line x1="262" y1="114" x2="288" y2="100"/>
+                            <line x1="291" y1="126" x2="317" y2="112"/>
+                            <line x1="320" y1="137" x2="346" y2="124"/>
+                            <line x1="349" y1="147" x2="375" y2="135"/>
+                            <line x1="378" y1="156" x2="404" y2="145"/>
+                        </g>
+                        <g id="cadarco-cor" data-pintar="stroke" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round">
+                            <line x1="262" y1="114" x2="288" y2="100"/>
+                            <line x1="291" y1="126" x2="317" y2="112"/>
+                            <line x1="320" y1="137" x2="346" y2="124"/>
+                            <line x1="349" y1="147" x2="375" y2="135"/>
+                            <line x1="378" y1="156" x2="404" y2="145"/>
+                        </g>
+                    </g>
+                    <g id="camada-detalhes" fill="none" stroke="#2E2A3B" stroke-linecap="round">
+                        <path d="M86,104 Q124,108 158,126" stroke-width="1.6" stroke-dasharray="5 5" opacity="0.55"/>
+                        <path d="M120,104 Q112,156 146,206" stroke-width="1.6" stroke-dasharray="5 5" opacity="0.55"/>
+                        <path d="M478,176 Q458,192 470,206" stroke-width="1.6" stroke-dasharray="5 5" opacity="0.55"/>
+                        <line x1="96" y1="240" x2="106" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="122" y1="240" x2="132" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="148" y1="240" x2="158" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="174" y1="240" x2="184" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="200" y1="240" x2="210" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="226" y1="240" x2="236" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="252" y1="240" x2="262" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="278" y1="240" x2="288" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="304" y1="240" x2="314" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="330" y1="240" x2="340" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="356" y1="240" x2="366" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="382" y1="240" x2="392" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="408" y1="240" x2="418" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="434" y1="240" x2="444" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="460" y1="240" x2="470" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="486" y1="240" x2="496" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="512" y1="240" x2="522" y2="248" stroke-width="2" opacity="0.35"/>
+                        <line x1="538" y1="240" x2="548" y2="248" stroke-width="2" opacity="0.35"/>
+                    </g>
+                    <g id="camada-ilhoses" fill="#FBFAFF" stroke="#2E2A3B" stroke-width="2">
+                        <circle cx="260" cy="117" r="3.2"/>
+                        <circle cx="289" cy="129" r="3.2"/>
+                        <circle cx="318" cy="140" r="3.2"/>
+                        <circle cx="347" cy="150" r="3.2"/>
+                        <circle cx="376" cy="159" r="3.2"/>
+                    </g>
+                    <!-- Camada de Gravação via Custom Binding: imune ao conflito do renderer.js -->
+                    <g id="camada-gravacao" class="atelie-camada" data-bind="atelieGravacao: safeLaserText"></g>
+                </svg>
             </div>
         </div>
-        <!-- /ko -->
-    </div>
 
-    <!-- Grade de Tamanhos -->
-    <div class="atelie-sizes-section">
-        <span class="atelie-section-label">Selecione o Tamanho:</span>
-        <div class="atelie-sizes-grid">
-            <!-- ko foreach: { data: config.produto.grade_tamanhos, as: 'size' } -->
-            <button type="button"
-                    class="atelie-size-btn"
-                    data-bind="
-                        text: size,
-                        css: { selected: $parent.selectedSize() === size },
-                        click: function () { $parent.selectSize(size); }">
-            </button>
+        <!-- Painel de Customização e Decisões (Direita - 45%) -->
+        <div class="atelie-controls">
+            <!-- Navegação por Abas (Grupos) -->
+            <div class="atelie-tabs-scroll" role="tablist">
+                <div class="atelie-tabs">
+                    <!-- ko foreach: { data: grupos, as: 'grupo' } -->
+                    <button type="button"
+                            class="atelie-tab-btn"
+                            role="tab"
+                            data-bind="
+                                text: grupo.nome,
+                                css: { active: $parent.activeGroupCode() === grupo.codigo },
+                                click: function () { $parent.selectGroup(grupo.codigo); }">
+                    </button>
+                    <!-- /ko -->
+                </div>
+            </div>
+
+            <!-- Painel de Componentes do Grupo Ativo -->
+            <div class="atelie-options-grid" role="tabpanel">
+                <!-- ko foreach: { data: currentOptions, as: 'option' } -->
+                <div class="atelie-option-card"
+                     data-bind="
+                         css: {
+                             selected: $parent.isSelected($parent.activeGroupCode(), option.codigo),
+                             blocked: $parent.isBlocked(option.codigo),
+                             esgotado: $parent.isSoldOut(option)
+                         }">
+                    <button type="button"
+                            class="atelie-swatch-btn"
+                            data-bind="
+                                click: function () { $parent.selectOption($parent.activeGroupCode(), option); },
+                                style: { backgroundColor: $parent.getOptionColor(option) },
+                                attr: {
+                                    title: $parent.isBlocked(option.codigo) ? $parent.getBlockReason(option.codigo) : ($parent.isSoldOut(option) ? 'Esgotado' : option.nome),
+                                    'aria-disabled': ($parent.isBlocked(option.codigo) || $parent.isSoldOut(option)) ? 'true' : 'false'
+                                }">
+
+                        <!-- Estado: Selecionado -->
+                        <!-- ko if: $parent.isSelected($parent.activeGroupCode(), option.codigo) -->
+                        <span class="atelie-swatch-check">✓</span>
+                        <!-- /ko -->
+
+                        <!-- Estado: Bloqueado por Regra -->
+                        <!-- ko if: $parent.isBlocked(option.codigo) -->
+                        <span class="atelie-swatch-veil"></span>
+                        <span class="atelie-swatch-blocked-line"></span>
+                        <!-- /ko -->
+
+                        <!-- Estado: Esgotado -->
+                        <!-- ko if: $parent.isSoldOut(option) -->
+                        <span class="atelie-swatch-veil"></span>
+                        <span class="atelie-swatch-esgotado-text">esgotado</span>
+                        <!-- /ko -->
+                    </button>
+
+                    <div class="atelie-option-info">
+                        <span class="atelie-option-name" data-bind="text: option.nome"></span>
+                        <!-- ko if: $parent.getOptionPrice(option) > 0 -->
+                        <span class="atelie-option-extra" data-bind="text: '+ R$ ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',')"></span>
+                        <!-- /ko -->
+                        <!-- ko if: $parent.getOptionPrice(option) === 0 -->
+                        <span class="atelie-option-extra muted">incluso</span>
+                        <!-- /ko -->
+                    </div>
+                </div>
+                <!-- /ko -->
+            </div>
+
+            <!-- Grade de Tamanhos -->
+            <div class="atelie-sizes-section">
+                <span class="atelie-section-label">Selecione o Tamanho:</span>
+                <div class="atelie-sizes-grid">
+                    <!-- ko foreach: { data: config.produto.grade_tamanhos, as: 'size' } -->
+                    <button type="button"
+                            class="atelie-size-btn"
+                            data-bind="
+                                text: size,
+                                css: { selected: $parent.selectedSize() === size },
+                                click: function () { $parent.selectSize(size); }">
+                    </button>
+                    <!-- /ko -->
+                </div>
+            </div>
+
+            <!-- Bloco de Gravação a Laser -->
+            <!-- ko if: permiteGravacao -->
+            <div class="atelie-laser-section" data-bind="css: { 'atelie-laser-blocked': isLaserBlocked }">
+                <div class="atelie-laser-header">
+                    <span class="atelie-section-label">Gravação a Laser Personalizada</span>
+                    <span class="atelie-laser-badge" data-bind="text: '+ R$ ' + laserPrice().toFixed(2).replace('.', ',')"></span>
+                </div>
+
+                <!-- ko if: isLaserBlocked -->
+                <div class="atelie-laser-alert" role="alert" data-bind="text: laserBlockReason"></div>
+                <!-- /ko -->
+
+                <input type="text"
+                       class="atelie-laser-input"
+                       placeholder="Ex: NUVEM"
+                       data-bind="
+                           textInput: laserText,
+                           attr: {
+                               maxlength: laserLimit,
+                               disabled: isLaserBlocked,
+                               'aria-disabled': isLaserBlocked() ? 'true' : 'false'
+                           }">
+                <div class="atelie-laser-counter" data-bind="visible: !isLaserBlocked()">
+                    <span data-bind="text: laserRemainingChars"></span> restantes
+                </div>
+            </div>
             <!-- /ko -->
         </div>
     </div>
 
-    <!-- Bloco de Gravação a Laser -->
-    <!-- ko if: permiteGravacao -->
-    <div class="atelie-laser-section" data-bind="css: { 'atelie-laser-blocked': isLaserBlocked }">
-        <div class="atelie-laser-header">
-            <span class="atelie-section-label">Gravação a Laser Personalizada</span>
-            <span class="atelie-laser-badge" data-bind="text: '+ R$ ' + laserPrice().toFixed(2).replace('.', ',')"></span>
-        </div>
-
-        <!-- ko if: isLaserBlocked -->
-        <div class="atelie-laser-alert" role="alert" data-bind="text: laserBlockReason"></div>
-        <!-- /ko -->
-
-        <input type="text"
-               class="atelie-laser-input"
-               placeholder="Ex: NUVEM"
-               data-bind="
-                   textInput: laserText,
-                   attr: {
-                       maxlength: laserLimit,
-                       disabled: isLaserBlocked,
-                       'aria-disabled': isLaserBlocked() ? 'true' : 'false'
-                   }">
-        <div class="atelie-laser-counter" data-bind="visible: !isLaserBlocked()">
-            <span data-bind="text: laserRemainingChars"></span> restantes
-        </div>
-    </div>
-    <!-- /ko -->
-
-    <!-- Campos Ocultos Integrados ao Form da PDP pelo atributo form -->
+    <!-- Campos Ocultos Integrados ao Form da PDP -->
     <div class="atelie-hidden-inputs">
         <!-- ko foreach: { data: grupos, as: 'grupo' } -->
         <input type="hidden"
@@ -137,7 +262,7 @@
                        value: $parent.getSelectedComponent(grupo.codigo)
                    }">
         <!-- /ko -->
-        <input type="hidden" name="atelie[tamanho]" form="product_addtocart_form" data-bind="value: selectedSize">
-        <input type="hidden" name="atelie[gravacao]" form="product_addtocart_form" data-bind="value: isLaserBlocked() ? '' : laserText">
+        <input type="hidden" name="atelie[tamanho]" form="product_addtocart_form" data-bind="attr: { value: selectedSize }">
+        <input type="hidden" name="atelie[gravacao]" form="product_addtocart_form" data-bind="attr: { value: safeLaserText }">
     </div>
 </div>

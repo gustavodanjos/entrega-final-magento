@@ -4,6 +4,77 @@ define([
 ], function (Component, ko) {
     'use strict';
 
+    /**
+     * Custom binding para repintura reativa das camadas SVG (fill nas peças e stroke no cadarço).
+     */
+    if (!ko.bindingHandlers.atelieCamada) {
+        ko.bindingHandlers.atelieCamada = {
+            update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
+                var groupCode = ko.unwrap(valueAccessor());
+                if (!groupCode) {
+                    return;
+                }
+
+                var vm = (bindingContext && bindingContext.$data) || viewModel;
+                if (!vm) {
+                    return;
+                }
+
+                // Garante dependência explícita de Knockout
+                if (vm.selections && vm.selections[groupCode]) {
+                    vm.selections[groupCode]();
+                }
+
+                var color = vm.getLayerColor(groupCode);
+                if (!color) {
+                    return;
+                }
+
+                var targets = element.querySelectorAll ? element.querySelectorAll('[data-pintar]') : [];
+                if (targets.length === 0 && element.hasAttribute && element.hasAttribute('data-pintar')) {
+                    targets = [element];
+                }
+
+                for (var i = 0; i < targets.length; i++) {
+                    var target = targets[i];
+                    var attr = target.getAttribute('data-pintar') || 'fill';
+                    target.setAttribute(attr, color);
+                }
+            }
+        };
+    }
+
+    /**
+     * Custom binding para gravação a laser no SVG.
+     * Cria o elemento <text> no namespace SVG programaticamente, contornando o bug do renderer.js do Magento 2.
+     */
+    if (!ko.bindingHandlers.atelieGravacao) {
+        ko.bindingHandlers.atelieGravacao = {
+            init: function (element) {
+                var textNode = element.querySelector('#gravacao-texto');
+                if (!textNode) {
+                    textNode = element.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    textNode.setAttribute('id', 'gravacao-texto');
+                    textNode.setAttribute('x', '96');
+                    textNode.setAttribute('y', '228');
+                    textNode.setAttribute('font-family', 'Quicksand, Nunito, sans-serif');
+                    textNode.setAttribute('font-size', '13');
+                    textNode.setAttribute('font-weight', '700');
+                    textNode.setAttribute('letter-spacing', '2.5');
+                    textNode.setAttribute('fill', '#2E2A3B');
+                    element.appendChild(textNode);
+                }
+            },
+            update: function (element, valueAccessor) {
+                var text = ko.unwrap(valueAccessor()) || '';
+                var textNode = element.querySelector('#gravacao-texto');
+                if (textNode) {
+                    textNode.textContent = text;
+                }
+            }
+        };
+    }
+
     return Component.extend({
         defaults: {
             template: 'Nuvem_AtelieStudio/studio'
@@ -91,8 +162,7 @@ define([
                 if (!requirement) {
                     return true;
                 }
-                var codeMatch = isCodeSelected(requirement);
-                if (codeMatch) {
+                if (isCodeSelected(requirement)) {
                     return true;
                 }
                 var reqLower = requirement.toLowerCase();
@@ -140,7 +210,6 @@ define([
                         }
                     }
                 });
-
                 return blocked;
             });
 
@@ -152,9 +221,12 @@ define([
                 return self.blockedMap()['gravacao'] || '';
             });
 
+            this.safeLaserText = ko.pureComputed(function () {
+                return self.isLaserBlocked() ? '' : self.laserText();
+            });
+
             this.mirrorPrice = ko.pureComputed(function () {
                 var total = self.basePrice();
-
                 grupos.forEach(function (grupo) {
                     var selectedCode = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
                     if (!selectedCode) {
@@ -167,22 +239,38 @@ define([
                         total += self.getOptionPrice(opt);
                     }
                 });
-
                 if (self.permiteGravacao() && !self.isLaserBlocked() && self.laserText().trim().length > 0) {
                     total += self.laserPrice();
                 }
-
                 return parseFloat(total.toFixed(2));
             });
 
             this.formattedMirrorPrice = ko.pureComputed(function () {
-                var p = self.mirrorPrice();
-                return 'R$ ' + p.toFixed(2).replace('.', ',');
+                return 'R$ ' + self.mirrorPrice().toFixed(2).replace('.', ',');
             });
 
             this.laserRemainingChars = ko.pureComputed(function () {
-                var max = self.laserLimit();
-                return Math.max(0, max - self.laserText().length);
+                return Math.max(0, self.laserLimit() - self.laserText().length);
+            });
+
+            this.svgAriaLabel = ko.pureComputed(function () {
+                var parts = [produto.nome || config.nome || 'Tênis Nuvem Runner'];
+                grupos.forEach(function (grupo) {
+                    var selCode = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
+                    if (!selCode) {
+                        return;
+                    }
+                    var comp = (grupo.componentes || []).find(function (c) {
+                        return (c.codigo || c.code) === selCode;
+                    });
+                    if (comp && comp.nome) {
+                        parts.push(grupo.nome + ': ' + comp.nome);
+                    }
+                });
+                if (self.permiteGravacao() && !self.isLaserBlocked() && self.laserText().trim().length > 0) {
+                    parts.push('Gravação: ' + self.laserText().trim());
+                }
+                return parts.join(', ');
             });
 
             return this;
@@ -193,12 +281,41 @@ define([
                 return '#E6E1F2';
             }
             var directHex = opt.hex || opt.cor_hex || opt.codigo_hex || opt.hex_code || opt.cor || opt.color;
-            if (directHex && typeof directHex === 'string') {
-                if (directHex.indexOf('#') === 0 || directHex.indexOf('rgb') === 0) {
-                    return directHex;
-                }
+            if (directHex && typeof directHex === 'string' && (directHex.indexOf('#') === 0 || directHex.indexOf('rgb') === 0)) {
+                return directHex;
             }
             return '#E6E1F2';
+        },
+
+        getLayerColor: function (groupCodeSearch) {
+            if (!groupCodeSearch) {
+                return '';
+            }
+            var search = groupCodeSearch.toLowerCase();
+            var grupos = this.config.grupos || [];
+            
+            var foundGroup = grupos.find(function(g) {
+                var code = g.codigo || g.nome || '';
+                return code.toLowerCase() === search;
+            });
+            if (!foundGroup) {
+                return '';
+            }
+
+            var obs = this.selections[foundGroup.codigo];
+            if (!obs) {
+                return '';
+            }
+
+            var selectedCompCode = obs();
+            if (!selectedCompCode) {
+                return '';
+            }
+
+            var comp = (foundGroup.componentes || []).find(function(c) {
+                return (c.codigo || c.code) === selectedCompCode;
+            });
+            return this.getOptionColor(comp);
         },
 
         getOptionPrice: function (opt) {
@@ -207,9 +324,7 @@ define([
             }
             var val = opt.acrescimo !== undefined ? opt.acrescimo :
                      (opt.preco_adicional !== undefined ? opt.preco_adicional :
-                     (opt.preco_extra !== undefined ? opt.preco_extra :
-                     (opt.adicional !== undefined ? opt.adicional : null)));
-
+                     (opt.preco_extra !== undefined ? opt.preco_extra : opt.adicional));
             if (val !== null && val !== undefined) {
                 var parsed = parseFloat(val);
                 if (!isNaN(parsed) && parsed > 0) {
@@ -232,10 +347,7 @@ define([
         },
 
         isSelected: function (groupCode, optionCode) {
-            if (!this.selections || !this.selections[groupCode]) {
-                return false;
-            }
-            return this.selections[groupCode]() === optionCode;
+            return this.selections && this.selections[groupCode] && this.selections[groupCode]() === optionCode;
         },
 
         selectOption: function (groupCode, option) {
@@ -256,10 +368,7 @@ define([
         },
 
         getSelectedComponent: function (groupCode) {
-            if (this.selections && this.selections[groupCode]) {
-                return this.selections[groupCode]();
-            }
-            return '';
+            return (this.selections && this.selections[groupCode]) ? this.selections[groupCode]() : '';
         }
     });
 });

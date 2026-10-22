@@ -1,4 +1,4 @@
-// Tokens oficiais da marca (evita quebra de compilacao em temas pais)
+// Tokens oficiais da marca
 @nuvem-ceu:             #BEE3F8;
 @nuvem-menta:           #C6F0DC;
 @nuvem-rosa:            #F7C6E4;
@@ -21,7 +21,7 @@
 
 & when (@media-common = true) {
     .atelie-studio {
-        margin-top: 24px;
+        margin-top: auto;
         padding: 24px;
         border-radius: @nuvem-raio-msg;
         background-color: @nuvem-nevoa;
@@ -32,12 +32,12 @@
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
 
             .atelie-studio-title {
                 margin: 0;
                 font-family: 'Quicksand', sans-serif;
-                font-size: 22px;
+                font-size: 24px;
                 font-weight: 700;
                 color: @nuvem-grafite;
             }
@@ -53,9 +53,78 @@
                 }
 
                 .atelie-price-value {
-                    font-size: 24px;
+                    font-size: 26px;
                     font-weight: 800;
                     color: @nuvem-magenta;
+                }
+            }
+        }
+
+        // Layout de Duas Colunas Responsivo
+        .atelie-studio-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+
+            @media screen and (min-width: 768px) {
+                flex-direction: row;
+                align-items: flex-start;
+                gap: 32px;
+            }
+
+            // Palco de Pré-visualização Vetorial (>= 55% no desktop)
+            .atelie-stage {
+                width: 100%;
+                background-color: @nuvem-fundo;
+                border: 1.5px solid @nuvem-bruma;
+                border-radius: @nuvem-raio-card;
+                padding: 20px;
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                @media screen and (min-width: 768px) {
+                    flex: 0 0 55%;
+                    width: 55%;
+                    max-width: 55%;
+                    position: relative;
+                    top: auto;
+                }
+
+                .atelie-preview-wrapper {
+                    width: 100%;
+                    max-width: 620px;
+                    margin: 0 auto;
+
+                    .atelie-shoe-svg {
+                        width: 100%;
+                        height: auto;
+                        display: block;
+
+                        [data-pintar] {
+                            transition: fill 0.3s ease, stroke 0.3s ease;
+                        }
+
+                        #gravacao-texto {
+                            font-family: 'Quicksand', sans-serif;
+                            font-weight: 700;
+                            font-size: 13px;
+                            letter-spacing: 2.5px;
+                            fill: @nuvem-grafite;
+                            user-select: none;
+                        }
+                    }
+                }
+            }
+
+            // Painel de Controlos (45% no desktop)
+            .atelie-controls {
+                width: 100%;
+
+                @media screen and (min-width: 768px) {
+                    flex: 1;
+                    min-width: 0;
                 }
             }
         }
@@ -160,7 +229,6 @@
                     }
                 }
 
-                /* ESTADO: Selecionado */
                 &.selected {
                     .atelie-swatch-btn {
                         box-shadow: 0 0 0 2px @nuvem-fundo, 0 0 0 5px @nuvem-magenta;
@@ -190,7 +258,6 @@
                     }
                 }
 
-                /* ESTADO: Bloqueado por Regra */
                 &.blocked {
                     .atelie-swatch-btn {
                         border: 1.6px solid @nuvem-grafite;
