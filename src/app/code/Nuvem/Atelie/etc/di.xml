@@ -37,4 +37,25 @@
             <argument name="collectionProcessor" xsi:type="object">Magento\Framework\Api\SearchCriteria\CollectionProcessor</argument>
         </arguments>
     </type>
+
+    <type name="Magento\CatalogInventory\Model\StockState">
+        <plugin name="check_atelie_quote_item_qty"
+                type="Nuvem\Atelie\Plugin\CatalogInventory\StockState\CheckAtelieQuoteItemQtyPlugin"
+                sortOrder="-10"/>
+    </type>
+
+    <virtualType name="Nuvem\Atelie\Model\ResourceModel\Product\Indexer\Price\AtelieProductPrice"
+                 type="Magento\Catalog\Model\ResourceModel\Product\Indexer\Price\SimpleProductPrice">
+        <arguments>
+            <argument name="productType" xsi:type="string">atelie</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Magento\Quote\Model\Quote\Item\Repository">
+        <arguments>
+            <argument name="cartItemProcessors" xsi:type="array">
+                <item name="atelie" xsi:type="object">\Nuvem\Atelie\Model\CartItemProcessor\Proxy</item>
+            </argument>
+        </arguments>
+    </type>
 </config>

@@ -1,0 +1,19 @@
+<?php
+/**
+ * @var \Nuvem\AtelieAdmin\Block\Adminhtml\Component\Index $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+?>
+
+<?php if ($block->canEdit()): ?>
+    <div class="page-main-actions">
+        <div class="page-actions">
+            <a class="action-primary"
+               href="<?= $escaper->escapeUrl($block->getNewUrl()) ?>">
+                <span>
+                    <?= $escaper->escapeHtml(__('Novo componente')) ?>
+                </span>
+            </a>
+        </div>
+    </div>
+<?php endif; ?>
