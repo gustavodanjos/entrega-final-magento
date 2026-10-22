@@ -10,6 +10,7 @@
             <module name="Nuvem_Atelie"/>
             <module name="Magento_Quote"/>
             <module name="Magento_Sales"/>
+            <module name="Magento_Webapi"/>
         </sequence>
     </module>
 </config>
