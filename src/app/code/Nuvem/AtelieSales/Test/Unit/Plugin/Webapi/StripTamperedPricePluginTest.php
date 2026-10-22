@@ -58,15 +58,54 @@ class StripTamperedPricePluginTest extends TestCase
                     'qty' => 1,
                     'price' => 1,
                     'custom_price' => 1,
+                    'customPrice' => 1,
                 ],
             ]
         );
 
         $this->assertSame('ok', $result);
         $this->assertArrayNotHasKey('custom_price', $received['cartItem']);
+        $this->assertArrayNotHasKey('customPrice', $received['cartItem']);
         $this->assertArrayNotHasKey('price', $received['cartItem']);
         $this->assertSame('NUVEM-RUNNER', $received['cartItem']['sku']);
         $this->assertSame(1, $received['cartItem']['qty']);
+    }
+
+    /**
+     * Test price and custom_price are stripped from items batch array.
+     */
+    public function testPriceAndCustomPriceAreStrippedFromItemsBatch(): void
+    {
+        $received = null;
+        $proceed = function (string $serviceClass, string $serviceMethod, array $input) use (&$received) {
+            $received = $input;
+
+            return 'ok';
+        };
+
+        $result = $this->plugin->aroundProcess(
+            $this->subjectMock,
+            $proceed,
+            'SomeBatchCartService',
+            'save',
+            [
+                'items' => [
+                    [
+                        'sku' => 'NUVEM-RUNNER',
+                        'qty' => 1,
+                        'price' => 99,
+                        'custom_price' => 99,
+                        'customPrice' => 99,
+                    ],
+                ],
+            ]
+        );
+
+        $this->assertSame('ok', $result);
+        $this->assertArrayNotHasKey('price', $received['items'][0]);
+        $this->assertArrayNotHasKey('custom_price', $received['items'][0]);
+        $this->assertArrayNotHasKey('customPrice', $received['items'][0]);
+        $this->assertSame('NUVEM-RUNNER', $received['items'][0]['sku']);
     }
 
     /**

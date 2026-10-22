@@ -32,12 +32,26 @@ class StripTamperedPricePlugin
         string $serviceMethodName,
         array $inputArray
     ) {
-        foreach (['cartItem', 'item', 'cart_item'] as $key) {
+        $cartItemKeys = ['cartItem', 'item', 'cart_item', 'quoteItem', 'quote_item'];
+        foreach ($cartItemKeys as $key) {
             if (isset($inputArray[$key]) && is_array($inputArray[$key])) {
                 unset(
                     $inputArray[$key]['custom_price'],
+                    $inputArray[$key]['customPrice'],
                     $inputArray[$key]['price']
                 );
+            }
+        }
+
+        if (isset($inputArray['items']) && is_array($inputArray['items'])) {
+            foreach ($inputArray['items'] as &$item) {
+                if (is_array($item)) {
+                    unset(
+                        $item['custom_price'],
+                        $item['customPrice'],
+                        $item['price']
+                    );
+                }
             }
         }
 
