@@ -19,7 +19,6 @@ use Nuvem\AtelieVitrine\Model\SavedCreation;
 use Nuvem\AtelieVitrine\Model\SavedCreationFactory;
 use Nuvem\AtelieVitrine\Model\SavedCreationRepository;
 use Nuvem\AtelieVitrine\Service\SaveCreation;
-use Nuvem\Atelie\Model\ProvisionalConfigurationValidator;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -136,6 +135,30 @@ class SaveCreationTest extends TestCase
     }
 
     /**
+     * Verify that an empty product SKU is rejected.
+     */
+    public function testRejectsEmptySku(): void
+    {
+        $this->validator->expects($this->never())
+            ->method('validate');
+
+        $this->factory->expects($this->never())
+            ->method('create');
+
+        $this->repository->expects($this->never())
+            ->method('save');
+
+        $this->expectException(LocalizedException::class);
+
+        $this->service->execute(
+            42,
+            '   ',
+            'My Sneaker',
+            new Configuration(38)
+        );
+    }
+
+    /**
      * Verify that an invalid customer ID is rejected.
      */
     public function testRejectsInvalidCustomer(): void
@@ -199,23 +222,36 @@ class SaveCreationTest extends TestCase
     }
 
     /**
-     * Verify that an empty SKU is rejected.
+     * Verify that unknown products cannot produce saved creations.
      */
-    public function testRejectsEmptySku(): void
+    public function testRejectsUnknownSku(): void
     {
-        $this->validator->expects($this->never())
-            ->method('validate');
+        $configuration = new Configuration(38);
+
+        $this->validator->expects($this->once())
+            ->method('validate')
+            ->with('UNKNOWN-SKU', $configuration)
+            ->willThrowException(
+                new \Magento\Framework\Exception\NoSuchEntityException(
+                    __('Product does not exist.')
+                )
+            );
+
+        $this->factory->expects($this->never())
+            ->method('create');
 
         $this->repository->expects($this->never())
             ->method('save');
 
-        $this->expectException(LocalizedException::class);
+        $this->expectException(
+            \Magento\Framework\Exception\NoSuchEntityException::class
+        );
 
         $this->service->execute(
             42,
-            '   ',
+            'UNKNOWN-SKU',
             'My Sneaker',
-            new Configuration(38)
+            $configuration
         );
     }
 
@@ -264,36 +300,5 @@ class SaveCreationTest extends TestCase
             ->disableOriginalConstructor()
             ->onlyMethods([])
             ->getMock();
-    }
-
-    /**
-     * Verify that the provisional validator cannot persist creations.
-     */
-    public function testRejectsProvisionalValidator(): void
-    {
-        $service = new SaveCreation(
-            new ProvisionalConfigurationValidator(),
-            new ConfigurationSerializer(),
-            $this->factory,
-            $this->repository
-        );
-
-        $this->factory->expects($this->never())
-            ->method('create');
-
-        $this->repository->expects($this->never())
-            ->method('save');
-
-        $this->expectException(LocalizedException::class);
-        $this->expectExceptionMessage(
-            'Creation saving requires the real configuration validator.'
-        );
-
-        $service->execute(
-            42,
-            'NUVEM-RUNNER',
-            'My Sneaker',
-            new Configuration(38)
-        );
     }
 }

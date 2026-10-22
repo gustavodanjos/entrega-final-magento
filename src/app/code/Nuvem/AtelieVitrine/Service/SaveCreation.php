@@ -9,13 +9,12 @@ declare(strict_types=1);
 namespace Nuvem\AtelieVitrine\Service;
 
 use Magento\Framework\Exception\LocalizedException;
-use Nuvem\Atelie\Api\ConfigurationValidatorInterface;
 use Nuvem\Atelie\Api\Data\ConfigurationInterface;
 use Nuvem\Atelie\Model\ConfigurationSerializer;
 use Nuvem\AtelieVitrine\Model\SavedCreation;
 use Nuvem\AtelieVitrine\Model\SavedCreationFactory;
 use Nuvem\AtelieVitrine\Model\SavedCreationRepository;
-use Nuvem\Atelie\Model\ProvisionalConfigurationValidator;
+use Nuvem\Atelie\Api\ConfigurationValidatorInterface;
 
 /**
  * Validates, normalizes and persists customer creations.
@@ -72,13 +71,6 @@ class SaveCreation
         if ($name === '' || mb_strlen($name) > 80) {
             throw new LocalizedException(
                 __('The creation name must contain between 1 and 80 characters.')
-            );
-        }
-
-        // Prevent persistence until the real validator is integrated.
-        if ($this->validator instanceof ProvisionalConfigurationValidator) {
-            throw new LocalizedException(
-                __('Creation saving requires the real configuration validator.')
             );
         }
 

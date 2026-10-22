@@ -16,9 +16,7 @@ use Magento\Framework\Data\Form\FormKey\Validator as FormKeyValidator;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\Controller\ResultInterface;
 use Magento\Framework\Exception\LocalizedException;
-use Nuvem\Atelie\Api\ConfigurationValidatorInterface;
 use Nuvem\Atelie\Model\Configuration;
-use Nuvem\Atelie\Model\ProvisionalConfigurationValidator;
 use Nuvem\Atelie\Model\Selection;
 use Nuvem\AtelieVitrine\Service\SaveCreation;
 
@@ -32,7 +30,6 @@ class Save extends Action implements HttpPostActionInterface
      * @param JsonFactory $jsonFactory
      * @param FormKeyValidator $formKeyValidator
      * @param CustomerSession $customerSession
-     * @param ConfigurationValidatorInterface $validator
      * @param SaveCreation $saveCreation
      */
     public function __construct(
@@ -40,7 +37,6 @@ class Save extends Action implements HttpPostActionInterface
         private readonly JsonFactory $jsonFactory,
         private readonly FormKeyValidator $formKeyValidator,
         private readonly CustomerSession $customerSession,
-        private readonly ConfigurationValidatorInterface $validator,
         private readonly SaveCreation $saveCreation
     ) {
         parent::__construct($context);
@@ -66,14 +62,6 @@ class Save extends Action implements HttpPostActionInterface
             return $result->setHttpResponseCode(400)->setData([
                 'success' => false,
                 'message' => (string) __('Invalid form key.'),
-            ]);
-        }
-
-        // Fail closed until the real F1.4 validator is integrated.
-        if ($this->validator instanceof ProvisionalConfigurationValidator) {
-            return $result->setHttpResponseCode(503)->setData([
-                'success' => false,
-                'message' => (string) __('Creation saving is not available yet.'),
             ]);
         }
 
@@ -118,7 +106,6 @@ class Save extends Action implements HttpPostActionInterface
      * @return Configuration
      * @throws LocalizedException
      */
-
     private function buildConfiguration(mixed $input): Configuration
     {
         if (!is_string($input)) {

@@ -14,9 +14,8 @@ use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\Json;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\Data\Form\FormKey\Validator as FormKeyValidator;
-use Nuvem\Atelie\Api\ConfigurationValidatorInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Nuvem\Atelie\Api\Data\ConfigurationInterface;
-use Nuvem\Atelie\Model\ProvisionalConfigurationValidator;
 use Nuvem\AtelieVitrine\Controller\Creation\Save;
 use Nuvem\AtelieVitrine\Model\SavedCreation;
 use Nuvem\AtelieVitrine\Service\SaveCreation;
@@ -41,7 +40,6 @@ class SaveTest extends TestCase
         [$controller, $response] = $this->createController(
             $session,
             true,
-            $this->createMock(ConfigurationValidatorInterface::class),
             $service,
             []
         );
@@ -65,7 +63,6 @@ class SaveTest extends TestCase
         [$controller, $response] = $this->createController(
             $session,
             false,
-            $this->createMock(ConfigurationValidatorInterface::class),
             $service,
             []
         );
@@ -77,25 +74,36 @@ class SaveTest extends TestCase
     }
 
     /**
-     * Verify that the provisional validator blocks saving.
+     * Verify that service validation errors return HTTP 400.
      */
-    public function testRejectsProvisionalValidator(): void
+    public function testReturnsBadRequestWhenSaveServiceRejectsConfiguration(): void
     {
         $service = $this->createMock(SaveCreation::class);
-        $service->expects($this->never())->method('execute');
+
+        $service->expects($this->once())
+            ->method('execute')
+            ->willThrowException(
+                new LocalizedException(
+                    __('Invalid configuration.')
+                )
+            );
 
         [$controller, $response] = $this->createController(
             $this->loggedInSession(),
             true,
-            new ProvisionalConfigurationValidator(),
             $service,
-            []
+            [
+                'sku' => 'NUVEM-RUNNER',
+                'name' => 'My Sneaker',
+                'configuration' => '{"tamanho":38,"gravacao":null,"selecoes":[]}',
+            ]
         );
 
         $controller->execute();
 
-        $this->assertSame(503, $response->status);
+        $this->assertSame(400, $response->status);
         $this->assertFalse($response->data['success']);
+        $this->assertArrayNotHasKey('hash', $response->data);
     }
 
     /**
@@ -109,7 +117,6 @@ class SaveTest extends TestCase
         [$controller, $response] = $this->createController(
             $this->loggedInSession(),
             true,
-            $this->createMock(ConfigurationValidatorInterface::class),
             $service,
             [
                 'sku' => 'NUVEM-RUNNER',
@@ -137,6 +144,7 @@ class SaveTest extends TestCase
             ->willReturn($hash);
 
         $service = $this->createMock(SaveCreation::class);
+
         $service->expects($this->once())
             ->method('execute')
             ->with(
@@ -161,7 +169,6 @@ class SaveTest extends TestCase
         [$controller, $response] = $this->createController(
             $this->loggedInSession(),
             true,
-            $this->createMock(ConfigurationValidatorInterface::class),
             $service,
             [
                 'sku' => 'NUVEM-RUNNER',
@@ -251,7 +258,6 @@ class SaveTest extends TestCase
         [$controller, $response] = $this->createController(
             $this->loggedInSession(),
             true,
-            $this->createMock(ConfigurationValidatorInterface::class),
             $service,
             [
                 'sku' => 'NUVEM-RUNNER',
@@ -285,7 +291,6 @@ class SaveTest extends TestCase
      *
      * @param CustomerSession $session
      * @param bool $validFormKey
-     * @param ConfigurationValidatorInterface $validator
      * @param SaveCreation $service
      * @param array $params
      * @return array
@@ -293,7 +298,6 @@ class SaveTest extends TestCase
     private function createController(
         CustomerSession $session,
         bool $validFormKey,
-        ConfigurationValidatorInterface $validator,
         SaveCreation $service,
         array $params
     ): array {
@@ -346,7 +350,6 @@ class SaveTest extends TestCase
             $jsonFactory,
             $formKey,
             $session,
-            $validator,
             $service
         );
 
