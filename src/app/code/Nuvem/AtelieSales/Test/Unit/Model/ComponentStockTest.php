@@ -370,6 +370,8 @@ class ComponentStockTest extends TestCase
                         ['codigo' => 'SOL-LUA-HOLO'],
                         ['codigo' => 'SOL-BORRACHA-LAVANDA'],
                         ['codigo' => 'SOL-BORRACHA-GRAFITE'],
+                        ['codigo' => 'SOL-LIMIT'],
+                        ['codigo' => 'SOL-ONE'],
                     ],
                 ],
             ],
@@ -379,6 +381,8 @@ class ComponentStockTest extends TestCase
             'SOL-LUA-HOLO' => 4,
             'SOL-BORRACHA-LAVANDA' => 0,
             'SOL-BORRACHA-GRAFITE' => 30,
+            'SOL-LIMIT' => 5,
+            'SOL-ONE' => 1,
         ]);
         $this->scopeConfigMock->method('getValue')
             ->with(Config::XML_PATH_STOCK_LAST_UNITS, ScopeInterface::SCOPE_STORE)
@@ -389,9 +393,26 @@ class ComponentStockTest extends TestCase
                 ['component' => 'SOL-LUA-HOLO', 'available' => true, 'last_units' => true],
                 ['component' => 'SOL-BORRACHA-LAVANDA', 'available' => false, 'last_units' => false],
                 ['component' => 'SOL-BORRACHA-GRAFITE', 'available' => true, 'last_units' => false],
+                ['component' => 'SOL-LIMIT', 'available' => true, 'last_units' => true],
+                ['component' => 'SOL-ONE', 'available' => true, 'last_units' => true],
             ],
             $this->componentStock->availability('NUVEM-RUNNER')
         );
+    }
+
+    public function testZeroThresholdDisablesLastUnitsWarning(): void
+    {
+        $this->atelieCatalogMock->method('getBySku')->willReturn([
+            'grupos' => [['componentes' => [['codigo' => 'SOL-LUA-HOLO']]]],
+        ]);
+        $this->connectionMock->method('fetchPairs')->willReturn(['SOL-LUA-HOLO' => 1]);
+        $this->scopeConfigMock->expects($this->once())->method('getValue')
+            ->with(Config::XML_PATH_STOCK_LAST_UNITS, ScopeInterface::SCOPE_STORE)
+            ->willReturn('0');
+
+        $this->assertSame([
+            ['component' => 'SOL-LUA-HOLO', 'available' => true, 'last_units' => false],
+        ], $this->componentStock->availability('NUVEM-RUNNER'));
     }
 
     public function testAvailabilityThrowsForUnknownSku(): void
