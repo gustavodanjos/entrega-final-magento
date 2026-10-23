@@ -105,6 +105,8 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
     }
 
     /**
+     * Reserve stock for a quote.
+     *
      * @param string $componentCode
      * @param int $qty
      * @param int|null $orderId
@@ -128,6 +130,7 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
             if ($quoteId !== null) {
                 $this->movimentacaoResource->lockQuote($quoteId);
             }
+            $currentQty = $this->getCurrentStockForUpdate($component);
             $affectedRows = $connection->update(
                 $this->resourceConnection->getTableName(self::TABLE_COMPONENTE),
                 ['estoque' => new Zend_Db_Expr('estoque - ' . $qty)],
@@ -155,7 +158,7 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
                 $orderItemId,
                 null
             );
-            $this->scheduleCacheInvalidation($component);
+            $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $currentQty - $qty);
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
@@ -182,6 +185,8 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
     }
 
     /**
+     * Compensate a quote reservation.
+     *
      * @param string $componentCode
      * @param int $qty
      * @param int|null $orderId
@@ -207,9 +212,10 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
                 $connection->commit();
                 return;
             }
+            $currentQty = $this->getCurrentStockForUpdate($component);
             $this->increaseStock($component, $qty);
             $this->recordMovement($component, Movimentacao::TIPO_COMPENSACAO, $qty, $quoteId, $orderId, null, null);
-            $this->scheduleCacheInvalidation($component);
+            $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $currentQty + $qty);
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
@@ -228,6 +234,7 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
 
         $connection->beginTransaction();
         try {
+            $currentQty = $this->getCurrentStockForUpdate($component);
             $this->increaseStock($component, $qty);
             $this->recordMovement(
                 $component,
@@ -238,7 +245,7 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
                 $orderItemId,
                 null
             );
-            $this->scheduleCacheInvalidation($component);
+            $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $currentQty + $qty);
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
@@ -260,12 +267,7 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
 
         $connection->beginTransaction();
         try {
-            $currentQty = (int) $connection->fetchOne(
-                $connection->select()
-                    ->from($this->resourceConnection->getTableName(self::TABLE_COMPONENTE), 'estoque')
-                    ->where('componente_id = ?', (int) $component->getComponenteId())
-                    ->forUpdate(true)
-            );
+            $currentQty = $this->getCurrentStockForUpdate($component);
             $connection->update(
                 $this->resourceConnection->getTableName(self::TABLE_COMPONENTE),
                 ['estoque' => $newQty],
@@ -283,7 +285,7 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
                     $note !== '' ? $note : null
                 );
             }
-            $this->scheduleCacheInvalidation($component);
+            $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $newQty);
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
@@ -344,6 +346,22 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
     }
 
     /**
+     * Read stock under the row lock; the guarded reservation UPDATE remains authoritative.
+     *
+     * @param ComponentInterface $component
+     * @return int
+     */
+    private function getCurrentStockForUpdate(ComponentInterface $component): int
+    {
+        return (int) $this->connection()->fetchOne(
+            $this->connection()->select()
+                ->from($this->resourceConnection->getTableName(self::TABLE_COMPONENTE), 'estoque')
+                ->where('componente_id = ?', (int) $component->getComponenteId())
+                ->forUpdate(true)
+        );
+    }
+
+    /**
      * Append a ledger row describing one stock movement.
      *
      * @param ComponentInterface $component
@@ -396,13 +414,25 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
 
     /**
      * Cache readers must see committed stock, including replenishments.
+     *
      * Magento discards these callbacks when an enclosing transaction rolls back.
      *
      * @param ComponentInterface $component
+     * @param int $beforeQty
+     * @param int $afterQty
      * @return void
      */
-    private function scheduleCacheInvalidation(ComponentInterface $component): void
-    {
+    private function scheduleCacheInvalidationIfAvailabilityChanges(
+        ComponentInterface $component,
+        int $beforeQty,
+        int $afterQty
+    ): void {
+        $lastUnitsLimit = (int) $this->scopeConfig->getValue(Config::XML_PATH_STOCK_LAST_UNITS);
+        $before = [$beforeQty > 0, $beforeQty > 0 && $beforeQty <= $lastUnitsLimit];
+        $after = [$afterQty > 0, $afterQty > 0 && $afterQty <= $lastUnitsLimit];
+        if ($before === $after) {
+            return;
+        }
         $this->movimentacaoResource->addCommitCallback(fn () => $this->invalidateComponentCache($component));
     }
 
@@ -424,6 +454,8 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
     }
 
     /**
+     * Resolve a component by its code.
+     *
      * @param string $componentCode
      * @return ComponentInterface
      * @throws LocalizedException when the component does not exist
@@ -438,6 +470,8 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
     }
 
     /**
+     * Require a positive stock movement quantity.
+     *
      * @param int $qty
      * @return void
      * @throws LocalizedException when the quantity is not positive
@@ -450,6 +484,8 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
     }
 
     /**
+     * Return the active database connection.
+     *
      * @return AdapterInterface
      */
     private function connection(): AdapterInterface
