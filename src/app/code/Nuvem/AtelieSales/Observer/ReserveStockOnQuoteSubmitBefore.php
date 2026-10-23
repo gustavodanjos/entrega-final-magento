@@ -17,6 +17,8 @@ class ReserveStockOnQuoteSubmitBefore implements ObserverInterface
     }
 
     /**
+     * Require ownership acquired at the submit boundary before reserving.
+     *
      * @param Observer $observer
      * @return void
      */
@@ -26,6 +28,10 @@ class ReserveStockOnQuoteSubmitBefore implements ObserverInterface
         if ($quote === null || !$quote->getId()) {
             return;
         }
-        $this->reservation->reserve($quote);
+        $attemptId = $this->reservation->getAttemptId($quote);
+        if ($attemptId === null) {
+            throw new \Magento\Framework\Exception\LocalizedException(__('A tentativa de checkout não foi iniciada.'));
+        }
+        $this->reservation->reserve($quote, $attemptId);
     }
 }

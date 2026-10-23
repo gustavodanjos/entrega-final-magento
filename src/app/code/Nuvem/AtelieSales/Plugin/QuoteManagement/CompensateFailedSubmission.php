@@ -33,66 +33,44 @@ class CompensateFailedSubmission
      */
     public function aroundSubmit(QuoteManagement $subject, callable $proceed, Quote $quote, array $orderData = [])
     {
-        $this->reservation->beginAttempt($quote);
+        $attemptId = $this->reservation->beginAttempt($quote);
         try {
-            $this->recoverPendingReservation($quote);
-            try {
-                $result = $proceed($quote, $orderData);
-            } catch (\Throwable $exception) {
-                $this->compensateFailedSubmission($quote, $exception);
-                throw $exception;
-            }
-
-            $this->reservation->clearAttempt($quote);
+            $result = $proceed($quote, $orderData);
+            $this->reservation->completeAttempt($quote, $attemptId);
             return $result;
-        } finally {
-            $this->reservation->endAttempt($quote);
-        }
-    }
-
-    /**
-     * Pending compensation must finish before another submission reserves stock.
-     *
-     * @param Quote $quote
-     * @return void
-     * @throws \Throwable
-     */
-    private function recoverPendingReservation(Quote $quote): void
-    {
-        if (!$this->reservation->hasReservation($quote)) {
-            return;
-        }
-        try {
-            $this->reservation->compensate($quote);
         } catch (\Throwable $exception) {
-            $this->logger->critical('Failed to recover pending component stock reservation.', [
-                'quote_id' => $quote->getId(),
-                'exception' => $exception,
-            ]);
+            $this->handleFailure($quote, $attemptId, $exception);
             throw $exception;
+        } finally {
+            $this->reservation->endAttempt($quote, $attemptId);
         }
     }
 
     /**
-     * Preserve the submission exception when stock recovery also fails.
+     * Persist failure separately so a failed compensation remains recoverable.
      *
      * @param Quote $quote
+     * @param string $attemptId
      * @param \Throwable $exception
      * @return void
      */
-    private function compensateFailedSubmission(Quote $quote, \Throwable $exception): void
+    public function handleFailure(Quote $quote, string $attemptId, \Throwable $exception): void
     {
-        if (!$this->reservation->hasReservation($quote)) {
-            return;
-        }
         try {
-            $this->reservation->compensate($quote);
+            $this->reservation->markFailed($quote, $attemptId);
+            $this->reservation->compensate($quote, $attemptId);
         } catch (\Throwable $compensationException) {
-            $this->logger->critical('Failed to compensate component stock.', [
-                'quote_id' => $quote->getId(),
-                'exception' => $compensationException,
-                'submission_exception' => $exception,
-            ]);
+            try {
+                $this->logger->critical('Failed to compensate component stock.', [
+                    'quote_id' => $quote->getId(),
+                    'attempt_id' => $attemptId,
+                    'exception' => $compensationException,
+                    'submission_exception' => $exception,
+                ]);
+            } catch (\Throwable) {
+                // Logging failures must not replace the checkout exception.
+                return;
+            }
         }
     }
 }
