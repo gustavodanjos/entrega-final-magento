@@ -7,6 +7,10 @@
                 type="Nuvem\AtelieSales\Model\ComponentStock"/>
     <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
                 type="Nuvem\AtelieSales\Model\PriceCalculator"/>
+    <type name="Magento\Quote\Model\ResourceModel\Quote">
+        <plugin name="nuvem_atelie_sales_protect_stock_attempt"
+                type="Nuvem\AtelieSales\Plugin\Quote\ProtectStockAttempt"/>
+    </type>
     <type name="Magento\Quote\Model\QuoteManagement">
         <plugin name="nuvem_atelie_sales_compensate_failed_submission"
                 type="Nuvem\AtelieSales\Plugin\QuoteManagement\CompensateFailedSubmission"/>

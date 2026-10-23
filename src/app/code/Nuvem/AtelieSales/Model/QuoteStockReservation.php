@@ -11,13 +11,21 @@ use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 
 class QuoteStockReservation
 {
-    private const MAX_TRANSACTION_ATTEMPTS = 5;
+    private const MAX_TRANSACTION_ATTEMPTS = 10;
     private const DEADLOCK_RETRY_DELAY_MICROSECONDS = 10000;
+    private const MAX_DEADLOCK_RETRY_DELAY_MICROSECONDS = 250000;
 
-    /** @var array<string, true> */
+    public const STATE_ACTIVE = 'active';
+    public const STATE_PENDING = 'compensation_pending';
+    public const STATE_COMPENSATED = 'compensated';
+    public const STATE_COMPLETED = 'completed';
+
+    /** @var array<string, string> */
     private array $activeSubmissions = [];
 
     /**
+     * Dependencies for transactional stock orchestration.
+     *
      * @param QuoteComponentStockInterface $componentStock
      * @param QuoteItemConfigurationReader $configurationReader
      * @param Movimentacao $movimentacaoResource
@@ -30,40 +38,106 @@ class QuoteStockReservation
     }
 
     /**
-     * Reentrant submissions must not acquire or compensate another invocation's reservation.
+     * Acquire ownership; only a persisted failure permits recovery.
      *
      * @param Quote $quote
-     * @return void
-     * @throws LocalizedException
+     * @return string
      */
-    public function beginAttempt(Quote $quote): void
+    public function beginAttempt(Quote $quote): string
     {
         $key = $this->getAttemptKey($quote);
         if (isset($this->activeSubmissions[$key])) {
-            throw new LocalizedException(__('Este carrinho já está sendo finalizado. Atualize a página.'));
+            $this->rejectSubmission();
         }
-        $this->activeSubmissions[$key] = true;
+        $attemptId = bin2hex(random_bytes(16));
+        if ($quote->getId()) {
+            $quoteId = (int) $quote->getId();
+            $this->executeTransaction($quoteId, function () use ($quoteId, $attemptId): void {
+                $attempt = $this->movimentacaoResource->getAttempt($quoteId);
+                if ($this->movimentacaoResource->hasOrder($quoteId)) {
+                    $this->rejectSubmission();
+                }
+                if ($attempt['state'] === self::STATE_PENDING) {
+                    $this->releaseStock($quoteId);
+                } elseif ($attempt['state'] === self::STATE_ACTIVE || $this->hasPendingReservation($quoteId)) {
+                    $this->rejectSubmission();
+                }
+                $this->movimentacaoResource->saveAttempt($quoteId, $attemptId, self::STATE_ACTIVE);
+            });
+        }
+        $this->activeSubmissions[$key] = $attemptId;
+        return $attemptId;
     }
 
     /**
-     * Release only the execution guard so failed compensation remains recoverable.
+     * Return the invocation identity, never infer ownership from a pending balance.
      *
      * @param Quote $quote
+     * @return string|null
+     */
+    public function getAttemptId(Quote $quote): ?string
+    {
+        return $this->activeSubmissions[$this->getAttemptKey($quote)] ?? null;
+    }
+
+    /**
+     * Release the local context only for its owning invocation.
+     *
+     * @param Quote $quote
+     * @param string $attemptId
      * @return void
      */
-    public function endAttempt(Quote $quote): void
+    public function endAttempt(Quote $quote, string $attemptId): void
     {
-        unset($this->activeSubmissions[$this->getAttemptKey($quote)]);
+        if ($this->getAttemptId($quote) === $attemptId) {
+            unset($this->activeSubmissions[$this->getAttemptKey($quote)]);
+        }
+    }
+
+    /**
+     * Persist failure before attempting stock recovery.
+     *
+     * @param Quote $quote
+     * @param string $attemptId
+     * @return void
+     */
+    public function markFailed(Quote $quote, string $attemptId): void
+    {
+        if (!$quote->getId()) {
+            return;
+        }
+        $quoteId = (int) $quote->getId();
+        $this->executeTransaction($quoteId, function () use ($quoteId, $attemptId): void {
+            $attempt = $this->movimentacaoResource->getAttempt($quoteId);
+            if ($attempt['id'] !== $attemptId || $attempt['state'] !== self::STATE_ACTIVE) {
+                return;
+            }
+            $state = $this->movimentacaoResource->hasOrder($quoteId) ? self::STATE_COMPLETED : self::STATE_PENDING;
+            $this->movimentacaoResource->saveAttempt($quoteId, $attemptId, $state);
+        });
+    }
+
+    /**
+     * Resolve ownership even when core returns without placing an order.
+     *
+     * @param Quote $quote
+     * @param string $attemptId
+     * @return void
+     */
+    public function completeAttempt(Quote $quote, string $attemptId): void
+    {
+        $this->resolveAttempt($quote, $attemptId, self::STATE_ACTIVE);
     }
 
     /**
      * Acquire the quote lock before changing component stock and its ledger.
      *
      * @param Quote $quote
+     * @param string $attemptId
      * @return void
      * @throws LocalizedException
      */
-    public function reserve(Quote $quote): void
+    public function reserve(Quote $quote, string $attemptId): void
     {
         $demand = [];
         foreach ($quote->getAllItems() as $item) {
@@ -76,9 +150,13 @@ class QuoteStockReservation
         }
         ksort($demand);
         $quoteId = (int) $quote->getId();
-        $this->executeTransaction($quoteId, function () use ($quoteId, $demand): void {
+        $this->executeTransaction($quoteId, function () use ($quoteId, $demand, $attemptId): void {
+            $attempt = $this->movimentacaoResource->getAttempt($quoteId);
+            if ($attempt['id'] !== $attemptId || $attempt['state'] !== self::STATE_ACTIVE) {
+                $this->rejectSubmission();
+            }
             if ($this->movimentacaoResource->hasOrder($quoteId) || $this->hasPendingReservation($quoteId)) {
-                throw new LocalizedException(__('Este carrinho já está sendo finalizado. Atualize a página.'));
+                $this->rejectSubmission();
             }
             foreach ($demand as $code => $qty) {
                 $this->componentStock->reserveForQuote($code, $qty, $quoteId);
@@ -90,24 +168,67 @@ class QuoteStockReservation
      * Restore outstanding stock only when the quote has no persisted order.
      *
      * @param Quote $quote
+     * @param string $attemptId
      * @return void
      */
-    public function compensate(Quote $quote): void
+    public function compensate(Quote $quote, string $attemptId): void
     {
+        $this->resolveAttempt($quote, $attemptId, self::STATE_PENDING);
+    }
+
+    /**
+     * Finalize only the matching owner in the state allowed by the caller.
+     *
+     * @param Quote $quote
+     * @param string $attemptId
+     * @param string $expectedState
+     * @return void
+     */
+    private function resolveAttempt(Quote $quote, string $attemptId, string $expectedState): void
+    {
+        if (!$quote->getId()) {
+            return;
+        }
         $quoteId = (int) $quote->getId();
-        $this->executeTransaction($quoteId, function () use ($quoteId): void {
-            // Core also dispatches submit_failure after a persisted order's success observer fails.
-            if (!$this->movimentacaoResource->hasOrder($quoteId)) {
-                $movements = $this->movimentacaoResource->getNetQuantitiesByQuoteId($quoteId);
-                usort($movements, static fn (array $left, array $right): int => $left['codigo'] <=> $right['codigo']);
-                foreach ($movements as $movement) {
-                    if ($movement['net'] < 0) {
-                        $this->componentStock->compensateForQuote($movement['codigo'], -$movement['net'], $quoteId);
-                    }
-                }
+        $this->executeTransaction($quoteId, function () use ($quoteId, $attemptId, $expectedState): void {
+            $attempt = $this->movimentacaoResource->getAttempt($quoteId);
+            if ($attempt['id'] !== $attemptId || $attempt['state'] !== $expectedState) {
+                return;
             }
+            $state = self::STATE_COMPLETED;
+            if (!$this->movimentacaoResource->hasOrder($quoteId)) {
+                $this->releaseStock($quoteId);
+                $state = self::STATE_COMPENSATED;
+            }
+            $this->movimentacaoResource->saveAttempt($quoteId, $attemptId, $state);
         });
-        $this->clearAttempt($quote);
+    }
+
+    /**
+     * Balance the ledger while the caller holds the quote lock.
+     *
+     * @param int $quoteId
+     * @return void
+     */
+    private function releaseStock(int $quoteId): void
+    {
+        $movements = $this->movimentacaoResource->getNetQuantitiesByQuoteId($quoteId);
+        usort($movements, static fn (array $left, array $right): int => $left['codigo'] <=> $right['codigo']);
+        foreach ($movements as $movement) {
+            if ($movement['net'] < 0) {
+                $this->componentStock->compensateForQuote($movement['codigo'], -$movement['net'], $quoteId);
+            }
+        }
+    }
+
+    /**
+     * Reject attempts that cannot safely acquire stock ownership.
+     *
+     * @return never
+     */
+    private function rejectSubmission(): never
+    {
+        throw new LocalizedException(__('Este carrinho já está sendo finalizado. Atualize a página.'));
     }
 
     /**
@@ -128,18 +249,6 @@ class QuoteStockReservation
         }
 
         return $this->hasPendingReservation($quoteId);
-    }
-
-    /**
-     * Clear attempt is kept for backward compatibility with callers.
-     *
-     * @param Quote $quote
-     * @return void
-     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
-     */
-    public function clearAttempt(Quote $quote): void
-    {
-        // No-op: ledger balance and hasOrder in database are the single source of truth.
     }
 
     /**
@@ -168,7 +277,11 @@ class QuoteStockReservation
                 if (!$retry) {
                     throw $exception;
                 }
-                usleep(self::DEADLOCK_RETRY_DELAY_MICROSECONDS * $attempt);
+                $delay = min(
+                    self::MAX_DEADLOCK_RETRY_DELAY_MICROSECONDS,
+                    self::DEADLOCK_RETRY_DELAY_MICROSECONDS * (2 ** ($attempt - 1))
+                );
+                usleep(random_int((int) ($delay / 2), $delay));
             }
         }
     }
