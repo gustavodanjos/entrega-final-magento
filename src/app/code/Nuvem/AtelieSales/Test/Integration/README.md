@@ -9,7 +9,11 @@ The quote stores the current attempt ID and state. All ownership transitions use
 | `compensated` | Allowed if there is no order or outstanding balance. |
 | `completed` | A persisted order prevents another submission. |
 
-A stale failure must present its original attempt ID and cannot affect a newer attempt. Quote resource saves exclude ownership fields so stale model data cannot overwrite direct transactional updates. No stock service interface changed. Root transaction deadlocks have at most ten attempts, with randomized exponential waits capped at 250 ms; caller-owned transactions are never retried.
+`QuoteStockReservation` owns all state transitions. The local invocation token belongs to the exact quote object; it never determines database ownership. Before reserving, the observer copies that token to the order object. Failure events use the original order token, including when the same quote object has since been reused by another attempt.
+
+The entire component demand and its ledger rows share one quote transaction. `sales_order_save_after` verifies the original attempt and writes `completed` inside the order resource transaction. An order save rollback also rolls back that transition; an exception after the order commit cannot compensate it. A stale order token aborts the save. The submit plugin remains responsible for failures outside the core failure event and for clearing only its own invocation context.
+
+Compensation accepts only the current token in `compensation_pending`, under the quote lock. The pending marker is committed before compensation so a failed recovery remains recoverable. A new attempt is acquired only after recovery has balanced the ledger. Quote resource saves exclude ownership fields so stale model data cannot overwrite direct transactional updates. No schema or stock service interface changed. Root transaction deadlocks have at most ten attempts, with randomized exponential waits capped at 250 ms; caller-owned transactions are never retried.
 
 ## Running scenarios
 
@@ -24,7 +28,7 @@ php app/code/Nuvem/AtelieSales/Test/Integration/StockScenarios.php reset-fixture
 php app/code/Nuvem/AtelieSales/Test/Integration/StockScenarios.php active-owner < /path/to/kit/exemplos/configuracao-lua.json
 ```
 
-Other scenarios using the same JSON input: `stale-failure`, `legacy-balance`, `partial-reservation`, `reentry`, `recovery`, `order-snapshot`, `concurrent-compensation`, `duplicate`, `duplicate-reservation`, and `race`. Reset the fixture before `race`. `transactions` needs no JSON. For failure observers, use `prepare` with the JSON, then `failure QUOTE_ID EVENT`; supported events are `sales_model_service_quote_submit_before`, `sales_order_place_before`, and `sales_model_service_quote_submit_success`. Observers are registered only in the test process.
+Other scenarios using the same JSON input: `stale-failure`, `stale-order`, `legacy-balance`, `partial-reservation`, `reentry`, `recovery`, `order-snapshot`, `concurrent-compensation`, `duplicate`, `duplicate-reservation`, and `race`. Reset the fixture before `race`. `transactions` needs no JSON. For failure observers, use `prepare` with the JSON, then `failure QUOTE_ID EVENT`; supported events are `sales_model_service_quote_submit_before`, `sales_order_place_before`, `sales_order_save_after`, and `sales_model_service_quote_submit_success`. Observers are registered only in the test process.
 
 `active-owner` starts a competing PHP process after the first process has reserved all components and before it places the order. It checks rejection and an unchanged ledger before letting the owner continue. It also verifies that saving a stale quote cannot overwrite completed ownership.
 
@@ -32,15 +36,19 @@ For upgrade preservation, record `SchemaScenario.php` before and after another `
 
 ## Evidence — 2026-10-23
 
-- Unit suite: 95 tests and 208 assertions passed.
+- Full Nuvem unit suite after merging dev: 274 tests and 688 assertions passed (`phpunit -c phpunit.xml.dist`).
 - PHPCS on changed production files: zero errors and warnings.
 - `setup:upgrade` completed against the isolated validation database with the availability route enabled.
 - Repeated observer scenario: one quote left exactly seven reservation ledger rows and reduced each selected component by one.
+- Partial reservation failure: the final component was unavailable after the other six updates; all six updates and their ledger rows rolled back.
+- A delayed failure event carrying the old order token did not affect a new attempt on the same quote object. A stale order token was rejected during the real order save, leaving no order and exactly one compensation per component.
 - Forced exception at `sales_model_service_quote_submit_before`: no order persisted, all seven components returned to stock 10, and each quote ledger balance returned to zero with one compensation row.
+- Forced exception at `sales_order_place_before`: all seven components were compensated exactly once.
+- Forced exception at `sales_order_save_after`: `completed` was visible inside the order transaction, then the order and that state transition rolled back together. Compensation restored all seven components and left the quote `compensated`.
 - Forced exception at `sales_model_service_quote_submit_success`: the order remained persisted, each component stayed at stock 9, and the quote kept one reservation row per component without compensation.
 - Eight concurrent compensation calls produced two ledger rows per component (reservation and one compensation), restored all seven stocks to 10, and reconciled each ledger delta to zero.
-- CLI race with 40 checkout workers: exactly 10 orders and 30 clean stock refusals. All seven component stocks changed from 10 to 0, and each component's total ledger delta was exactly -10.
-- Official `prova-final.sh` at Stage 5 (`SO=corrida`, `CORRIDA=40`): 10 orders, 30 clean refusals, zero 5xx, and the public endpoint reported Sola Lua unavailable. The run completed with 3 checks passed and 0 failed.
+- Same-quote concurrent submission, reentry, repeated reservation, failed compensation recovery, a stale repeatable-read order snapshot and duplicate submit scenarios passed.
+- Official `prova-final.sh` at Stage 5 (`SO=corrida`, `CORRIDA=40`), served by 40 PHP workers: 10 orders, 30 clean refusals, zero 5xx, and the public endpoint reported Sola Lua unavailable. The run completed with 3 checks passed and 0 failed. An isolated ledger watermark taken immediately before the run reconciled all seven stocks from 10 to 0 against exactly ten reservation rows and a total of -10 per component.
 - The public route `/V1/atelie/disponibilidade/NUVEM-RUNNER` returned the documented JSON fields and no stock quantities.
 
 ## Operational reconciliation
