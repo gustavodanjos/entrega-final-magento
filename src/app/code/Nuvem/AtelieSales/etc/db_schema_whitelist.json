@@ -14,7 +14,7 @@
         "index": {
             "NUVEM_ATELIE_MOVIMENTACAO_COMPONENTE_ID": true,
             "NUVEM_ATELIE_MOVIMENTACAO_ORDER_ID": true,
-            "NUVEM_ATELIE_MOV_QUOTE_COMPONENT": true
+            "NUVEM_ATELIE_MOVIMENTACAO_QUOTE_ID_COMPONENTE_ID": true
         },
         "constraint": {
             "PRIMARY": true,
