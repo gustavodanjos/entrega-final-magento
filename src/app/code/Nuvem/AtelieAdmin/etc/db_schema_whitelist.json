@@ -14,5 +14,23 @@
             "PRIMARY": true,
             "NUVEM_ATELIE_FICHA_ORDER_ITEM_ID": true
         }
+    },
+    "nuvem_atelie_production_outbox": {
+        "column": {
+            "order_item_id": true,
+            "order_id": true,
+            "attempts": true,
+            "last_error": true,
+            "next_attempt_at": true,
+            "published_at": true,
+            "created_at": true,
+            "updated_at": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        },
+        "index": {
+            "NUVEM_ATELIE_PRODUCTION_OUTBOX_PENDING": true
+        }
     }
 }

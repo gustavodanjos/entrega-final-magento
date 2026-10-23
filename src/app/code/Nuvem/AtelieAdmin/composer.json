@@ -15,7 +15,8 @@
         "magento/module-amqp": "*",
         "magento/module-sales": "*",
         "magento/module-quote": "*",
-        "magento/module-email": "*"
+        "magento/module-email": "*",
+        "magento/module-cron": "*"
     },
     "autoload": {
         "files": [

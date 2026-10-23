@@ -18,4 +18,21 @@
             <column name="order_item_id"/>
         </constraint>
     </table>
+    <table name="nuvem_atelie_production_outbox" resource="default" engine="innodb" comment="Production publication outbox">
+        <column xsi:type="int" name="order_item_id" unsigned="true" nullable="false"/>
+        <column xsi:type="int" name="order_id" unsigned="true" nullable="false"/>
+        <column xsi:type="int" name="attempts" unsigned="true" nullable="false" default="0"/>
+        <column xsi:type="varchar" name="last_error" length="1000" nullable="true"/>
+        <column xsi:type="timestamp" name="next_attempt_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="false"/>
+        <column xsi:type="timestamp" name="published_at" nullable="true" on_update="false"/>
+        <column xsi:type="timestamp" name="created_at" nullable="false" default="CURRENT_TIMESTAMP"/>
+        <column xsi:type="timestamp" name="updated_at" nullable="false" default="CURRENT_TIMESTAMP" on_update="true"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="order_item_id"/>
+        </constraint>
+        <index referenceId="NUVEM_ATELIE_PRODUCTION_OUTBOX_PENDING" indexType="btree">
+            <column name="published_at"/>
+            <column name="next_attempt_at"/>
+        </index>
+    </table>
 </schema>

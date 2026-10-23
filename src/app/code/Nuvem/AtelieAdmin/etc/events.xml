@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
-    <event name="sales_model_service_quote_submit_success">
-        <observer name="nuvem_atelieadmin_publish_production"
-                  instance="Nuvem\AtelieAdmin\Observer\PublishProduction"/>
+    <event name="sales_order_item_save_after">
+        <observer name="nuvem_atelieadmin_record_production"
+                  instance="Nuvem\AtelieAdmin\Observer\RecordProduction"/>
     </event>
 </config>
