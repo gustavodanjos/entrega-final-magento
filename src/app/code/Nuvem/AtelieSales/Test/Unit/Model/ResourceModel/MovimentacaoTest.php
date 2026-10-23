@@ -10,6 +10,30 @@ use PHPUnit\Framework\TestCase;
 
 class MovimentacaoTest extends TestCase
 {
+    /** @dataProvider persistedOrders */
+    public function testOrderLookupUsesCurrentReadForTheLockedQuote(int|false $orderId): void
+    {
+        $connection = $this->createMock(AdapterInterface::class);
+        $select = $this->createMock(Select::class);
+        $select->expects($this->once())->method('from')->with('sales_order', 'entity_id')->willReturnSelf();
+        $select->expects($this->once())->method('where')->with('quote_id = ?', 99)->willReturnSelf();
+        $select->expects($this->once())->method('limit')->with(1)->willReturnSelf();
+        $select->expects($this->once())->method('forUpdate')->with(true)->willReturnSelf();
+        $connection->method('select')->willReturn($select);
+        $connection->expects($this->once())->method('fetchOne')->with($select)->willReturn($orderId);
+        $ledger = $this->getMockBuilder(Movimentacao::class)->disableOriginalConstructor()
+            ->onlyMethods(['getConnection', 'getTable'])->getMock();
+        $ledger->method('getConnection')->willReturn($connection);
+        $ledger->method('getTable')->willReturnArgument(0);
+
+        $this->assertSame((bool) $orderId, $ledger->hasOrder(99));
+    }
+
+    public static function persistedOrders(): array
+    {
+        return [[123], [false]];
+    }
+
     public function testQuoteBalancesUseCurrentReadAndIncludeCompensations(): void
     {
         $connection = $this->createMock(AdapterInterface::class);

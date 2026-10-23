@@ -54,7 +54,23 @@ class Movimentacao extends AbstractDb
     }
 
     /**
+     * The caller holds the quote lock; a current read must see any committed order.
+     *
+     * @param int $quoteId
+     * @return bool
+     */
+    public function hasOrder(int $quoteId): bool
+    {
+        $connection = $this->getConnection();
+        return (bool) $connection->fetchOne(
+            $connection->select()->from($this->getTable('sales_order'), 'entity_id')
+                ->where('quote_id = ?', $quoteId)->limit(1)->forUpdate(true)
+        );
+    }
+
+    /**
      * Current read avoids an enclosing transaction's repeatable-read snapshot.
+     *
      * The caller must hold the quote lock until its movement is committed.
      *
      * @param int $quoteId

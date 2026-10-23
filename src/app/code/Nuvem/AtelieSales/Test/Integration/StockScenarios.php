@@ -71,7 +71,9 @@ $command = $argv[1] ?? 'transactions';
 $fixture = new CheckoutFixture($objectManager);
 ConcurrentStockScenarios::waitForStart($argv);
 
-if (in_array($command, [
+if (in_array($command, ['reentry', 'recovery', 'order-snapshot'], true)) {
+    require __DIR__ . '/AttemptScenarios.php';
+} elseif (in_array($command, [
     'reset-fixture', 'prepare', 'submit', 'race', 'duplicate', 'concurrent-compensation', 'compensate-quote',
 ], true)) {
     require __DIR__ . '/CheckoutScenarios.php';
