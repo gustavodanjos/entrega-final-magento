@@ -5,6 +5,8 @@
                 type="Nuvem\AtelieSales\Model\ComponentStock"/>
     <preference for="Nuvem\AtelieSales\Api\QuoteComponentStockInterface"
                 type="Nuvem\AtelieSales\Model\ComponentStock"/>
+    <preference for="Nuvem\AtelieSales\Api\AvailabilityManagementInterface"
+                type="Nuvem\AtelieSales\Model\AvailabilityManagement"/>
     <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
                 type="Nuvem\AtelieSales\Model\PriceCalculator"/>
     <type name="Magento\Quote\Model\ResourceModel\Quote">
