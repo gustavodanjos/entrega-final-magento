@@ -25,6 +25,23 @@ class AttemptSubmissionObserver implements ObserverInterface
         if (self::$mode === 'failure') {
             throw new LocalizedException(__('F2.3 integration: forced attempt failure.'));
         }
+        if (self::$mode === 'duplicate-reservation') {
+            $manager = ObjectManager::getInstance();
+            $quote = $observer->getEvent()->getQuote();
+            $reservation = $manager->get(QuoteStockReservation::class);
+            $attemptId = $reservation->getAttemptId($quote);
+            assertStockScenario($attemptId !== null, 'Duplicate observer lost the current owner.');
+            $resource = $manager->get(\Magento\Framework\App\ResourceConnection::class);
+            $table = $resource->getTableName('nuvem_atelie_movimentacao');
+            $connection = $resource->getConnection();
+            $before = (int) $connection->fetchOne($connection->select()->from($table, ['COUNT(*)'])
+                ->where('quote_id = ?', $quote->getId()));
+            $reservation->reserve($quote, $attemptId);
+            $after = (int) $connection->fetchOne($connection->select()->from($table, ['COUNT(*)'])
+                ->where('quote_id = ?', $quote->getId()));
+            assertStockScenario($before === 7 && $after === $before, 'Repeated observer changed the ledger.');
+            return;
+        }
         if (self::$mode === 'concurrent') {
             $manager = ObjectManager::getInstance();
             $quoteId = (int) $observer->getEvent()->getQuote()->getId();

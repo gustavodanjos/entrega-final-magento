@@ -72,7 +72,8 @@ $fixture = new CheckoutFixture($objectManager);
 ConcurrentStockScenarios::waitForStart($argv);
 
 if (in_array($command, [
-    'reentry', 'recovery', 'order-snapshot', 'active-owner', 'stale-failure', 'legacy-balance', 'partial-reservation',
+    'reentry', 'recovery', 'order-snapshot', 'active-owner', 'duplicate-reservation', 'stale-failure',
+    'legacy-balance', 'partial-reservation',
 ], true)) {
     if (in_array($command, ['stale-failure', 'legacy-balance', 'partial-reservation'], true)) {
         require __DIR__ . '/OwnershipScenarios.php';

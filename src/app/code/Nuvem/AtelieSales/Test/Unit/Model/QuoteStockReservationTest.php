@@ -112,6 +112,26 @@ class QuoteStockReservationTest extends TestCase
         $this->reservation->reserve($this->quote, 'wrong-owner');
     }
 
+    public function testRepeatedReservationForSameAttemptIsAnIdempotentNoOp(): void
+    {
+        $id = $this->reservation->beginAttempt($this->quote);
+        $this->reader->method('getComponentQuantities')->willReturn(['CAB' => 2, 'SOL' => 1]);
+        $this->balances = [['codigo' => 'SOL', 'net' => -1], ['codigo' => 'CAB', 'net' => -2]];
+        $this->stock->expects($this->never())->method('reserveForQuote');
+        $this->reservation->reserve($this->quote, $id);
+    }
+
+    public function testRepeatedReservationWithDifferentDemandIsRejected(): void
+    {
+        $id = $this->reservation->beginAttempt($this->quote);
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 2]);
+        $this->balances = [['codigo' => 'SOL', 'net' => -1]];
+        $this->stock->expects($this->never())->method('reserveForQuote');
+
+        $this->expectException(LocalizedException::class);
+        $this->reservation->reserve($this->quote, $id);
+    }
+
     public function testCompensationRequiresPersistedFailureAndIsIdempotent(): void
     {
         $id = $this->reservation->beginAttempt($this->quote);

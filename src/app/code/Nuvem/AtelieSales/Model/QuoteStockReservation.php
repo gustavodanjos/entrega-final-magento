@@ -155,7 +155,18 @@ class QuoteStockReservation
             if ($attempt['id'] !== $attemptId || $attempt['state'] !== self::STATE_ACTIVE) {
                 $this->rejectSubmission();
             }
-            if ($this->movimentacaoResource->hasOrder($quoteId) || $this->hasPendingReservation($quoteId)) {
+            if ($this->movimentacaoResource->hasOrder($quoteId)) {
+                $this->rejectSubmission();
+            }
+            $balances = $this->getNetQuantitiesByComponent($quoteId);
+            if ($balances !== []) {
+                $expected = [];
+                foreach ($demand as $code => $qty) {
+                    $expected[$code] = -$qty;
+                }
+                if ($balances === $expected) {
+                    return;
+                }
                 $this->rejectSubmission();
             }
             foreach ($demand as $code => $qty) {
@@ -294,12 +305,25 @@ class QuoteStockReservation
      */
     private function hasPendingReservation(int $quoteId): bool
     {
+        return $this->getNetQuantitiesByComponent($quoteId) !== [];
+    }
+
+    /**
+     * Return nonzero ledger balances indexed by component code.
+     *
+     * @param int $quoteId
+     * @return array<string, int>
+     */
+    private function getNetQuantitiesByComponent(int $quoteId): array
+    {
+        $balances = [];
         foreach ($this->movimentacaoResource->getNetQuantitiesByQuoteId($quoteId) as $movement) {
-            if ($movement['net'] < 0) {
-                return true;
+            if ($movement['net'] !== 0) {
+                $balances[$movement['codigo']] = $movement['net'];
             }
         }
-        return false;
+        ksort($balances);
+        return $balances;
     }
 
     /**

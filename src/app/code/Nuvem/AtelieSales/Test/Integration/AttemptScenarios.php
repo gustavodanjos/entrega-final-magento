@@ -90,7 +90,11 @@ if ($command === 'order-snapshot') {
         $recoverableStock->failCompensation = false;
         AttemptSubmissionObserver::$mode = 'none';
     } else {
-        AttemptSubmissionObserver::$mode = $command === 'active-owner' ? 'concurrent' : 'reentry';
+        AttemptSubmissionObserver::$mode = match ($command) {
+            'active-owner' => 'concurrent',
+            'duplicate-reservation' => 'duplicate-reservation',
+            default => 'reentry',
+        };
     }
     $staleQuote = $objectManager->create(CartRepositoryInterface::class)->get($quoteId);
     $order = $objectManager->get(QuoteManagement::class)->submit($quote);
