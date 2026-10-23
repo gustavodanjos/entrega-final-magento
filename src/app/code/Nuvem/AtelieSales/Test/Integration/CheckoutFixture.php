@@ -99,4 +99,33 @@ final class CheckoutFixture
 
         return $connection->fetchAll($select);
     }
+
+    public function movementCursor(): int
+    {
+        $resource = $this->objectManager->get(ResourceConnection::class);
+        return (int) $resource->getConnection()->fetchOne(
+            'SELECT COALESCE(MAX(movimentacao_id), 0) FROM ' . $resource->getTableName('nuvem_atelie_movimentacao')
+        );
+    }
+
+    public function movementSumsAfter(int $movementId, array $codes): array
+    {
+        $resource = $this->objectManager->get(ResourceConnection::class);
+        $connection = $resource->getConnection();
+        $select = $connection->select()
+            ->from(['m' => $resource->getTableName('nuvem_atelie_movimentacao')], ['net' => 'SUM(m.quantidade)'])
+            ->join(
+                ['c' => $resource->getTableName('nuvem_atelie_componente')],
+                'c.componente_id = m.componente_id',
+                ['codigo' => 'c.codigo']
+            )
+            ->where('m.movimentacao_id > ?', $movementId)
+            ->where('c.codigo IN (?)', $codes)
+            ->group('c.codigo');
+        $sums = [];
+        foreach ($connection->fetchAll($select) as $row) {
+            $sums[$row['codigo']] = (int) $row['net'];
+        }
+        return $sums;
+    }
 }

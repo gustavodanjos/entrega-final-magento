@@ -53,6 +53,7 @@ if ($command === 'reset-fixture') {
 if ($command === 'race') {
     $stock->adjust('SOL-LUA-HOLO', 10, 'F2.3 isolated race preparation');
 }
+$movementCursor = $fixture->movementCursor();
 $before = $fixture->stocks($codes);
 $required = $command === 'race' ? 10 : 1;
 assertStockScenario(count($before) === 7 && min($before) >= $required, 'Insufficient fixture component stock.');
@@ -85,6 +86,7 @@ foreach ($results as $result) {
     $decoded[] = json_decode($result['output'], true, 512, JSON_THROW_ON_ERROR);
 }
 $after = $fixture->stocks($codes);
+$movementSums = $fixture->movementSumsAfter($movementCursor, $codes);
 $movements = $fixture->movements($quoteIds);
 $summary = [];
 foreach ($codes as $code) {
@@ -96,6 +98,7 @@ $orders = $connection->fetchCol($connection->select()->from($resource->getTableN
     ->where('quote_id IN (?)', $quoteIds));
 $report = ['scenario' => $command, 'database' => $database, 'quote_ids' => $quoteIds,
     'orders' => count($orders), 'outcomes' => array_count_values(array_column($decoded, 'outcome')),
+    'ledger_delta' => $movementSums,
     'components' => $summary, 'workers' => $decoded];
 echo json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), "\n";
 if ($command === 'concurrent-compensation') {
@@ -105,6 +108,8 @@ if ($command === 'concurrent-compensation') {
     foreach ($summary as $row) {
         assertStockScenario($row['before'] === $row['after'] && $row['net'] === 0 && $row['movements'] === 2,
             'Concurrent compensation must restore each component exactly once.');
+        assertStockScenario(($movementSums[$code] ?? 0) === $row['after'] - $row['before'],
+            'Full ledger delta does not match stock for ' . $code);
     }
 } else {
     $expectedOrders = $command === 'race' ? 10 : 1;
@@ -117,6 +122,10 @@ if ($command === 'concurrent-compensation') {
         assertStockScenario($row['before'] - $row['after'] === $expectedOrders
             && $row['net'] === -$expectedOrders && $row['movements'] === $expectedOrders,
             'Stock and ledger did not reconcile.');
+    }
+    foreach ($summary as $code => $row) {
+        assertStockScenario(($movementSums[$code] ?? 0) === $row['after'] - $row['before'],
+            'Full ledger delta does not match stock for ' . $code);
     }
 }
 echo "PASS: $command\n";
