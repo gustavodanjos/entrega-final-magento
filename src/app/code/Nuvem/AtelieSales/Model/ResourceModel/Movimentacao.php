@@ -54,6 +54,39 @@ class Movimentacao extends AbstractDb
     }
 
     /**
+     * Read persisted ownership using the current database state.
+     *
+     * @param int $quoteId
+     * @return array{id: ?string, state: ?string}
+     */
+    public function getAttempt(int $quoteId): array
+    {
+        $row = $this->getConnection()->fetchRow(
+            $this->getConnection()->select()->from($this->getTable('quote'), [
+                'id' => 'atelie_stock_attempt_id',
+                'state' => 'atelie_stock_attempt_state',
+            ])->where('entity_id = ?', $quoteId)->forUpdate(true)
+        );
+        return $row ?: ['id' => null, 'state' => null];
+    }
+
+    /**
+     * The caller holds the quote lock throughout the state transition.
+     *
+     * @param int $quoteId
+     * @param string $attemptId
+     * @param string $state
+     * @return void
+     */
+    public function saveAttempt(int $quoteId, string $attemptId, string $state): void
+    {
+        $this->getConnection()->update($this->getTable('quote'), [
+            'atelie_stock_attempt_id' => $attemptId,
+            'atelie_stock_attempt_state' => $state,
+        ], ['entity_id = ?' => $quoteId]);
+    }
+
+    /**
      * The caller holds the quote lock; a current read must see any committed order.
      *
      * @param int $quoteId

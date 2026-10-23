@@ -2,6 +2,13 @@
 <schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
 
+    <table name="quote" resource="checkout" engine="innodb">
+        <column xsi:type="varchar" name="atelie_stock_attempt_id" nullable="true" length="32"
+                comment="Component Stock Attempt ID"/>
+        <column xsi:type="varchar" name="atelie_stock_attempt_state" nullable="true" length="24"
+                comment="Component Stock Attempt State"/>
+    </table>
+
     <table name="nuvem_atelie_movimentacao" resource="default" engine="innodb"
            comment="Razão do estoque: toda mudança gera uma linha">
         <column xsi:type="bigint" name="movimentacao_id" padding="20" unsigned="true"
