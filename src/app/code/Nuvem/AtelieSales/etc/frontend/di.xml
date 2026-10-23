@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Magento\Catalog\Helper\Product\ConfigurationPool">
+        <arguments>
+            <argument name="instancesByType" xsi:type="array">
+                <item name="atelie" xsi:type="object">Nuvem\AtelieSales\Helper\Catalog\Product\Configuration</item>
+            </argument>
+        </arguments>
+    </type>
+    <type name="Magento\Checkout\CustomerData\ItemPool">
+        <arguments>
+            <argument name="itemMap" xsi:type="array">
+                <item name="atelie" xsi:type="string">Nuvem\AtelieSales\CustomerData\AtelieItem</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

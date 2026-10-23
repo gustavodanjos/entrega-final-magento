@@ -80,7 +80,21 @@ class Estudio implements ArgumentInterface
             }
         }
 
-        $basePrice = (float) ($catalog['preco_base'] ?? $product->getFinalPrice());
+        $basePrice = 0.0;
+        if ($product) {
+            $basePrice = (float) (
+                $product->getFinalPrice()
+                ?: $product->getPrice()
+                ?: $product->getData('price')
+                ?: ($product->getPriceInfo() ? $product->getPriceInfo()->getPrice('final_price')->getAmount()->getValue() : 0.0)
+            );
+        }
+        if ($basePrice <= 0 && !empty($catalog['preco_base'])) {
+            $basePrice = (float) $catalog['preco_base'];
+        }
+        if ($basePrice <= 0) {
+            $basePrice = 449.90;
+        }
 
         return [
             'produto' => [
@@ -112,25 +126,34 @@ class Estudio implements ArgumentInterface
         ];
     }
 
-    public function getMergedJsLayout(array|string $jsLayout): string
+    public function getMergedJsLayout(array|string $jsLayout = []): string
     {
         if (is_string($jsLayout)) {
-            $jsLayout = $this->jsonSerializer->unserialize($jsLayout);
+            $decoded = json_decode($jsLayout, true);
+            $jsLayout = is_array($decoded) ? $decoded : [];
         }
         if (!is_array($jsLayout)) {
             $jsLayout = [];
         }
 
         $studioData = $this->getStudioData();
-        if (isset($jsLayout['components']['atelieStudio'])) {
-            $jsLayout['components']['atelieStudio']['config']['studioData'] = $studioData;
+
+        if (!isset($jsLayout['components']['atelieStudio'])) {
+            $jsLayout['components']['atelieStudio'] = [
+                'component' => 'Nuvem_AtelieStudio/js/studio'
+            ];
         }
 
-        return $this->jsonSerializer->serialize($jsLayout);
+        $jsLayout['components']['atelieStudio']['config']['studioData'] = $studioData;
+        $jsLayout['components']['atelieStudio']['config']['configurador'] = $studioData;
+        $jsLayout['components']['atelieStudio']['studioData'] = $studioData;
+        $jsLayout['components']['atelieStudio']['configurador'] = $studioData;
+
+        return (string) json_encode($jsLayout, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
     public function getStudioJson(): string
     {
-        return $this->jsonSerializer->serialize($this->getStudioData());
+        return (string) json_encode($this->getStudioData(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 }
