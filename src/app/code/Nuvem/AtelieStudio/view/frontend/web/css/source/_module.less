@@ -1,25 +1,25 @@
-// Tokens oficiais da marca (evita quebra de compilacao em temas pais)
-@nuvem-ceu:             #BEE3F8;
-@nuvem-menta:           #C6F0DC;
-@nuvem-rosa:            #F7C6E4;
-@nuvem-lavanda:         #DCCFF7;
-@nuvem-pessego:         #FFD8C2;
-@nuvem-baunilha:        #FFF1B8;
-@nuvem-fundo:           #FBFAFF;
-@nuvem-nevoa:           #F3F0FF;
-@nuvem-bruma:           #E6E1F2;
-@nuvem-grafite:         #2E2A3B;
-@nuvem-grafite-suave:   #5E5873;
-@nuvem-magenta:         #A3307A;
-@nuvem-ceu-profundo:    #25618A;
-@nuvem-menta-profunda:  #1D6B4B;
-@nuvem-coral:           #A8322A;
-@nuvem-raio-campo:      8px;
-@nuvem-raio-msg:        14px;
-@nuvem-raio-card:       22px;
-@nuvem-raio-pilula:     999px;
-
+// Este modulo consome estritamente os design tokens (@nuvem-*) definidos
+// no arquivo _nuvem-tokens.less do tema Nuvem/pastel. 
+// As variaveis abaixo sao FALLBACKS declaradas dentro do escopo (@media-common)
+// para garantir a compilacao no tema pai Magento/blank sem quebrar o build.
 & when (@media-common = true) {
+    @nuvem-ceu: #BEE3F8;
+    @nuvem-menta: #C6F0DC;
+    @nuvem-rosa: #F7C6E4;
+    @nuvem-lavanda: #DCCFF7;
+    @nuvem-pessego: #FFD8C2;
+    @nuvem-baunilha: #FFF1B8;
+    @nuvem-fundo: #FBFAFF;
+    @nuvem-nevoa: #F3F0FF;
+    @nuvem-bruma: #E6E1F2;
+    @nuvem-grafite: #2E2A3B;
+    @nuvem-grafite-suave: #5E5873;
+    @nuvem-magenta: #A3307A;
+    @nuvem-coral: #A8322A;
+    @nuvem-raio-campo: 8px;
+    @nuvem-raio-msg: 14px;
+    @nuvem-raio-pilula: 999px;
+
     .atelie-studio {
         margin-top: 24px;
         padding: 24px;
@@ -39,24 +39,14 @@
                 font-family: 'Quicksand', sans-serif;
                 font-size: 22px;
                 font-weight: 700;
-                color: @nuvem-grafite;
             }
 
             .atelie-mirror-price {
                 display: flex;
                 align-items: baseline;
                 gap: 8px;
-
-                .atelie-price-label {
-                    font-size: 14px;
-                    color: @nuvem-grafite-suave;
-                }
-
-                .atelie-price-value {
-                    font-size: 24px;
-                    font-weight: 800;
-                    color: @nuvem-magenta;
-                }
+                .atelie-price-label { font-size: 14px; color: @nuvem-grafite-suave; }
+                .atelie-price-value { font-size: 24px; font-weight: 800; color: @nuvem-magenta; }
             }
         }
 
@@ -67,26 +57,21 @@
             border-bottom: 1.5px solid @nuvem-bruma;
             padding-bottom: 10px;
             overflow-x: auto;
-
+            
             .atelie-tab-btn {
                 background-color: @nuvem-fundo;
                 border: 1.5px solid @nuvem-bruma;
                 padding: 8px 18px;
                 font-size: 14px;
                 font-weight: 600;
-                color: @nuvem-grafite;
                 cursor: pointer;
                 border-radius: @nuvem-raio-pilula;
                 transition: all 0.2s ease;
-
-                &:hover {
-                    border-color: @nuvem-grafite-suave;
-                }
-
+                
                 &.active {
-                    background-color: @nuvem-magenta;
-                    border-color: @nuvem-magenta;
-                    color: #FFFFFF;
+                    background-color: @nuvem-grafite;
+                    border-color: @nuvem-grafite;
+                    color: @nuvem-fundo;
                 }
             }
         }
@@ -96,132 +81,87 @@
             grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             gap: 20px 12px;
             margin-bottom: 24px;
+            overflow: visible; 
 
             .atelie-option-card {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 text-align: center;
-                position: relative;
+                position: relative; 
 
                 .atelie-swatch-btn {
                     width: 52px;
                     height: 52px;
-                    min-width: 44px;
-                    min-height: 44px;
                     border-radius: 50%;
                     border: 1.6px solid @nuvem-grafite;
                     position: relative;
                     cursor: pointer;
                     outline: none;
                     overflow: hidden;
-                    box-sizing: border-box;
                     transition: transform 0.15s ease, box-shadow 0.15s ease;
-
-                    &:hover {
-                        transform: scale(1.05);
-                    }
+                    
+                    &:hover { transform: scale(1.05); }
 
                     .atelie-swatch-veil {
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        border-radius: 50%;
-                        background-color: rgba(251, 250, 255, 0.45);
-                        z-index: 1;
-                        pointer-events: none;
+                        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                        border-radius: 50%; background-color: fade(@nuvem-fundo, 45%);
+                        z-index: 1; pointer-events: none;
                     }
-
                     .atelie-swatch-blocked-line {
-                        position: absolute;
-                        top: 50%;
-                        left: -20%;
-                        width: 140%;
-                        height: 2px;
-                        background-color: @nuvem-grafite;
-                        transform: translateY(-50%) rotate(-45deg);
-                        z-index: 2;
-                        pointer-events: none;
+                        position: absolute; top: 50%; left: -20%; width: 140%; height: 2px;
+                        background-color: @nuvem-grafite; transform: translateY(-50%) rotate(-45deg);
+                        z-index: 2; pointer-events: none;
                     }
-
                     .atelie-swatch-esgotado-text {
-                        position: absolute;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        font-size: 9px;
-                        font-weight: 800;
-                        color: @nuvem-grafite;
-                        z-index: 3;
-                        text-transform: uppercase;
-                        pointer-events: none;
+                        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        font-size: 9px; font-weight: 800; color: @nuvem-grafite; z-index: 3;
+                        text-transform: uppercase; pointer-events: none;
                     }
                 }
 
-                /* ESTADO: Selecionado */
                 &.selected {
                     .atelie-swatch-btn {
                         box-shadow: 0 0 0 2px @nuvem-fundo, 0 0 0 5px @nuvem-magenta;
                         overflow: visible;
                     }
-
                     .atelie-swatch-check {
-                        position: absolute;
-                        top: -3px;
-                        right: -3px;
-                        width: 18px;
-                        height: 18px;
-                        background-color: @nuvem-magenta;
-                        color: #FFFFFF;
-                        border-radius: 50%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 11px;
-                        font-weight: 700;
-                        border: 2px solid @nuvem-fundo;
-                        z-index: 4;
+                        position: absolute; top: -3px; right: -3px; width: 18px; height: 18px;
+                        background-color: @nuvem-magenta; color: @nuvem-fundo; border-radius: 50%;
+                        display: flex; align-items: center; justify-content: center;
+                        font-size: 11px; font-weight: 700; border: 2px solid @nuvem-fundo; z-index: 4;
                     }
-
-                    .atelie-option-name {
-                        font-weight: 700;
-                    }
-                }
-
-                /* ESTADO: Bloqueado por Regra */
-                &.blocked {
-                    .atelie-swatch-btn {
-                        border: 1.6px solid @nuvem-grafite;
-                    }
-
-                    .atelie-option-name,
-                    .atelie-option-extra {
-                        color: @nuvem-grafite-suave;
-                    }
+                    .atelie-option-name { font-weight: 700; }
                 }
 
                 .atelie-option-info {
                     margin-top: 8px;
+                    .atelie-option-name { display: block; font-size: 12px; font-weight: 500; line-height: 1.3; }
+                    .atelie-option-extra { display: block; font-size: 11px; color: @nuvem-grafite-suave; margin-top: 2px; }
+                }
 
-                    .atelie-option-name {
-                        display: block;
-                        font-size: 12px;
-                        font-weight: 500;
-                        color: @nuvem-grafite;
-                        line-height: 1.3;
-                    }
-
-                    .atelie-option-extra {
-                        display: block;
-                        font-size: 11px;
-                        color: @nuvem-grafite-suave;
-                        margin-top: 2px;
-
-                        &.muted {
-                            opacity: 0.85;
-                        }
+                .atelie-block-alert {
+                    position: absolute;
+                    bottom: 100%; 
+                    left: 50%;
+                    transform: translateX(-50%);
+                    margin-bottom: 12px;
+                    font-size: 12px;
+                    color: @nuvem-fundo;
+                    background-color: @nuvem-grafite;
+                    border-radius: @nuvem-raio-campo;
+                    padding: 10px 14px;
+                    width: max-content;
+                    max-width: 200px;
+                    line-height: 1.4;
+                    z-index: 10;
+                    box-shadow: 0 4px 12px fade(@nuvem-grafite, 20%);
+                    pointer-events: none; 
+                    
+                    &::after {
+                        content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+                        border-width: 6px; border-style: solid;
+                        border-color: @nuvem-grafite transparent transparent transparent;
                     }
                 }
             }
@@ -229,105 +169,42 @@
 
         .atelie-sizes-section {
             margin-bottom: 24px;
-
-            .atelie-section-label {
-                display: block;
-                font-size: 14px;
-                font-weight: 600;
-                margin-bottom: 8px;
-                color: @nuvem-grafite;
-            }
-
+            .atelie-section-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
             .atelie-sizes-grid {
-                display: flex;
-                gap: 8px;
-                flex-wrap: wrap;
-
+                display: flex; gap: 8px; flex-wrap: wrap;
                 .atelie-size-btn {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: @nuvem-raio-campo;
-                    border: 1.5px solid @nuvem-bruma;
-                    background-color: @nuvem-fundo;
-                    color: @nuvem-grafite;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-
-                    &.selected {
-                        background-color: @nuvem-magenta;
-                        color: #FFFFFF;
-                        border-color: @nuvem-magenta;
-                    }
+                    width: 40px; height: 40px; border-radius: @nuvem-raio-campo;
+                    border: 1.5px solid @nuvem-bruma; background-color: @nuvem-fundo;
+                    font-weight: 600; cursor: pointer;
+                    &.selected { background-color: @nuvem-magenta; color: @nuvem-fundo; border-color: @nuvem-magenta; }
                 }
             }
         }
 
         .atelie-laser-section {
             margin-bottom: 16px;
-
             .atelie-laser-header {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 8px;
-
-                .atelie-section-label {
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: @nuvem-grafite;
-                }
-
-                .atelie-laser-badge {
-                    font-size: 12px;
-                    font-weight: 600;
-                    color: @nuvem-magenta;
-                    background-color: @nuvem-bruma;
-                    padding: 2px 8px;
-                    border-radius: @nuvem-raio-pilula;
+                display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+                .atelie-section-label { font-size: 14px; font-weight: 600; }
+                .atelie-laser-badge { 
+                    display: inline-block;
+                    font-size: 12px; font-weight: 600; color: @nuvem-magenta; 
+                    background-color: @nuvem-bruma; padding: 2px 8px; border-radius: @nuvem-raio-pilula; 
                 }
             }
-
             .atelie-laser-alert {
-                margin-bottom: 8px;
-                padding: 8px 12px;
-                border-radius: @nuvem-raio-campo;
-                background-color: @nuvem-bruma;
-                color: @nuvem-coral;
-                font-size: 13px;
-                font-weight: 500;
+                margin-bottom: 8px; padding: 8px 12px; border-radius: @nuvem-raio-campo;
+                background-color: @nuvem-bruma; color: @nuvem-coral; font-size: 13px; font-weight: 500;
             }
-
-            &.atelie-laser-blocked {
-                .atelie-laser-input:disabled {
-                    background-color: @nuvem-bruma;
-                    cursor: not-allowed;
-                    opacity: 0.7;
-                }
-            }
-
             .atelie-laser-input {
-                width: 100%;
-                max-width: 300px;
-                padding: 8px 12px;
-                border-radius: @nuvem-raio-campo;
-                border: 1.5px solid @nuvem-bruma;
-                font-size: 14px;
-                text-transform: uppercase;
-                background-color: @nuvem-fundo;
-                color: @nuvem-grafite;
-                outline: none;
-
-                &:focus {
-                    border-color: @nuvem-magenta;
-                }
+                display: block; margin-top: 8px;
+                width: 100%; max-width: 300px; padding: 8px 12px; border-radius: @nuvem-raio-campo;
+                border: 1.5px solid @nuvem-bruma; font-size: 14px; text-transform: uppercase;
+                background-color: @nuvem-fundo; outline: none;
+                &:focus { border-color: @nuvem-magenta; }
+                &[aria-disabled="true"] { background-color: @nuvem-bruma; cursor: not-allowed; opacity: 0.7; }
             }
-
-            .atelie-laser-counter {
-                margin-top: 4px;
-                font-size: 12px;
-                color: @nuvem-grafite-suave;
-            }
+            .atelie-laser-counter { margin-top: 4px; font-size: 12px; color: @nuvem-grafite-suave; }
         }
     }
 }
