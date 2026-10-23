@@ -20,4 +20,10 @@
             </argument>
         </arguments>
     </type>
+    <type name="Magento\Sales\Block\Order\Item\Renderer\DefaultRenderer">
+        <plugin name="nuvem_atelie_sales_historical_item_options"
+                type="Nuvem\AtelieSales\Plugin\Sales\ItemOptions"/>
+        <plugin name="nuvem_atelie_sales_plain_option_text"
+                type="Nuvem\AtelieSales\Plugin\Sales\OptionText"/>
+    </type>
 </config>
