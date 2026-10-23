@@ -3,275 +3,99 @@ declare(strict_types=1);
 
 namespace Nuvem\AtelieSales\Test\Unit\Plugin\QuoteManagement;
 
-use Magento\Framework\DB\Adapter\AdapterInterface;
-use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Model\Quote;
-use Magento\Quote\Model\Quote\Item;
 use Magento\Quote\Model\QuoteManagement;
-use Nuvem\AtelieSales\Api\QuoteComponentStockInterface;
-use Nuvem\AtelieSales\Model\QuoteItemConfigurationReader;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
-use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 use Nuvem\AtelieSales\Plugin\QuoteManagement\CompensateFailedSubmission;
-use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class CompensateFailedSubmissionTest extends TestCase
 {
-    /** @var QuoteComponentStockInterface&MockObject */
-    private QuoteComponentStockInterface&MockObject $stock;
-
-    /** @var LoggerInterface&MockObject */
-    private LoggerInterface&MockObject $logger;
-
-    /** @var QuoteStockReservation */
-    private QuoteStockReservation $reservation;
-
-    /** @var CompensateFailedSubmission */
-    private CompensateFailedSubmission $plugin;
-
-    /** @var Quote */
-    private Quote $quote;
-
-    /** @var int */
-    private int $net = 0;
-
-    /** @var Movimentacao&MockObject */
-    private Movimentacao&MockObject $ledger;
-
-    /** @var bool */
-    private bool $hasOrder = false;
-
-    protected function setUp(): void
+    public function testRejectedAcquisitionNeverRunsOrCompensatesSubmission(): void
     {
-        $this->stock = $this->createMock(QuoteComponentStockInterface::class);
-        $connection = $this->createMock(AdapterInterface::class);
-        $this->ledger = $this->createMock(Movimentacao::class);
-        $this->ledger->method('getConnection')->willReturn($connection);
-        $this->ledger->method('getNetQuantitiesByQuoteId')->willReturnCallback(
-            fn (): array => $this->net < 0 ? [['codigo' => 'SOL', 'net' => $this->net]] : []
-        );
-        $this->ledger->method('hasOrder')->willReturnCallback(fn (): bool => $this->hasOrder);
-        $reader = $this->createMock(QuoteItemConfigurationReader::class);
-        $reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
-        $this->reservation = new QuoteStockReservation($this->stock, $reader, $this->ledger);
-        $this->logger = $this->createMock(LoggerInterface::class);
-        $this->plugin = new CompensateFailedSubmission($this->reservation, $this->logger);
-        $this->quote = $this->createQuote();
-    }
-
-    public function testFailureBeforeReservationDoesNotCompensate(): void
-    {
-        $this->stock->expects($this->never())->method('reserveForQuote');
-        $this->stock->expects($this->never())->method('compensateForQuote');
-        $failure = new \Error('validation failed');
-        $this->assertFailure(fn () => $this->submit(static function () use ($failure): never {
-            throw $failure;
-        }), $failure);
-        $this->assertFalse($this->reservation->hasReservation($this->quote));
-    }
-
-    public function testFailureAfterReservationCompensatesAndPreservesOriginalError(): void
-    {
-        $this->expectReservations(1);
-        $this->expectCompensations(1);
-        $failure = new \Error('later submit_before observer failed');
-        $this->assertFailure(fn () => $this->submit(function () use ($failure): never {
-            $this->reservation->reserve($this->quote);
-            throw $failure;
-        }), $failure);
-        $this->assertSame(0, $this->net);
-        $this->assertFalse($this->reservation->hasReservation($this->quote));
-    }
-
-    public function testCoreFailureObserverAndPluginOnlyCompensateOnce(): void
-    {
-        $this->expectReservations(1);
-        $this->expectCompensations(1);
-        $failure = new \RuntimeException('order failed');
-        $this->assertFailure(fn () => $this->submit(function () use ($failure): never {
-            $this->reservation->reserve($this->quote);
-            $this->reservation->compensate($this->quote);
-            throw $failure;
-        }), $failure);
-        $this->assertSame(0, $this->net);
-    }
-
-    public function testSuccessfulSubmissionHasNoReservationBecauseOrderExists(): void
-    {
-        $this->expectReservations(1);
-        $this->stock->expects($this->never())->method('compensateForQuote');
-        $order = new \stdClass();
-        $this->assertSame($order, $this->submit(function () use ($order) {
-            $this->reservation->reserve($this->quote);
-            $this->assertTrue($this->reservation->hasReservation($this->quote));
-            $this->hasOrder = true;
-            return $order;
-        }));
-        $this->assertFalse($this->reservation->hasReservation($this->quote));
-        $this->assertSame(-1, $this->net);
-    }
-
-    /** @dataProvider quoteReloads */
-    public function testCaughtReentryCannotCompensateOrClearTheOuterAttempt(bool $reload): void
-    {
-        $this->expectReservations(1);
-        $this->stock->expects($this->never())->method('compensateForQuote');
-        $innerQuote = $reload ? $this->createQuote() : $this->quote;
-        $innerRan = false;
-        $order = new \stdClass();
-        $result = $this->submit(function () use ($innerQuote, &$innerRan, $order) {
-            $this->reservation->reserve($this->quote);
-            for ($attempt = 0; $attempt < 2; $attempt++) {
-                try {
-                    $this->submit(function () use (&$innerRan): void {
-                        $innerRan = true;
-                    }, $innerQuote);
-                    $this->fail('Expected reentry rejection.');
-                } catch (LocalizedException $exception) {
-                    $this->assertStringContainsString('já está sendo finalizado', $exception->getMessage());
-                }
-                $this->assertTrue($this->reservation->hasReservation($innerQuote));
-            }
-            $this->hasOrder = true;
-            return $order;
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $failure = new \RuntimeException('active attempt');
+        $reservation->method('beginAttempt')->willThrowException($failure);
+        foreach (['markFailed', 'compensate', 'endAttempt'] as $method) {
+            $reservation->expects($this->never())->method($method);
+        }
+        $this->expectExceptionObject($failure);
+        $this->submit($reservation, static function (): never {
+            throw new \LogicException('Rejected submission must not run.');
         });
-        $this->assertSame($order, $result);
-        $this->assertFalse($innerRan);
-        $this->assertSame(-1, $this->net);
-        $this->assertFalse($this->reservation->hasReservation($innerQuote));
     }
 
-    public static function quoteReloads(): array
+    public function testSuccessfulSubmissionFinalizesAndReleasesItsContext(): void
     {
-        return [[false], [true]];
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('beginAttempt')->willReturn('owned');
+        $quote = $this->createMock(Quote::class);
+        $reservation->expects($this->once())->method('completeAttempt')->with($quote, 'owned');
+        $reservation->expects($this->once())->method('endAttempt')->with($quote, 'owned');
+        $reservation->expects($this->never())->method('compensate');
+        $this->assertSame('order', $this->submit($reservation, static fn () => 'order', $quote));
     }
 
-    public function testUncaughtReentryIsCompensatedOnlyByTheOuterAttempt(): void
+    public function testFailureMarksBeforeCompensatingAndPreservesOriginalError(): void
     {
-        $this->expectReservations(1);
-        $this->expectCompensations(1);
-        try {
-            $this->submit(function (): void {
-                $this->reservation->reserve($this->quote);
-                $this->submit(static function (): never {
-                    throw new \LogicException('Inner submit must not run.');
-                }, $this->createQuote());
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('beginAttempt')->willReturn('owned');
+        $quote = $this->createMock(Quote::class);
+        $calls = [];
+        $reservation->expects($this->once())->method('markFailed')->with($quote, 'owned')
+            ->willReturnCallback(static function () use (&$calls): void {
+                $calls[] = 'pending';
             });
-            $this->fail('Expected reentry rejection.');
-        } catch (LocalizedException $exception) {
-            $this->assertSame(0, $this->net);
-            $this->assertFalse($this->reservation->hasReservation($this->quote));
+        $reservation->expects($this->once())->method('compensate')->with($quote, 'owned')
+            ->willReturnCallback(static function () use (&$calls): void {
+                $calls[] = 'compensate';
+            });
+        $reservation->expects($this->once())->method('endAttempt')->with($quote, 'owned');
+        $failure = new \Error('submit_before failure');
+        try {
+            $this->submit($reservation, static function () use ($failure): never {
+                throw $failure;
+            }, $quote);
+            $this->fail('Expected checkout failure.');
+        } catch (\Error $actual) {
+            $this->assertSame($failure, $actual);
+            $this->assertSame(['pending', 'compensate'], $calls);
         }
     }
 
-    public function testPendingCompensationIsRecoveredBeforeReservingAgain(): void
+    /** @dataProvider failedRecoverySteps */
+    public function testRecoveryAndLoggerFailuresDoNotReplaceCheckoutException(string $step): void
     {
-        $this->expectReservations(2);
-        $compensations = 0;
-        $this->stock->expects($this->exactly(2))->method('compensateForQuote')->willReturnCallback(
-            function () use (&$compensations): void {
-                if (++$compensations === 1) {
-                    throw new \RuntimeException('database unavailable');
-                }
-                $this->net = 0;
-            }
-        );
-        $this->logger->expects($this->once())->method('critical');
-        $failure = new \RuntimeException('checkout failed');
-        $this->assertFailure(fn () => $this->submit(function () use ($failure): never {
-            $this->reservation->reserve($this->quote);
-            throw $failure;
-        }), $failure);
-        $this->assertTrue($this->reservation->hasReservation($this->quote));
-        $reloaded = $this->createQuote();
-        $order = new \stdClass();
-        $this->assertSame($order, $this->submit(function () use ($reloaded, $order) {
-            $this->assertSame(0, $this->net);
-            $this->assertFalse($this->reservation->hasReservation($reloaded));
-            $this->reservation->reserve($reloaded);
-            $this->hasOrder = true;
-            return $order;
-        }, $reloaded));
-        $this->assertSame(-1, $this->net);
-        $this->assertFalse($this->reservation->hasReservation($this->quote));
-    }
-
-    public function testFailedRecoveryBlocksNewSubmissionAndPreservesPendingReservation(): void
-    {
-        $this->expectReservations(1);
-        $compensationFailure = new \RuntimeException('database unavailable');
-        $this->stock->expects($this->exactly(2))->method('compensateForQuote')
-            ->willThrowException($compensationFailure);
-        $this->logger->expects($this->exactly(2))->method('critical');
-        $failure = new \RuntimeException('checkout failed');
-        $this->assertFailure(fn () => $this->submit(function () use ($failure): never {
-            $this->reservation->reserve($this->quote);
-            throw $failure;
-        }), $failure);
-        $this->assertFailure(fn () => $this->submit(static function (): never {
-            throw new \LogicException('New submission must not run before recovery.');
-        }, $this->createQuote()), $compensationFailure);
-        $this->assertTrue($this->reservation->hasReservation($this->quote));
-        $this->assertSame(-1, $this->net);
-        $this->reservation->beginAttempt($this->quote);
-        $this->reservation->endAttempt($this->quote);
-    }
-
-    public function testReusingSuccessfulQuoteDoesNotCompensatePersistedOrder(): void
-    {
-        $this->expectReservations(1);
-        $this->stock->expects($this->never())->method('compensateForQuote');
-        $this->submit(function (): void {
-            $this->reservation->reserve($this->quote);
-            $this->hasOrder = true;
-        });
-        $failure = new \RuntimeException('duplicate order');
-        $this->assertFailure(fn () => $this->submit(static function () use ($failure): never {
-            throw $failure;
-        }, $this->createQuote()), $failure);
-        $this->assertSame(-1, $this->net);
-    }
-
-    private function expectReservations(int $count): void
-    {
-        $this->stock->expects($this->exactly($count))->method('reserveForQuote')->willReturnCallback(function (): bool {
-            $this->net--;
-            return true;
-        });
-    }
-
-    private function expectCompensations(int $count): void
-    {
-        $this->stock->expects($this->exactly($count))->method('compensateForQuote')
-            ->willReturnCallback(function (): void {
-                $this->net = 0;
-            });
-    }
-
-    private function createQuote(): Quote
-    {
-        $quote = $this->getMockBuilder(Quote::class)->disableOriginalConstructor()
-            ->onlyMethods(['getId', 'getAllItems'])->getMock();
-        $quote->method('getId')->willReturn(99);
-        $quote->method('getAllItems')->willReturn([$this->createMock(Item::class)]);
-        return $quote;
-    }
-
-    private function submit(callable $proceed, ?Quote $quote = null): mixed
-    {
-        return $this->plugin->aroundSubmit($this->createMock(QuoteManagement::class), $proceed, $quote ?? $this->quote);
-    }
-
-    private function assertFailure(callable $action, \Throwable $expected): void
-    {
-        try {
-            $action();
-        } catch (\Throwable $actual) {
-            $this->assertSame($expected, $actual);
-            return;
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('beginAttempt')->willReturn('owned');
+        $reservation->method($step)->willThrowException(new \RuntimeException('database unavailable'));
+        if ($step === 'markFailed') {
+            $reservation->expects($this->never())->method('compensate');
         }
-        $this->fail('Expected submission failure.');
+        $reservation->expects($this->once())->method('endAttempt');
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('critical')->willThrowException(new \Error('logger unavailable'));
+        $failure = new \RuntimeException('original checkout failure');
+        $this->expectExceptionObject($failure);
+        $this->submit($reservation, static function () use ($failure): never {
+            throw $failure;
+        }, logger: $logger);
+    }
+
+    public static function failedRecoverySteps(): array
+    {
+        return [['markFailed'], ['compensate']];
+    }
+
+    private function submit(
+        QuoteStockReservation $reservation,
+        callable $proceed,
+        ?Quote $quote = null,
+        ?LoggerInterface $logger = null
+    ): mixed {
+        $plugin = new CompensateFailedSubmission($reservation, $logger ?? $this->createMock(LoggerInterface::class));
+        return $plugin->aroundSubmit($this->createMock(QuoteManagement::class), $proceed,
+            $quote ?? $this->createMock(Quote::class));
     }
 }

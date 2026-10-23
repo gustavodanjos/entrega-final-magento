@@ -24,8 +24,8 @@ class ReserveStockOnQuoteSubmitBeforeTest extends TestCase
         $quote = $this->createMock(Quote::class);
         $quote->method('getId')->willReturn(99);
         $reservation = $this->createMock(QuoteStockReservation::class);
-        $reservation->method('hasReservation')->willReturn(true);
-        $reservation->expects($this->once())->method("reserve")->with($quote);
+        $reservation->method('getAttemptId')->willReturn('owned');
+        $reservation->expects($this->once())->method("reserve")->with($quote, 'owned');
         (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer(['event' => new Event(['quote' => $quote])]));
     }
 }

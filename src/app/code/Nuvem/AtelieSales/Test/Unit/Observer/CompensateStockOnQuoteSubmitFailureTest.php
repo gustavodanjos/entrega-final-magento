@@ -9,14 +9,16 @@ use Magento\Quote\Model\Quote;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
 use Nuvem\AtelieSales\Observer\CompensateStockOnQuoteSubmitFailure;
 use PHPUnit\Framework\TestCase;
+use Nuvem\AtelieSales\Plugin\QuoteManagement\CompensateFailedSubmission;
 
 class CompensateStockOnQuoteSubmitFailureTest extends TestCase
 {
     public function testMissingQuoteDoesNotMoveStock(): void
     {
         $reservation = $this->createMock(QuoteStockReservation::class);
-        $reservation->expects($this->never())->method("compensate");
-        (new CompensateStockOnQuoteSubmitFailure($reservation))->execute(new Observer(['event' => new Event()]));
+        $submission = $this->createMock(CompensateFailedSubmission::class);
+        $submission->expects($this->never())->method("handleFailure");
+        (new CompensateStockOnQuoteSubmitFailure($reservation, $submission))->execute(new Observer(['event' => new Event()]));
     }
 
     public function testSubmitsTheEventQuoteToTheReservationService(): void
@@ -24,8 +26,10 @@ class CompensateStockOnQuoteSubmitFailureTest extends TestCase
         $quote = $this->createMock(Quote::class);
         $quote->method('getId')->willReturn(99);
         $reservation = $this->createMock(QuoteStockReservation::class);
-        $reservation->method('hasReservation')->willReturn(true);
-        $reservation->expects($this->once())->method("compensate")->with($quote);
-        (new CompensateStockOnQuoteSubmitFailure($reservation))->execute(new Observer(['event' => new Event(['quote' => $quote])]));
+        $reservation->method('getAttemptId')->willReturn('owned');
+        $failure = new \RuntimeException('checkout failed');
+        $submission = $this->createMock(CompensateFailedSubmission::class);
+        $submission->expects($this->once())->method('handleFailure')->with($quote, 'owned', $failure);
+        (new CompensateStockOnQuoteSubmitFailure($reservation, $submission))->execute(new Observer(['event' => new Event(['quote' => $quote, 'exception' => $failure])]));
     }
 }
