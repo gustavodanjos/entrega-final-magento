@@ -25,6 +25,22 @@ class AttemptSubmissionObserver implements ObserverInterface
         if (self::$mode === 'failure') {
             throw new LocalizedException(__('F2.3 integration: forced attempt failure.'));
         }
+        if (self::$mode === 'concurrent') {
+            $manager = ObjectManager::getInstance();
+            $quoteId = (int) $observer->getEvent()->getQuote()->getId();
+            $resource = $manager->get(\Magento\Framework\App\ResourceConnection::class);
+            $connection = $resource->getConnection();
+            $table = $resource->getTableName('nuvem_atelie_movimentacao');
+            $query = $connection->select()->from($table)->where('quote_id = ?', $quoteId);
+            $before = $connection->fetchAll($query);
+            \assertStockScenario(count($before) === 7, 'Owner must reserve before competitor starts.');
+            $results = \ConcurrentStockScenarios::run([['submit', (string) $quoteId]]);
+            \assertStockScenario($results[0]['exit_code'] === 0, $results[0]['output']);
+            $result = json_decode($results[0]['output'], true, 512, JSON_THROW_ON_ERROR);
+            \assertStockScenario($result['outcome'] === 'duplicate', 'Competitor was not rejected.');
+            \assertStockScenario($connection->fetchAll($query) === $before, 'Competitor changed owner ledger.');
+            return;
+        }
         if (self::$mode !== 'reentry') {
             return;
         }

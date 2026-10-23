@@ -33,7 +33,9 @@ if ($command === 'order-snapshot') {
             (int) $connection->fetchOne($orderQuery) === 0,
             'Expected an older repeatable-read snapshot.'
         );
-        $objectManager->get(QuoteStockReservation::class)->compensate($quote);
+        $attempt = $ledger->getAttempt($quoteId);
+        $ledger->saveAttempt($quoteId, $attempt['id'], QuoteStockReservation::STATE_PENDING);
+        $objectManager->get(QuoteStockReservation::class)->compensate($quote, $attempt['id']);
         $connection->commit();
     } finally {
         while ($connection->getTransactionLevel() > 0) {
@@ -88,9 +90,16 @@ if ($command === 'order-snapshot') {
         $recoverableStock->failCompensation = false;
         AttemptSubmissionObserver::$mode = 'none';
     } else {
-        AttemptSubmissionObserver::$mode = 'reentry';
+        AttemptSubmissionObserver::$mode = $command === 'active-owner' ? 'concurrent' : 'reentry';
     }
+    $staleQuote = $objectManager->create(CartRepositoryInterface::class)->get($quoteId);
     $order = $objectManager->get(QuoteManagement::class)->submit($quote);
+    $completedAttempt = $ledger->getAttempt($quoteId);
+    $staleQuote->setData('atelie_stock_attempt_id', 'stale-owner');
+    $staleQuote->setData('atelie_stock_attempt_state', QuoteStockReservation::STATE_ACTIVE);
+    $staleQuote->setCustomerNote('F2.3 stale quote save probe');
+    $objectManager->get(\Magento\Quote\Model\ResourceModel\Quote::class)->save($staleQuote);
+    assertStockScenario($ledger->getAttempt($quoteId) === $completedAttempt, 'Stale quote overwrote ownership.');
     assertStockScenario((bool) $order?->getId(), 'Checkout did not persist an order.');
     assertStockScenario(
         !$objectManager->get(QuoteStockReservation::class)->hasReservation($quote),

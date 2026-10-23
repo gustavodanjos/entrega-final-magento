@@ -31,7 +31,7 @@ if ($command === 'submit') {
 if ($command === 'compensate-quote') {
     $quoteId = (int) ($argv[2] ?? 0);
     $quote = $objectManager->get(CartRepositoryInterface::class)->get($quoteId);
-    $objectManager->get(QuoteStockReservation::class)->compensate($quote);
+    $objectManager->get(QuoteStockReservation::class)->compensate($quote, (string) ($argv[3] ?? ''));
     echo json_encode(['quote_id' => $quoteId, 'outcome' => 'compensated'], JSON_THROW_ON_ERROR), "\n";
     return;
 }
@@ -68,8 +68,11 @@ if ($command === 'prepare') {
 
 if ($command === 'concurrent-compensation') {
     $quote = $objectManager->get(CartRepositoryInterface::class)->get($quoteIds[0]);
-    $objectManager->get(QuoteStockReservation::class)->reserve($quote);
-    $workers = array_fill(0, 8, ['compensate-quote', (string) $quoteIds[0]]);
+    $reservation = $objectManager->get(QuoteStockReservation::class);
+    $attemptId = $reservation->beginAttempt($quote);
+    $reservation->reserve($quote, $attemptId);
+    $reservation->markFailed($quote, $attemptId);
+    $workers = array_fill(0, 8, ['compensate-quote', (string) $quoteIds[0], $attemptId]);
 } elseif ($command === 'duplicate') {
     $workers = array_fill(0, 2, ['submit', (string) $quoteIds[0]]);
 } else {
@@ -97,7 +100,7 @@ $report = ['scenario' => $command, 'database' => $database, 'quote_ids' => $quot
 echo json_encode($report, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), "\n";
 if ($command === 'concurrent-compensation') {
     assertStockScenario($orders === [], 'Compensation fixture unexpectedly persisted an order.');
-    $objectManager->get(QuoteStockReservation::class)->compensate($quote);
+    $objectManager->get(QuoteStockReservation::class)->compensate($quote, $attemptId);
     assertStockScenario($fixture->movements($quoteIds) === $movements, 'Repeated compensation added movements.');
     foreach ($summary as $row) {
         assertStockScenario($row['before'] === $row['after'] && $row['net'] === 0 && $row['movements'] === 2,

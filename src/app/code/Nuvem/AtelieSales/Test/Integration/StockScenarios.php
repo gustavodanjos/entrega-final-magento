@@ -71,8 +71,14 @@ $command = $argv[1] ?? 'transactions';
 $fixture = new CheckoutFixture($objectManager);
 ConcurrentStockScenarios::waitForStart($argv);
 
-if (in_array($command, ['reentry', 'recovery', 'order-snapshot'], true)) {
-    require __DIR__ . '/AttemptScenarios.php';
+if (in_array($command, [
+    'reentry', 'recovery', 'order-snapshot', 'active-owner', 'stale-failure', 'legacy-balance', 'partial-reservation',
+], true)) {
+    if (in_array($command, ['stale-failure', 'legacy-balance', 'partial-reservation'], true)) {
+        require __DIR__ . '/OwnershipScenarios.php';
+    } else {
+        require __DIR__ . '/AttemptScenarios.php';
+    }
 } elseif (in_array($command, [
     'reset-fixture', 'prepare', 'submit', 'race', 'duplicate', 'concurrent-compensation', 'compensate-quote',
 ], true)) {
