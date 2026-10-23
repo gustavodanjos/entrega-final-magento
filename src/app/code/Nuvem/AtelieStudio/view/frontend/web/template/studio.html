@@ -1,131 +1,147 @@
 <div class="atelie-studio">
-    <!-- Cabeçalho e Preço Espelho -->
-    <div class="atelie-header">
-        <div class="atelie-header-info">
-            <h2 class="atelie-title" data-bind="text: productName">Nuvem Runner</h2>
-            <p class="atelie-subtitle">Feito sob encomenda em até 12 dias úteis</p>
+    <header class="atelie-studio__header">
+        <div class="atelie-studio__title-wrap">
+            <h2 class="atelie-studio__title" data-bind="text: productName"></h2>
+            <p class="atelie-studio__subtitle">
+                Feito à mão
+                <!-- ko if: prazoProducao() > 0 -->
+                · pronto em até <span data-bind="text: prazoProducao"></span> dias úteis
+                <!-- /ko -->
+            </p>
         </div>
-        <div class="atelie-mirror-price">
-            <span class="atelie-price-label">Preço Total</span>
-            <span class="atelie-price-value" data-bind="text: formattedMirrorPrice"></span>
+        <div class="atelie-studio__price" aria-live="polite" aria-atomic="true">
+            <span class="atelie-studio__price-label">Preço total</span>
+            <span class="atelie-studio__price-value" data-bind="text: formattedMirrorPrice"></span>
         </div>
-    </div>
+    </header>
 
-    <!-- Navegação em Abas (Pílulas) -->
-    <nav class="atelie-tabs-nav" role="tablist">
+    <nav class="atelie-studio__tabs" role="tablist" aria-label="Grupos">
         <!-- ko foreach: { data: grupos, as: 'grupo' } -->
-        <button type="button"
-                class="atelie-tab-btn"
-                role="tab"
-                data-bind="
-                    text: grupo.nome,
+        <button type="button" class="atelie-studio__tab" role="tab"
+                data-bind="text: grupo.nome,
+                    attr: {
+                        'aria-selected': $parent.activeTab() === grupo.codigo ? 'true' : 'false',
+                        'aria-controls': 'atelie-panel-' + grupo.codigo,
+                        'tabindex': $parent.activeTab() === grupo.codigo ? 0 : -1
+                    },
                     css: { 'is-active': $parent.activeTab() === grupo.codigo },
-                    click: function () { $parent.switchTab(grupo.codigo); }">
-        </button>
+                    click: function () { $parent.switchTab(grupo.codigo); },
+                    event: {
+                        keydown: function (data, event) {
+                            return $parent.handleTabKeydown(event, grupo.codigo);
+                        }
+                    }"></button>
         <!-- /ko -->
     </nav>
 
-    <!-- Painel do Grupo Ativo -->
-    <div class="atelie-tab-panel" role="tabpanel">
-        <div class="atelie-group-header">
-            <h3 class="atelie-group-title" data-bind="text: currentGroup().nome"></h3>
+    <section class="atelie-studio__panel" role="tabpanel"
+             data-bind="attr: { id: 'atelie-panel-' + activeTab(), 'aria-label': currentGroup().nome }">
+        <header class="atelie-studio__group-header">
+            <h3 class="atelie-studio__group-title" data-bind="text: currentGroup().nome"></h3>
             <!-- ko if: currentGroup().descricao -->
-            <p class="atelie-group-desc" data-bind="text: currentGroup().descricao"></p>
+            <p class="atelie-studio__group-desc" data-bind="text: currentGroup().descricao"></p>
             <!-- /ko -->
-        </div>
+        </header>
 
-        <!-- Grade de Amostras de Nível Único -->
-        <div class="atelie-options-grid">
+        <div class="atelie-studio__options" role="radiogroup"
+             data-bind="attr: { 'aria-label': 'Escolha ' + currentGroup().nome }">
             <!-- ko foreach: { data: currentOptions, as: 'option' } -->
             <div class="atelie-swatch-wrapper">
-                <button type="button"
-                        class="atelie-swatch"
+                <button type="button" class="atelie-swatch" role="radio"
                         data-bind="
+                            attr: {
+                                'aria-checked': $parent.isSelected($parent.activeTab(), option.codigo) ? 'true' : 'false',
+                                'aria-disabled': $parent.isBlocked(option.codigo) ? 'true' : 'false',
+                                'aria-describedby': $parent.isBlocked(option.codigo) ? 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo : null,
+                                'aria-label': option.nome
+                                    + ($parent.getOptionPrice(option) > 0 ? ', mais ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',') + ' reais' : '')
+                                    + ($parent.isSelected($parent.activeTab(), option.codigo) ? ', selecionado' : '')
+                            },
                             css: {
                                 'is-selected': $parent.isSelected($parent.activeTab(), option.codigo),
-                                'is-blocked': $parent.isBlocked(option.codigo)
+                                'is-blocked': $parent.isBlocked(option.codigo),
+                                'is-esgotado': $parent.isEsgotado(option.codigo)
                             },
-                            click: function () { $parent.selectOption($parent.activeTab(), option); },
-                            attr: {
-                                'aria-label': option.nome + ($parent.isBlocked(option.codigo) ? ' (Indisponível: ' + $parent.getBlockReason(option.codigo) + ')' : '')
-                            }">
-                    <span class="atelie-swatch-color"
+                            click: function () { $parent.selectOption($parent.activeTab(), option); }">
+                    <span class="atelie-swatch__color"
                           data-bind="style: { backgroundColor: $parent.getOptionColor(option) }"></span>
-                    <span class="atelie-swatch-info">
-                        <span class="atelie-swatch-name" data-bind="text: option.nome"></span>
-                        <span class="atelie-swatch-finish" data-bind="text: option.acabamento || 'Liso'"></span>
+                    <span class="atelie-swatch__info">
+                        <span class="atelie-swatch__name" data-bind="text: option.nome"></span>
+                        <span class="atelie-swatch__finish" data-bind="text: option.acabamento || 'liso'"></span>
                         <!-- ko if: $parent.getOptionPrice(option) > 0 -->
-                        <span class="atelie-swatch-badge" data-bind="text: '+ R$ ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',')"></span>
+                        <span class="atelie-swatch__price"
+                              data-bind="text: '+ ' + $parent.formatPrice($parent.getOptionPrice(option))"></span>
                         <!-- /ko -->
                     </span>
                 </button>
-
-                <!-- Balão Explicativo Amigável -->
-                <div class="atelie-block-balloon"
-                     role="alert"
-                     data-bind="visible: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo">
-                    <span class="atelie-balloon-text" data-bind="text: $parent.getBlockReason(option.codigo)"></span>
-                    <button type="button" class="atelie-balloon-close" data-bind="click: function () { $parent.closeTooltip(); }" aria-label="Fechar">&times;</button>
-                </div>
+                <div class="atelie-swatch__tooltip" role="alert"
+                     data-bind="
+                        visible: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo,
+                        text: $parent.getBlockReason(option.codigo)"></div>
             </div>
             <!-- /ko -->
         </div>
-    </div>
+    </section>
 
-    <!-- Seção de Tamanho (Grade Dinâmica) -->
-    <div class="atelie-size-section">
-        <span class="atelie-section-label">Tamanho (Grade)</span>
-        <div class="atelie-size-grid">
+    <section class="atelie-studio__size">
+        <span class="atelie-studio__section-label" id="atelie-size-label">Tamanho</span>
+        <div class="atelie-studio__size-grid" role="radiogroup" aria-labelledby="atelie-size-label">
             <!-- ko foreach: gradeTamanhos -->
-            <button type="button"
-                    class="atelie-size-btn"
-                    data-bind="
-                        text: $data,
+            <button type="button" class="atelie-size-btn" role="radio"
+                    data-bind="text: $data,
+                        attr: { 'aria-checked': $parent.selectedSize() === $data ? 'true' : 'false' },
                         css: { 'is-selected': $parent.selectedSize() === $data },
-                        click: function () { $parent.selectSize($data); }">
-            </button>
+                        click: function () { $parent.selectSize($data); }"></button>
             <!-- /ko -->
         </div>
-    </div>
+    </section>
 
-    <!-- Personalização a Laser -->
     <!-- ko if: permiteGravacao -->
-    <div class="atelie-laser-section">
-        <div class="atelie-laser-header">
-            <span class="atelie-section-label">Gravação a Laser Personalizada</span>
-            <span class="atelie-laser-badge" data-bind="text: '+ R$ ' + laserPrice().toFixed(2).replace('.', ',')"></span>
-        </div>
-        <input type="text"
-               class="atelie-laser-input"
-               placeholder="Ex: NUVEM"
-               data-bind="
-                   textInput: laserText,
-                   attr: { maxlength: laserLimit }">
-        <div class="atelie-laser-counter">
-            <span data-bind="text: laserRemainingChars"></span> restantes
-        </div>
-    </div>
+    <section class="atelie-studio__laser">
+        <label class="atelie-studio__laser-label" for="atelie-laser-input">
+            <span class="atelie-studio__section-label">Gravação na entressola</span>
+            <span class="atelie-studio__laser-price"
+                  data-bind="text: laserPrice() > 0 ? '+ ' + formatPrice(laserPrice()) : 'incluso'"></span>
+        </label>
+        <input type="text" id="atelie-laser-input" class="atelie-studio__laser-input" autocomplete="off"
+               data-bind="textInput: laserText,
+                    attr: {
+                        maxlength: laserLimit,
+                        placeholder: laserPlaceholder,
+                        'aria-describedby': 'atelie-laser-counter atelie-laser-hint'
+                    }">
+        <p class="atelie-studio__laser-hint" id="atelie-laser-hint">
+            Letras, números, espaço e hífen.
+            <!-- ko if: engravingBlocked() -->
+            <strong data-bind="text: engravingBlockedReason()"></strong>
+            <!-- /ko -->
+        </p>
+        <p class="atelie-studio__laser-counter" id="atelie-laser-counter" aria-live="polite">
+            <span data-bind="text: laserRemainingChars"></span> caracteres restantes
+        </p>
+    </section>
     <!-- /ko -->
 
-    <!-- Inputs Ocultos de Submissão no Contrato Estrito -->
-    <div class="atelie-hidden-inputs">
+    <div class="atelie-studio__actions">
+        <button type="submit" form="product_addtocart_form" class="atelie-studio__submit">
+            Adicionar ao carrinho · <span data-bind="text: formattedMirrorPrice"></span>
+        </button>
+    </div>
+
+    <div class="atelie-studio__hidden" aria-hidden="true">
         <!-- ko foreach: { data: grupos, as: 'grupo' } -->
-        <input type="hidden"
-               form="product_addtocart_form"
-               data-bind="
-                   attr: {
-                       name: 'atelie[selecoes][' + $index() + '][grupo]',
-                       value: grupo.codigo
-                   }">
-        <input type="hidden"
-               form="product_addtocart_form"
-               data-bind="
-                   attr: {
-                       name: 'atelie[selecoes][' + $index() + '][componente]',
-                       value: $parent.selections[grupo.codigo] ? $parent.selections[grupo.codigo]() : ''
-                   }">
+        <input type="hidden" form="product_addtocart_form"
+               data-bind="attr: {
+                   name: 'atelie[selecoes][' + $index() + '][grupo]',
+                   value: grupo.codigo }">
+        <input type="hidden" form="product_addtocart_form"
+               data-bind="attr: {
+                   name: 'atelie[selecoes][' + $index() + '][componente]',
+                   value: $parent.selections[grupo.codigo] ? $parent.selections[grupo.codigo]() : '' }">
         <!-- /ko -->
-        <input type="hidden" name="atelie[tamanho]" form="product_addtocart_form" data-bind="value: selectedSize">
-        <input type="hidden" name="atelie[gravacao]" form="product_addtocart_form" data-bind="value: laserText">
+        <input type="hidden" form="product_addtocart_form" name="atelie[tamanho]"
+               data-bind="attr: { value: selectedSize() }">
+        <input type="hidden" form="product_addtocart_form" name="atelie[gravacao]"
+               data-bind="attr: { value: permiteGravacao() ? laserText() : '' }">
     </div>
 </div>

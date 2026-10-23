@@ -1,7 +1,8 @@
 define([
     'uiComponent',
-    'ko'
-], function (Component, ko) {
+    'ko',
+    'underscore'
+], function (Component, ko, _) {
     'use strict';
 
     return Component.extend({
@@ -11,247 +12,535 @@ define([
 
         initObservable: function () {
             this._super();
-            var self = this;
-            var config = this.studioData || this.configurador || (this.config && (this.config.studioData || this.config.configurador)) || {};
-            var produto = config.produto || {};
-            var grupos = config.grupos || [];
-            var regras = config.regras || [];
-            var gravacao = produto.gravacao || config.gravacao || {};
 
-            // Normaliza lista de itens em cada grupo
-            grupos.forEach(function (g) {
-                g.itens = g.componentes || g.opcoes || [];
+            var config = this.getConfigData();
+
+            this.initCatalog(config);
+            this.initObservables(config);
+            this.initSelections(config);
+            this.initComputed();
+
+            return this;
+        },
+
+        getConfigData: function () {
+            return this.studioData
+                || this.configurador
+                || (this.config && (this.config.studioData || this.config.configurador))
+                || {};
+        },
+
+        initCatalog: function (config) {
+            var grupos = config.grupos || [];
+
+            grupos = grupos.map(function (grupo) {
+                var itens = grupo.componentes || grupo.opcoes || grupo.itens || [];
+                grupo.itens = itens;
+                return grupo;
+            });
+
+            grupos.sort(function (a, b) {
+                return (parseInt(a.ordem, 10) || 0) - (parseInt(b.ordem, 10) || 0);
             });
 
             this.grupos = ko.observableArray(grupos);
-            this.productName = ko.observable(produto.nome || 'Nuvem Runner');
-            this.activeTab = ko.observable(grupos.length > 0 ? grupos[0].codigo : '');
+            this.regras = config.regras || [];
 
-            this.currentGroup = ko.computed(function () {
-                var tab = self.activeTab();
-                var list = self.grupos();
-                for (var i = 0; i < list.length; i++) {
-                    if (list[i].codigo === tab) {
-                        return list[i];
-                    }
-                }
-                return list[0] || { codigo: '', nome: '', itens: [] };
+            var produto = config.produto || {};
+            this.productName = ko.observable(produto.nome || 'Ateliê Nuvem');
+            this.prazoProducao = ko.observable(parseInt(produto.prazo_producao_dias, 10) || 0);
+
+            var basePrice = parseFloat(produto.preco_base);
+            this.basePrice = ko.observable(!isNaN(basePrice) ? basePrice : 0);
+
+            var grade = produto.grade_tamanhos || [];
+            this.gradeTamanhos = ko.observableArray(grade);
+
+            var gravacao = produto.gravacao || {};
+            this.permiteGravacao = ko.observable(!!gravacao.permitida);
+            this.laserPrice = ko.observable(parseFloat(gravacao.preco) || 0);
+            this.laserLimit = ko.observable(parseInt(gravacao.limite_caracteres, 10) || 12);
+            this.laserPlaceholder = ko.observable(gravacao.placeholder || 'Ex: NUVEM');
+
+            this.activeTab = ko.observable(grupos.length > 0 ? grupos[0].codigo : '');
+        },
+
+        initObservables: function (config) {
+            var cfgInicial = config.configuracao_inicial || {};
+
+            var tamanhoInicial = parseInt(cfgInicial.tamanho, 10);
+            if (isNaN(tamanhoInicial) || this.gradeTamanhos.indexOf(tamanhoInicial) === -1) {
+                var gradeArr = this.gradeTamanhos();
+                tamanhoInicial = gradeArr.indexOf(38) !== -1 ? 38 : (gradeArr[0] || null);
+            }
+            this.selectedSize = ko.observable(tamanhoInicial);
+
+            var gravacaoInicial = cfgInicial.gravacao || '';
+            this.laserText = ko.observable(gravacaoInicial ? String(gravacaoInicial) : '');
+
+            this.activeTooltip = ko.observable(null);
+        },
+
+        initSelections: function (config) {
+            var self = this;
+            var cfgInicial = config.configuracao_inicial || {};
+            var selecoesIniciais = cfgInicial.selecoes || [];
+
+            var selecaoPorGrupo = {};
+            selecoesIniciais.forEach(function (s) {
+                selecaoPorGrupo[s.grupo] = s.componente;
             });
 
-            this.currentOptions = ko.computed(function () {
+            this.selections = {};
+
+            this.grupos().forEach(function (grupo) {
+                var codigoInicial = selecaoPorGrupo[grupo.codigo];
+
+                var encontrado = (grupo.itens || []).some(function (c) {
+                    return c.codigo === codigoInicial;
+                });
+
+                if (!encontrado) {
+                    var padrao = (grupo.itens || []).find(function (c) { return c.padrao; });
+                    if (padrao) {
+                        codigoInicial = padrao.codigo;
+                    } else if (grupo.itens.length > 0) {
+                        codigoInicial = grupo.itens[0].codigo;
+                    } else {
+                        codigoInicial = '';
+                    }
+                }
+
+                self.selections[grupo.codigo] = ko.observable(codigoInicial);
+            });
+        },
+
+        initComputed: function () {
+            var self = this;
+
+            this.currentGroup = ko.pureComputed(function () {
+                var tab = self.activeTab();
+                var lista = self.grupos();
+                for (var i = 0; i < lista.length; i++) {
+                    if (lista[i].codigo === tab) {
+                        return lista[i];
+                    }
+                }
+                return lista[0] || { codigo: '', nome: '', itens: [] };
+            });
+
+            this.currentOptions = ko.pureComputed(function () {
                 return self.currentGroup().itens || [];
             });
 
-            // Grade de tamanhos
-            var gradeDisponivel = produto.grade_tamanhos || config.grade_tamanhos || ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44'];
-            this.gradeTamanhos = ko.observableArray(gradeDisponivel);
-
-            var initialSize = (config.configuracao_inicial && config.configuracao_inicial.tamanho)
-                ? config.configuracao_inicial.tamanho
-                : (gradeDisponivel.indexOf('38') !== -1 ? '38' : gradeDisponivel[0]);
-            this.selectedSize = ko.observable(initialSize);
-
-            // Gravação a laser
-            this.permiteGravacao = ko.observable(gravacao.permitida !== undefined ? gravacao.permitida : (gravacao.permitido !== undefined ? gravacao.permitido : true));
-            this.laserPrice = ko.observable(gravacao.preco !== undefined ? parseFloat(gravacao.preco) : 29.90);
-            var limit = gravacao.limite_caracteres || gravacao.limite || 12;
-            this.laserLimit = ko.observable(parseInt(limit, 10));
-            this.laserText = ko.observable('');
-
-            // Preço base
-            var rawBasePrice = produto.preco_base !== undefined ? produto.preco_base : config.preco_base;
-            this.basePrice = ko.observable(rawBasePrice ? parseFloat(rawBasePrice) : 449.90);
-
-            this.activeTooltip = ko.observable(null);
-
-            // Observables de seleção por grupo
-            this.selections = {};
-            grupos.forEach(function (grupo) {
-                var initialOption = '';
-                if (config.configuracao_inicial && config.configuracao_inicial.selecoes) {
-                    var found = config.configuracao_inicial.selecoes.find(function (s) {
-                        return s.grupo === grupo.codigo;
-                    });
-                    if (found) {
-                        initialOption = found.componente;
-                    }
-                }
-                if (!initialOption && grupo.itens && grupo.itens.length > 0) {
-                    initialOption = grupo.itens[0].codigo;
-                }
-                self.selections[grupo.codigo] = ko.observable(initialOption);
-            });
-
-            function normalizeStr(val) {
-                if (!val) return '';
-                return String(val).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-            }
-
-            // Resolução de cores hex com suporte à paleta Nuvem Pastel
-            this.getOptionColor = function (opt) {
-                if (!opt) return '#E6E1F2';
-                var directHex = opt.hex || opt.cor_hex || opt.codigo_hex || opt.hex_code;
-                if (directHex && typeof directHex === 'string' && (directHex.indexOf('#') === 0 || directHex.indexOf('rgb') === 0)) {
-                    return directHex;
-                }
-                if (opt.cor && typeof opt.cor === 'string' && (opt.cor.indexOf('#') === 0 || opt.cor.indexOf('rgb') === 0)) {
-                    return opt.cor;
-                }
-                var str = normalizeStr((opt.cor || '') + ' ' + (opt.nome || '') + ' ' + (opt.codigo || ''));
-                if (str.indexOf('menta') !== -1) return '#B8EBD0';
-                if (str.indexOf('ceu') !== -1 || str.indexOf('azul') !== -1) return '#BEE3F8';
-                if (str.indexOf('magenta') !== -1 || str.indexOf('rosa') !== -1) return '#FBB6CE';
-                if (str.indexOf('lavanda') !== -1) return '#DCD3EB';
-                if (str.indexOf('pessego') !== -1) return '#FEEBC8';
-                if (str.indexOf('baunilha') !== -1) return '#FEFCBF';
-                if (str.indexOf('nuvem') !== -1 || str.indexOf('branco') !== -1) return '#FFFFFF';
-                if (str.indexOf('grafite') !== -1 || str.indexOf('preto') !== -1) return '#383838';
-                return '#E6E1F2';
-            };
-
-            // Resolução de acréscimo de preço com regras canônicas da Sprint 9
-            this.getOptionPrice = function (opt) {
-                if (!opt) return 0;
-                var val = opt.acrescimo !== undefined ? opt.acrescimo :
-                         (opt.preco_adicional !== undefined ? opt.preco_adicional :
-                         (opt.preco !== undefined ? opt.preco :
-                         (opt.valor !== undefined ? opt.valor :
-                         (opt.adicional !== undefined ? opt.adicional : null))));
-                if (val !== null && val !== undefined) {
-                    var parsed = parseFloat(val);
-                    if (!isNaN(parsed) && parsed > 0) return parsed;
-                }
-                var code = (opt.codigo || '').toUpperCase();
-                if (code === 'CAD-ELASTICO-MENTA') return 14.90;
-                if (code.indexOf('TRICO') !== -1) return 39.90;
-                if (code.indexOf('CAMURCA') !== -1) return 49.90;
-                return 0;
-            };
-
-            // Mapa reativo de componentes bloqueados
-            this.blockedMap = ko.computed(function () {
-                var blocked = {};
-                var activeOptions = [];
-                grupos.forEach(function (g) {
-                    var selectedCode = self.selections[g.codigo] ? self.selections[g.codigo]() : null;
-                    if (selectedCode && g.itens) {
-                        var opt = g.itens.find(function (o) { return o.codigo === selectedCode; });
+            this.selectedComponents = ko.pureComputed(function () {
+                var map = {};
+                self.grupos().forEach(function (grupo) {
+                    var codigo = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
+                    if (codigo) {
+                        var opt = (grupo.itens || []).find(function (c) { return c.codigo === codigo; });
                         if (opt) {
-                            activeOptions.push(opt);
+                            map[grupo.codigo] = opt;
                         }
                     }
                 });
-
-                function isCodeSelected(code) {
-                    var target = normalizeStr(code);
-                    return activeOptions.some(function (opt) {
-                        return normalizeStr(opt.codigo) === target;
-                    });
-                }
-
-                function isRequirementSatisfied(target) {
-                    var normalizedTarget = normalizeStr(target);
-                    return activeOptions.some(function (opt) {
-                        var optCode = normalizeStr(opt.codigo);
-                        var optAcab = normalizeStr(opt.acabamento);
-                        return optCode === normalizedTarget || optAcab === normalizedTarget;
-                    });
-                }
-
-                regras.forEach(function (regra) {
-                    var origem = regra.origem_codigo || regra.origem;
-                    var alvo = regra.alvo_codigo || regra.alvo;
-                    var msg = regra.mensagem || 'Combinação indisponível para esta configuração.';
-
-                    if (regra.tipo === 'bloqueia') {
-                        if (isCodeSelected(origem)) {
-                            blocked[alvo] = msg;
-                        } else if (isCodeSelected(alvo)) {
-                            blocked[origem] = msg;
-                        }
-                    } else if (regra.tipo === 'exige') {
-                        if (!isRequirementSatisfied(alvo)) {
-                            blocked[origem] = msg;
-                        }
-                    }
-                });
-
-                return blocked;
+                return map;
             });
 
-            // Preço espelho reativo e dinâmico
-            this.mirrorPrice = ko.computed(function () {
+            this.blockedMap = ko.pureComputed(function () {
+                return self.computeBlockedMap(self.selectedComponents());
+            });
+
+            this.invalidSelections = ko.pureComputed(function () {
+                return self.computeInvalidSelections(self.selectedComponents());
+            });
+
+            this.esgotadoMap = ko.pureComputed(function () {
+                var map = {};
+                self.grupos().forEach(function (grupo) {
+                    (grupo.itens || []).forEach(function (opt) {
+                        if (opt.disponivel === false) {
+                            map[opt.codigo] = true;
+                        }
+                    });
+                });
+                return map;
+            });
+
+            this.engravingBlockedReason = ko.pureComputed(function () {
+                return self.computeEngravingBlockReason(self.selectedComponents());
+            });
+
+            this.engravingBlocked = ko.pureComputed(function () {
+                return self.engravingBlockedReason() !== '';
+            });
+
+            this.mirrorPrice = ko.pureComputed(function () {
                 var total = self.basePrice();
 
-                grupos.forEach(function (grupo) {
-                    var selectedCode = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
-                    var found = (grupo.itens || []).find(function (opt) {
-                        return opt.codigo === selectedCode;
-                    });
-                    if (found) {
-                        total += self.getOptionPrice(found);
+                self.grupos().forEach(function (grupo) {
+                    var codigo = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
+                    if (!codigo) {
+                        return;
+                    }
+                    var opt = (grupo.itens || []).find(function (c) { return c.codigo === codigo; });
+                    if (opt) {
+                        total += self.getOptionPrice(opt);
                     }
                 });
 
-                if (self.permiteGravacao() && self.laserText().trim().length > 0) {
+                if (self.permiteGravacao() && !self.engravingBlocked() && self.laserText().trim() !== '') {
                     total += self.laserPrice();
                 }
 
                 return Math.round(total * 100) / 100;
             });
 
-            this.formattedMirrorPrice = ko.computed(function () {
-                var val = self.mirrorPrice();
-                return 'R$ ' + val.toFixed(2).replace('.', ',');
+            this.formattedMirrorPrice = ko.pureComputed(function () {
+                return self.formatPrice(self.mirrorPrice());
             });
 
-            this.laserRemainingChars = ko.computed(function () {
+            this.laserRemainingChars = ko.pureComputed(function () {
                 var max = self.laserLimit();
                 return Math.max(0, max - self.laserText().length);
             });
 
-            return this;
+            this.validationErrors = ko.pureComputed(function () {
+                return self.computeValidationErrors();
+            });
+
+            this.isValid = ko.pureComputed(function () {
+                return self.validationErrors().length === 0;
+            });
         },
 
-        isBlocked: function (optionCode) {
-            return !!this.blockedMap()[optionCode];
-        },
+        computeBlockedMap: function (selectedMap) {
+            var self = this;
+            var blocked = {};
 
-        getBlockReason: function (optionCode) {
-            return this.blockedMap()[optionCode] || '';
-        },
+            var selectedList = [];
+            _.each(selectedMap, function (opt) {
+                selectedList.push(opt);
+            });
 
-        isSelected: function (groupCode, optionCode) {
-            if (!this.selections || !this.selections[groupCode]) {
-                return false;
+            function isSelected(value, tipoAlvo) {
+                return selectedList.some(function (opt) {
+                    if (tipoAlvo === 'acabamento') {
+                        return self.normalize(opt.acabamento) === self.normalize(value);
+                    }
+                    return self.normalize(opt.codigo) === self.normalize(value);
+                });
             }
-            return this.selections[groupCode]() === optionCode;
+
+            self.regras.forEach(function (regra) {
+                var tipo = self.normalize(regra.tipo);
+                var origem = regra.origem;
+                var alvoTipo = self.normalize(regra.alvo_tipo || regra.alvoTipo || '');
+                var alvo = regra.alvo;
+                var msg = regra.mensagem || 'Combinação indisponível para esta configuração.';
+
+                if (tipo === 'bloqueia') {
+                    if (alvoTipo === 'componente') {
+                        if (isSelected(origem, 'componente') && !isSelected(alvo, 'componente')) {
+                            blocked[alvo] = msg;
+                        } else if (isSelected(alvo, 'componente') && !isSelected(origem, 'componente')) {
+                            blocked[origem] = msg;
+                        }
+                    } else if (alvoTipo === 'acabamento') {
+                        if (isSelected(origem, 'componente')) {
+                            self.grupos().forEach(function (grupo) {
+                                (grupo.itens || []).forEach(function (opt) {
+                                    if (self.normalize(opt.acabamento) === self.normalize(alvo)) {
+                                        blocked[opt.codigo] = msg;
+                                    }
+                                });
+                            });
+                        }
+                    }
+                } else if (tipo === 'exige') {
+                    if (alvoTipo === 'acabamento') {
+                        if (!isSelected(alvo, 'acabamento')) {
+                            blocked[origem] = msg;
+                        }
+                    } else if (alvoTipo === 'componente') {
+                        if (!isSelected(alvo, 'componente')) {
+                            blocked[origem] = msg;
+                        }
+                    }
+                }
+            });
+
+            return blocked;
         },
 
-        selectOption: function (groupCode, option) {
-            if (this.isBlocked(option.codigo)) {
-                var current = this.activeTooltip();
-                this.activeTooltip(current === option.codigo ? null : option.codigo);
+        computeInvalidSelections: function (selectedMap) {
+            var self = this;
+            var invalid = {};
+
+            var selectedList = [];
+            _.each(selectedMap, function (opt) {
+                selectedList.push(opt);
+            });
+
+            function isSelected(value, tipoAlvo) {
+                return selectedList.some(function (opt) {
+                    if (tipoAlvo === 'acabamento') {
+                        return self.normalize(opt.acabamento) === self.normalize(value);
+                    }
+                    return self.normalize(opt.codigo) === self.normalize(value);
+                });
+            }
+
+            self.regras.forEach(function (regra) {
+                var tipo = self.normalize(regra.tipo);
+                var origem = regra.origem;
+                var alvoTipo = self.normalize(regra.alvo_tipo || regra.alvoTipo || '');
+                var alvo = regra.alvo;
+                var msg = regra.mensagem || 'Combinação inválida.';
+
+                if (tipo === 'bloqueia' && alvoTipo === 'componente') {
+                    if (isSelected(origem, 'componente') && isSelected(alvo, 'componente')) {
+                        invalid[alvo] = msg;
+                    }
+                } else if (tipo === 'exige') {
+                    if (isSelected(origem, 'componente')) {
+                        var alvoOk = (alvoTipo === 'acabamento')
+                            ? isSelected(alvo, 'acabamento')
+                            : isSelected(alvo, 'componente');
+                        if (!alvoOk) {
+                            invalid[origem] = msg;
+                        }
+                    }
+                }
+            });
+
+            return invalid;
+        },
+
+        computeEngravingBlockReason: function (selectedMap) {
+            var self = this;
+
+            if (!self.permiteGravacao()) {
+                return '';
+            }
+
+            var selectedList = [];
+            _.each(selectedMap, function (opt) {
+                selectedList.push(opt);
+            });
+
+            var reason = '';
+
+            self.regras.forEach(function (regra) {
+                var tipo = self.normalize(regra.tipo);
+                var origem = regra.origem;
+                var alvoTipo = self.normalize(regra.alvo_tipo || regra.alvoTipo || '');
+
+                if (tipo === 'bloqueia' && alvoTipo === 'gravacao') {
+                    var origemSelecionada = selectedList.some(function (opt) {
+                        return self.normalize(opt.codigo) === self.normalize(origem);
+                    });
+                    if (origemSelecionada) {
+                        reason = regra.mensagem || 'Esta combinação não permite gravação.';
+                    }
+                }
+            });
+
+            return reason;
+        },
+
+        computeValidationErrors: function () {
+            var self = this;
+            var errors = [];
+
+            self.grupos().forEach(function (grupo) {
+                var codigo = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
+                if (!codigo) {
+                    errors.push('Escolha uma opção para ' + (grupo.nome || grupo.codigo) + '.');
+                } else {
+                    var opt = (grupo.itens || []).find(function (c) { return c.codigo === codigo; });
+                    if (opt && self.isEsgotado(opt.codigo)) {
+                        errors.push('"' + (opt.nome || opt.codigo) + '" está esgotado. Escolha outra opção.');
+                    }
+                }
+            });
+
+            _.each(self.invalidSelections(), function (msg) {
+                errors.push(msg);
+            });
+
+            var tamanho = self.selectedSize();
+            if (!tamanho || self.gradeTamanhos.indexOf(tamanho) === -1) {
+                errors.push('Escolha um tamanho.');
+            }
+
+            if (self.permiteGravacao() && self.laserText().trim() !== '') {
+                if (self.engravingBlocked()) {
+                    errors.push(self.engravingBlockedReason());
+                } else if (!self.isEngravingFormatValid()) {
+                    errors.push('A gravação deve conter apenas letras, números, espaço e hífen.');
+                } else if (self.laserText().length > self.laserLimit()) {
+                    errors.push('A gravação excede o limite de ' + self.laserLimit() + ' caracteres.');
+                }
+            }
+
+            return errors;
+        },
+
+        isEngravingFormatValid: function () {
+            var text = this.laserText();
+            if (text === '') {
+                return true;
+            }
+            return /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 \-]+$/u.test(text);
+        },
+
+        isBlocked: function (code) {
+            return !!this.blockedMap()[code];
+        },
+
+        getBlockReason: function (code) {
+            return this.blockedMap()[code] || '';
+        },
+
+        isInvalid: function (code) {
+            return !!this.invalidSelections()[code];
+        },
+
+        /**
+         * Estado "esgotado" — derivado do estoque carregado no JSON.
+         * A F3.7 (polling) pode atualizar o estoque e este computed reage.
+         */
+        isEsgotado: function (code) {
+            return !!this.esgotadoMap()[code];
+        },
+
+        isSelected: function (grupoCodigo, code) {
+            var sel = this.selections[grupoCodigo];
+            return !!(sel && sel() === code);
+        },
+
+        selectOption: function (grupoCodigo, option) {
+            if (!option) {
+                return;
+            }
+
+            if (this.isEsgotado(option.codigo) && !this.isSelected(grupoCodigo, option.codigo)) {
+                return;
+            }
+
+            if (this.isBlocked(option.codigo) && !this.isSelected(grupoCodigo, option.codigo)) {
+                this.activeTooltip(option.codigo);
                 return;
             }
 
             this.activeTooltip(null);
-            if (this.selections[groupCode]) {
-                this.selections[groupCode](option.codigo);
+            if (this.selections[grupoCodigo]) {
+                this.selections[grupoCodigo](option.codigo);
             }
         },
 
-        switchTab: function (groupCode) {
-            this.activeTab(groupCode);
+        switchTab: function (grupoCodigo) {
+            this.activeTab(grupoCodigo);
             this.activeTooltip(null);
         },
 
+        handleTabKeydown: function (event, grupoCodigo) {
+            var key = event.key;
+            var grupos = this.grupos();
+            var currentIndex = -1;
+            for (var i = 0; i < grupos.length; i++) {
+                if (grupos[i].codigo === grupoCodigo) { currentIndex = i; break; }
+            }
+            if (currentIndex === -1) { return true; }
+
+            var newIndex;
+            switch (key) {
+                case 'ArrowRight':
+                case 'ArrowDown':
+                    newIndex = (currentIndex + 1) % grupos.length;
+                    break;
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                    newIndex = (currentIndex - 1 + grupos.length) % grupos.length;
+                    break;
+                case 'Home':
+                    newIndex = 0;
+                    break;
+                case 'End':
+                    newIndex = grupos.length - 1;
+                    break;
+                default:
+                    return true;
+            }
+
+            event.preventDefault();
+            var newGroup = grupos[newIndex];
+            this.switchTab(newGroup.codigo);
+
+            var tabList = event.target.closest('[role="tablist"]');
+            if (tabList) {
+                var tabs = tabList.querySelectorAll('[role="tab"]');
+                if (tabs[newIndex]) { tabs[newIndex].focus(); }
+            }
+            return false;
+        },
+
         selectSize: function (size) {
-            this.selectedSize(size);
+            this.selectedSize(parseInt(size, 10));
         },
 
         closeTooltip: function () {
             this.activeTooltip(null);
+        },
+
+        getOptionColor: function (opt) {
+            if (!opt) {
+                return '#E6E1F2';
+            }
+            return opt.cor_hex || '#E6E1F2';
+        },
+
+        getOptionPrice: function (opt) {
+            if (!opt) {
+                return 0;
+            }
+            var v = parseFloat(opt.preco_adicional);
+            return isNaN(v) ? 0 : v;
+        },
+
+        formatPrice: function (v) {
+            var num = Math.round((parseFloat(v) || 0) * 100) / 100;
+            return 'R$ ' + num.toFixed(2).replace('.', ',');
+        },
+
+        normalize: function (s) {
+            if (s === null || s === undefined) {
+                return '';
+            }
+            return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        },
+
+        getPostData: function () {
+            var self = this;
+            var selecoes = [];
+            this.grupos().forEach(function (grupo) {
+                var codigo = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
+                if (codigo) {
+                    selecoes.push({ grupo: grupo.codigo, componente: codigo });
+                }
+            });
+
+            return {
+                tamanho: parseInt(this.selectedSize(), 10) || null,
+                gravacao: (this.permiteGravacao() && this.laserText().trim() !== '') ? this.laserText() : null,
+                selecoes: selecoes
+            };
+        },
+
+        getUrl: function (key) {
+            var cfg = this.getConfigData();
+            return (cfg.urls && cfg.urls[key]) || '';
         }
     });
 });

@@ -1,52 +1,47 @@
 <?php
-/** @var \Nuvem\AtelieStudio\Block\Studio $block */
-/** @var \Nuvem\AtelieStudio\ViewModel\Estudio $viewModel */
+/**
+ * @var \Nuvem\AtelieStudio\Block\Studio $block
+ * @var \Nuvem\AtelieStudio\ViewModel\Estudio $viewModel
+ */
 $viewModel = $block->getData('view_model');
-$jsLayout = $viewModel ? $viewModel->getMergedJsLayout($block->getJsLayout()) : $block->getJsLayout();
-?>
-<style>
-.atelie-studio { color: #383838; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-.atelie-studio .atelie-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px; }
-.atelie-studio .atelie-header .atelie-title { font-size: 28px; font-weight: 700; color: #732353; margin: 0; }
-.atelie-studio .atelie-header .atelie-subtitle { font-size: 14px; color: #383838; opacity: 0.8; margin-top: 4px; }
-.atelie-studio .atelie-header .atelie-mirror-price { text-align: right; }
-.atelie-studio .atelie-header .atelie-mirror-price .atelie-price-label { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.7; display: block; }
-.atelie-studio .atelie-header .atelie-mirror-price .atelie-price-value { font-size: 32px; font-weight: 700; color: #732353; line-height: 1.1; }
-.atelie-studio .atelie-tabs-nav { display: flex; gap: 8px; border-bottom: 1px solid #E6E1F2; padding-bottom: 12px; margin-bottom: 24px; overflow-x: auto; }
-.atelie-studio .atelie-tabs-nav .atelie-tab-btn { background: #F6F4F9; border: 1px solid transparent; border-radius: 999px; padding: 8px 18px; font-size: 14px; font-weight: 600; color: #383838; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-.atelie-studio .atelie-tabs-nav .atelie-tab-btn:hover { background: #E6E1F2; }
-.atelie-studio .atelie-tabs-nav .atelie-tab-btn.is-active { background: #732353; color: #FFFFFF; }
-.atelie-studio .atelie-tab-panel .atelie-group-header { margin-bottom: 16px; }
-.atelie-studio .atelie-tab-panel .atelie-group-header .atelie-group-title { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
-.atelie-studio .atelie-tab-panel .atelie-group-header .atelie-group-desc { font-size: 13px; opacity: 0.7; margin: 0; }
-.atelie-studio .atelie-options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
-.atelie-studio .atelie-swatch-wrapper { position: relative; }
-.atelie-studio .atelie-swatch { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; background: #FFFFFF; border: 2px solid #E6E1F2; border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.2s; box-sizing: border-box; }
-.atelie-studio .atelie-swatch:hover { border-color: #383838; }
-.atelie-studio .atelie-swatch.is-selected { border: 2px solid #732353; box-shadow: 0 0 0 2px rgba(115, 35, 83, 0.2); }
-.atelie-studio .atelie-swatch.is-blocked { opacity: 0.55; background: #F6F4F9; border-style: dashed; cursor: help; position: relative; }
-.atelie-studio .atelie-swatch.is-blocked::after { content: ''; position: absolute; top: 50%; left: 8%; right: 8%; height: 2px; background: #E02B27; transform: rotate(-15deg); pointer-events: none; }
-.atelie-studio .atelie-swatch .atelie-swatch-color { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #383838; flex-shrink: 0; display: inline-block; }
-.atelie-studio .atelie-swatch .atelie-swatch-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
-.atelie-studio .atelie-swatch .atelie-swatch-info .atelie-swatch-name { font-size: 13px; font-weight: 600; color: #383838; }
-.atelie-studio .atelie-swatch .atelie-swatch-info .atelie-swatch-finish { font-size: 11px; opacity: 0.7; text-transform: capitalize; }
-.atelie-studio .atelie-swatch .atelie-swatch-info .atelie-swatch-badge { font-size: 11px; font-weight: 700; color: #732353; }
-.atelie-studio .atelie-block-balloon { position: absolute; bottom: 100%; margin-bottom: 10px; left: 0; right: 0; background: #2D2D2D; color: #FFFFFF; font-size: 12px; line-height: 1.4; padding: 10px 12px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); z-index: 50; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.atelie-studio .atelie-block-balloon::after { content: ''; position: absolute; top: 100%; left: 24px; border: 6px solid transparent; border-top-color: #2D2D2D; }
-.atelie-studio .atelie-block-balloon .atelie-balloon-close { background: transparent; border: none; color: #FFFFFF; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
-.atelie-studio .atelie-size-section { margin-top: 24px; }
-.atelie-studio .atelie-size-section .atelie-section-label { font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px; }
-.atelie-studio .atelie-size-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.atelie-studio .atelie-size-grid .atelie-size-btn { min-width: 44px; height: 40px; padding: 0 8px; background: #FFFFFF; border: 1px solid #E6E1F2; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
-.atelie-studio .atelie-size-grid .atelie-size-btn.is-selected { background: #732353; border-color: #732353; color: #FFFFFF; }
-.atelie-studio .atelie-laser-section { margin-top: 24px; }
-.atelie-studio .atelie-laser-section .atelie-laser-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.atelie-studio .atelie-laser-section .atelie-laser-input { width: 100%; height: 44px; padding: 8px 14px; border: 1.6px solid #E6E1F2; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; }
-.atelie-studio .atelie-laser-section .atelie-laser-input:focus { border-color: #732353; box-shadow: 0 0 0 2px rgba(115, 35, 83, 0.2); }
-.atelie-studio .atelie-laser-section .atelie-laser-counter { font-size: 12px; opacity: 0.7; text-align: right; margin-top: 4px; }
-</style>
+$jsLayout = $viewModel
+    ? $viewModel->getMergedJsLayout($block->getJsLayout())
+    : $block->getJsLayout();
 
-<div id="atelie-studio-app" class="atelie-studio-wrapper" data-bind="scope: 'atelieStudio'">
+$svgContent = '';
+$svgPath = $block->getViewFileUrl('Nuvem_AtelieStudio::images/camadas/tenis-completo.svg');
+$svgFile = BP . '/pub/' . ltrim((string) parse_url($svgPath, PHP_URL_PATH), '/');
+
+if (is_file($svgFile)) {
+    $svgContent = (string) file_get_contents($svgFile);
+}
+
+// Fallback para o módulo (garante funcionamento em dev/developer mode)
+if (empty($svgContent)) {
+    $moduleSvg = BP . '/app/code/Nuvem/AtelieStudio/view/frontend/web/images/camadas/tenis-completo.svg';
+    if (is_file($moduleSvg)) {
+        $svgContent = (string) file_get_contents($moduleSvg);
+    }
+}
+?>
+<div id="atelie-studio-app"
+     class="atelie-studio-wrapper"
+     data-bind="scope: 'atelieStudio'">
+
+    <div class="atelie-studio__stage">
+        <?php if ($svgContent !== ''): ?>
+            <div class="atelie-studio__svg"
+                 role="img"
+                 aria-label="<?= $escaper->escapeHtmlAttr(__('Pré-visualização do tênis personalizado')) ?>">
+                <?= /* @noEscape */ $svgContent ?>
+            </div>
+        <?php else: ?>
+            <p class="atelie-studio__svg-fallback">
+                <?= $escaper->escapeHtml(__('Pré-visualização indisponível.')) ?>
+            </p>
+        <?php endif; ?>
+    </div>
+
     <!-- ko template: getTemplate() --><!-- /ko -->
 </div>
 
