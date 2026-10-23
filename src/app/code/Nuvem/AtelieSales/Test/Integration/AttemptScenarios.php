@@ -49,7 +49,7 @@ if ($command === 'order-snapshot') {
     $events->merge([$event => ['f23_attempt_failure' => [
         'name' => 'f23_attempt_failure', 'instance' => AttemptSubmissionObserver::class,
     ]]]);
-    if ($command === 'recovery') {
+    if (in_array($command, ['recovery', 'compensation-rollback'], true)) {
         $objectManager->configure([
             QuoteStockReservation::class => ['arguments' => [
                 'componentStock' => ['instance' => RecoverableQuoteStock::class],
@@ -57,41 +57,49 @@ if ($command === 'order-snapshot') {
         ]);
         $recoverableStock = $objectManager->get(RecoverableQuoteStock::class);
         $reservation = $objectManager->get(QuoteStockReservation::class);
-        AttemptSubmissionObserver::$mode = 'failure';
-        try {
-            $objectManager->get(QuoteManagement::class)->submit($quote);
-            throw new LogicException('Expected checkout failure.');
-        } catch (LocalizedException $exception) {
-            assertStockScenario(
-                str_contains($exception->getMessage(), 'forced attempt failure'),
-                'Original submission exception was replaced.'
-            );
+        if ($command === 'compensation-rollback') {
+            AttemptSubmissionObserver::$mode = 'failure';
+            try {
+                $objectManager->get(QuoteManagement::class)->submit($quote);
+                throw new LogicException('Expected submission failure.');
+            } catch (LocalizedException $exception) {
+                assertStockScenario(str_contains($exception->getMessage(), 'forced attempt failure'),
+                    'Compensation replaced the original checkout failure.');
+            }
+            assertStockScenario($fixture->stocks($codes) === $before, 'Failed compensation retained new stock debt.');
+            assertStockScenario($fixture->movements([$quoteId]) === [], 'Failed compensation left partial ledger.');
+            assertStockScenario($ledger->getAttempt($quoteId)['id'] === null, 'Failed compensation stranded ownership.');
+        } else {
+            // Emulate a pending reservation committed by the previous deployment.
+            $oldAttemptId = $reservation->beginAttempt($quote);
+            $reservation->reserve($quote, $oldAttemptId);
+            $reservation->markFailed($quote, $oldAttemptId);
+            $reservation->endAttempt($quote, $oldAttemptId);
+            $pendingMovements = $fixture->movements([$quoteId]);
+            assertStockScenario(count($pendingMovements) === 7, 'Failed compensation changed the ledger.');
+            $quote = $objectManager->create(CartRepositoryInterface::class)->get($quoteId);
+            assertStockScenario($reservation->hasReservation($quote), 'Quote reload lost pending compensation.');
+            $pendingStock = $fixture->stocks($codes);
+            foreach ($before as $code => $quantity) {
+                assertStockScenario($pendingStock[$code] === $quantity - 1, 'Pending stock was unexpectedly released.');
+            }
+            try {
+                $objectManager->get(QuoteManagement::class)->submit($quote);
+                throw new LogicException('Expected recovery failure.');
+            } catch (RuntimeException $exception) {
+                assertStockScenario(
+                    str_contains($exception->getMessage(), 'compensation unavailable'),
+                    'New submission was not blocked by failed recovery.'
+                );
+            }
+            assertStockScenario($reservation->hasReservation($quote), 'Failed recovery lost the pending reservation.');
+            assertStockScenario($fixture->movements([$quoteId]) === $pendingMovements, 'Recovery failure added movements.');
+            assertStockScenario((int) $connection->fetchOne($orderQuery) === 0, 'Recovery failure persisted an order.');
         }
-        $pendingMovements = $fixture->movements([$quoteId]);
-        assertStockScenario(count($pendingMovements) === 7, 'Failed compensation changed the ledger.');
-        $quote = $objectManager->create(CartRepositoryInterface::class)->get($quoteId);
-        assertStockScenario($reservation->hasReservation($quote), 'Quote reload lost pending compensation.');
-        $pendingStock = $fixture->stocks($codes);
-        foreach ($before as $code => $quantity) {
-            assertStockScenario($pendingStock[$code] === $quantity - 1, 'Pending stock was unexpectedly released.');
-        }
-        try {
-            $objectManager->get(QuoteManagement::class)->submit($quote);
-            throw new LogicException('Expected recovery failure.');
-        } catch (RuntimeException $exception) {
-            assertStockScenario(
-                str_contains($exception->getMessage(), 'compensation unavailable'),
-                'New submission was not blocked by failed recovery.'
-            );
-        }
-        assertStockScenario($reservation->hasReservation($quote), 'Failed recovery lost the pending reservation.');
-        assertStockScenario($fixture->movements([$quoteId]) === $pendingMovements, 'Recovery failure added movements.');
-        assertStockScenario((int) $connection->fetchOne($orderQuery) === 0, 'Recovery failure persisted an order.');
         $recoverableStock->failCompensation = false;
         AttemptSubmissionObserver::$mode = 'none';
     } else {
         AttemptSubmissionObserver::$mode = match ($command) {
-            'active-owner' => 'concurrent',
             'duplicate-reservation' => 'duplicate-reservation',
             default => 'reentry',
         };

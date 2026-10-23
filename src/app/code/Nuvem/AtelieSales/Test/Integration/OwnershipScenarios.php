@@ -30,7 +30,7 @@ if ($command === 'partial-reservation') {
         assertStockScenario(str_contains($exception->getMessage(), 'esgotou enquanto'), $exception->getMessage());
         assertStockScenario($fixture->stocks($codes) === $unavailableStock, 'Partial reservation lost stock.');
         assertStockScenario($fixture->movements([$quoteId]) === [], 'Partial reservation left ledger rows.');
-        assertStockScenario($ledger->getAttempt($quoteId)['state'] === 'compensated', 'Failed owner stayed active.');
+        assertStockScenario($ledger->getAttempt($quoteId)['state'] === null, 'Failed ownership did not roll back.');
     } finally {
         $stock->adjust('SOL-LUA-HOLO', $before['SOL-LUA-HOLO'], 'F2.3 partial reservation cleanup');
     }
@@ -47,9 +47,9 @@ if ($command === 'partial-reservation') {
     } catch (LocalizedException $exception) {
         assertStockScenario(str_contains($exception->getMessage(), 'já está sendo finalizado'), $exception->getMessage());
         assertStockScenario(!$ledger->hasOrder($quoteId), 'Stale order was persisted.');
-        assertStockScenario($ledger->getAttempt($quoteId)['state'] === 'compensated', 'Owner was not compensated.');
+        assertStockScenario($ledger->getAttempt($quoteId)['state'] === null, 'Ownership did not roll back.');
         $movements = $fixture->movements([$quoteId]);
-        assertStockScenario(count($movements) === 14, 'Expected seven reservations and seven compensations.');
+        assertStockScenario($movements === [], 'Failed order left stock movements.');
         foreach ($ledger->getNetQuantitiesByQuoteId($quoteId) as $balance) {
             assertStockScenario($balance['net'] === 0, 'Stale order left an outstanding balance.');
         }
@@ -70,7 +70,7 @@ if ($command === 'partial-reservation') {
     $reservation->markFailed($quote, $oldId);
     $reservation->compensate($quote, $oldId);
     $reservation->endAttempt($quote, $oldId);
-    $newId = $reservation->beginAttempt($quote);
+    $newId = $reservation->beginSubmission($quote);
     $reservation->reserve($quote, $newId);
     $movements = $fixture->movements([$quoteId]);
     $pendingStock = $fixture->stocks($codes);
@@ -86,8 +86,7 @@ if ($command === 'partial-reservation') {
         'Old failure changed new ownership.');
     assertStockScenario($fixture->movements([$quoteId]) === $movements, 'Old failure changed new ledger.');
     assertStockScenario($fixture->stocks($codes) === $pendingStock, 'Old failure released new stock.');
-    $reservation->markFailed($quote, $newId);
-    $reservation->compensate($quote, $newId);
+    $reservation->handleFailure($quote, $newId, new RuntimeException('Finish current test attempt.'));
     $reservation->endAttempt($quote, $newId);
 }
 assertStockScenario($fixture->stocks($codes) === $before, 'Fixture stock was not restored.');

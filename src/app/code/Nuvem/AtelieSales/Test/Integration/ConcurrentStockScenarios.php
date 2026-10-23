@@ -22,7 +22,7 @@ final class ConcurrentStockScenarios
         }
     }
 
-    public static function run(array $commands): array
+    public static function run(array $commands, ?callable $whileRunning = null): array
     {
         $directory = sys_get_temp_dir() . '/f23-workers-' . bin2hex(random_bytes(8));
         assertStockScenario(mkdir($directory, 0700), 'Cannot create worker directory.');
@@ -48,6 +48,9 @@ final class ConcurrentStockScenarios
                 usleep(10000);
             }
             touch("$directory/start");
+            if ($whileRunning !== null) {
+                $whileRunning($workers);
+            }
             $results = [];
             foreach ($workers as $index => $worker) {
                 do {

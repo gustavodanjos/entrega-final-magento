@@ -5,10 +5,31 @@ use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Model\QuoteManagement;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
 
-if ($command === 'submit') {
+if (in_array($command, ['submit', 'submit-held', 'submit-after-reservation'], true)) {
     $quoteId = (int) ($argv[2] ?? 0);
     try {
+        $directory = $argv[3] ?? '';
+        if ($command === 'submit-held') {
+            require __DIR__ . '/Observer/HoldSubmissionObserver.php';
+            \Nuvem\AtelieSales\Test\Integration\Observer\HoldSubmissionObserver::$directory = $directory;
+            $events = $objectManager->get(\Magento\Framework\Event\Config\Data::class);
+            $event = 'sales_model_service_quote_submit_before';
+            $events->get($event);
+            $events->merge([$event => ['f23_hold_submission' => [
+                'name' => 'f23_hold_submission',
+                'instance' => \Nuvem\AtelieSales\Test\Integration\Observer\HoldSubmissionObserver::class,
+            ]]]);
+        } elseif ($command === 'submit-after-reservation') {
+            $deadline = microtime(true) + 15;
+            while (!is_file($directory . '/reserved')) {
+                assertStockScenario(microtime(true) < $deadline, 'Owner did not reserve stock.');
+                usleep(10000);
+            }
+        }
         $quote = $objectManager->get(CartRepositoryInterface::class)->get($quoteId);
+        if ($command === 'submit-after-reservation') {
+            touch($directory . '/competing');
+        }
         $order = $objectManager->get(QuoteManagement::class)->submit($quote);
         assertStockScenario($order !== null && $order->getId(), 'Checkout did not persist an order.');
         $result = ['quote_id' => $quoteId, 'outcome' => 'ordered', 'order_id' => (int) $order->getId()];
