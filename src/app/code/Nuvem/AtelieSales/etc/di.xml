@@ -17,6 +17,10 @@
         <plugin name="nuvem_atelie_sales_compensate_failed_submission"
                 type="Nuvem\AtelieSales\Plugin\QuoteManagement\CompensateFailedSubmission"/>
     </type>
+    <type name="Magento\Sales\Model\Service\OrderService">
+        <plugin name="nuvem_atelie_sales_commit_stock_reservation"
+                type="Nuvem\AtelieSales\Plugin\Order\CommitStockReservation"/>
+    </type>
     <type name="Magento\Framework\Webapi\ServiceInputProcessor">
         <plugin name="nuvem_atelie_sales_strip_tampered_price"
                 type="Nuvem\AtelieSales\Plugin\Webapi\StripTamperedPricePlugin"/>

@@ -31,6 +31,9 @@ class ReserveStockOnQuoteSubmitBefore implements ObserverInterface
         }
         $attemptId = $this->reservation->getAttemptId($quote);
         if ($attemptId === null) {
+            if (!$this->reservation->requiresReservation($quote)) {
+                return;
+            }
             throw new \Magento\Framework\Exception\LocalizedException(__('A tentativa de checkout não foi iniciada.'));
         }
         $order = $observer->getEvent()->getOrder();

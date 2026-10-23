@@ -34,6 +34,9 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
 {
     private const TABLE_COMPONENTE = 'nuvem_atelie_componente';
 
+    /** @var array<int, \WeakReference<\stdClass>> */
+    private array $availabilityChanges = [];
+
     /**
      * @var ComponentRepositoryInterface
      */
@@ -433,7 +436,21 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
         if ($before === $after) {
             return;
         }
-        $this->movimentacaoResource->addCommitCallback(fn () => $this->invalidateComponentCache($component));
+        $componentId = (int) $component->getComponenteId();
+        $change = ($this->availabilityChanges[$componentId] ?? null)?->get();
+        if ($change !== null) {
+            $change->after = $after;
+            return;
+        }
+        $change = (object) ['before' => $before, 'after' => $after];
+        // The callback pool owns this snapshot; a rollback discards it with its callback.
+        $this->availabilityChanges[$componentId] = \WeakReference::create($change);
+        $this->movimentacaoResource->addCommitCallback(function () use ($component, $componentId, $change): void {
+            unset($this->availabilityChanges[$componentId]);
+            if ($change->before !== $change->after) {
+                $this->invalidateComponentCache($component);
+            }
+        });
     }
 
     /**

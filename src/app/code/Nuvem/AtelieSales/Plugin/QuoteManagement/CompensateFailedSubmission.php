@@ -29,7 +29,10 @@ class CompensateFailedSubmission
      */
     public function aroundSubmit(QuoteManagement $subject, callable $proceed, Quote $quote, array $orderData = [])
     {
-        $attemptId = $this->reservation->beginAttempt($quote);
+        $attemptId = $this->reservation->beginSubmission($quote);
+        if ($attemptId === null) {
+            return $proceed($quote, $orderData);
+        }
         try {
             $result = $proceed($quote, $orderData);
             $this->reservation->completeAttempt($quote, $attemptId);

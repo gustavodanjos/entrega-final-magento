@@ -33,4 +33,29 @@ class ReserveStockOnQuoteSubmitBeforeTest extends TestCase
         ]));
         $this->assertSame('owned', $order->getData(QuoteStockReservation::ORDER_ATTEMPT_ID));
     }
+
+    public function testOrdinaryQuoteNeedsNoReservationToken(): void
+    {
+        $quote = $this->createMock(Quote::class);
+        $quote->method('getId')->willReturn(99);
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('requiresReservation')->willReturn(false);
+        $reservation->expects($this->never())->method('reserve');
+        (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer([
+            'event' => new Event(['quote' => $quote]),
+        ]));
+    }
+
+    public function testAtelieQuoteCannotReserveWithoutItsSubmissionToken(): void
+    {
+        $quote = $this->createMock(Quote::class);
+        $quote->method('getId')->willReturn(99);
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('requiresReservation')->willReturn(true);
+        $reservation->expects($this->never())->method('reserve');
+        $this->expectException(\Magento\Framework\Exception\LocalizedException::class);
+        (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer([
+            'event' => new Event(['quote' => $quote]),
+        ]));
+    }
 }

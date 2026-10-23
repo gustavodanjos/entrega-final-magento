@@ -25,6 +25,9 @@ class QuoteStockReservation
     /** @var \WeakMap<Quote, string> */
     private \WeakMap $activeSubmissions;
 
+    /** @var array<string, array{quoteId: int, level: int}> */
+    private array $submissionTransactions = [];
+
     /**
      * Dependencies for transactional stock orchestration.
      *
@@ -40,6 +43,121 @@ class QuoteStockReservation
         private readonly LoggerInterface $logger
     ) {
         $this->activeSubmissions = new \WeakMap();
+    }
+
+    /**
+     * @param Quote $quote
+     * @return bool
+     */
+    public function requiresReservation(Quote $quote): bool
+    {
+        foreach ($quote->getAllItems() as $item) {
+            if ($this->configurationReader->getComponentQuantities($item) !== []) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Hold ownership and stock until the order resource has finished saving.
+     *
+     * @param Quote $quote
+     * @return string|null
+     */
+    public function beginSubmission(Quote $quote): ?string
+    {
+        if (!$this->requiresReservation($quote)) {
+            return null;
+        }
+        if (!$quote->getId() || $this->submissionTransactions !== [] || $this->getAttemptId($quote) !== null) {
+            $this->rejectSubmission();
+        }
+        $connection = $this->movimentacaoResource->getConnection();
+        $level = $connection->getTransactionLevel();
+        if ($level === 0) {
+            // Empty order/ledger ranges must not retain gap locks until the order insert.
+            $connection->query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+        }
+        $connection->beginTransaction();
+        try {
+            $attemptId = $this->beginAttempt($quote);
+            $this->submissionTransactions[$attemptId] = ['quoteId' => (int) $quote->getId(), 'level' => $level];
+            return $attemptId;
+        } catch (\Throwable $exception) {
+            while ($connection->getTransactionLevel() > $level) {
+                $connection->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
+    /**
+     * Commit the order, stock and ownership before core dispatches submit_success.
+     *
+     * @param int $quoteId
+     * @param string $attemptId
+     * @return void
+     */
+    public function commitSubmission(int $quoteId, string $attemptId): void
+    {
+        $submission = $this->submissionTransactions[$attemptId] ?? null;
+        if ($submission === null) {
+            return;
+        }
+        if ($submission['quoteId'] !== $quoteId) {
+            $this->rejectSubmission();
+        }
+        $attempt = $this->movimentacaoResource->getAttempt($quoteId);
+        if ($attempt['id'] !== $attemptId || $attempt['state'] !== self::STATE_COMPLETED
+            || !$this->movimentacaoResource->hasOrder($quoteId)
+        ) {
+            $this->rejectSubmission();
+        }
+        $this->closeSubmission($attemptId);
+    }
+
+    /**
+     * Unwind only this submission's levels, including a failed nested resource save.
+     *
+     * @param string $attemptId
+     * @return void
+     */
+    public function rollbackSubmission(string $attemptId): void
+    {
+        $submission = $this->submissionTransactions[$attemptId] ?? null;
+        if ($submission === null) {
+            return;
+        }
+        $connection = $this->movimentacaoResource->getConnection();
+        while ($connection->getTransactionLevel() > $submission['level']) {
+            $connection->rollBack();
+        }
+        unset($this->submissionTransactions[$attemptId]);
+    }
+
+    /**
+     * @param string $attemptId
+     * @return void
+     */
+    private function closeSubmission(string $attemptId): void
+    {
+        $submission = $this->submissionTransactions[$attemptId] ?? null;
+        if ($submission === null) {
+            return;
+        }
+        $connection = $this->movimentacaoResource->getConnection();
+        if ($connection->getTransactionLevel() !== $submission['level'] + 1) {
+            throw new \LogicException('Stock submission cannot close an unfinished resource transaction.');
+        }
+        try {
+            $connection->commit();
+        } finally {
+            // Commit callbacks can throw after SQL has already committed.
+            if ($connection->getTransactionLevel() === $submission['level']) {
+                unset($this->submissionTransactions[$attemptId]);
+            }
+        }
     }
 
     /**
@@ -101,6 +219,7 @@ class QuoteStockReservation
     public function endAttempt(Quote $quote, string $attemptId): void
     {
         if ($this->getAttemptId($quote) === $attemptId) {
+            $this->rollbackSubmission($attemptId);
             unset($this->activeSubmissions[$quote]);
         }
     }
@@ -137,8 +256,18 @@ class QuoteStockReservation
      */
     public function completeAttempt(Quote $quote, string $attemptId): void
     {
+        $submission = $this->submissionTransactions[$attemptId] ?? null;
+        if ($submission !== null && $submission['quoteId'] !== (int) $quote->getId()) {
+            $this->rejectSubmission();
+        }
+        if (isset($this->submissionTransactions[$attemptId])
+            && $this->movimentacaoResource->hasOrder((int) $quote->getId())
+        ) {
+            throw new \LogicException('The order placement boundary did not finish the stock transaction.');
+        }
         $this->markFailed($quote, $attemptId);
         $this->compensate($quote, $attemptId);
+        $this->closeSubmission($attemptId);
     }
 
     /**
@@ -179,9 +308,22 @@ class QuoteStockReservation
     public function handleFailure(Quote $quote, string $attemptId, \Throwable $exception): void
     {
         try {
+            $submission = $this->submissionTransactions[$attemptId] ?? null;
+            if ($submission !== null && $submission['quoteId'] !== (int) $quote->getId()) {
+                return;
+            }
+            if ($submission !== null
+                && ($this->movimentacaoResource->getConnection()->getTransactionLevel() !== $submission['level'] + 1
+                    || $this->movimentacaoResource->hasOrder((int) $quote->getId()))
+            ) {
+                $this->rollbackSubmission($attemptId);
+                return;
+            }
             $this->markFailed($quote, $attemptId);
             $this->compensate($quote, $attemptId);
+            $this->closeSubmission($attemptId);
         } catch (\Throwable $compensationException) {
+            $this->rollbackSubmission($attemptId);
             try {
                 $this->logger->critical('Failed to compensate component stock.', [
                     'quote_id' => $quote->getId(),
@@ -207,6 +349,26 @@ class QuoteStockReservation
     public function reserve(Quote $quote, string $attemptId): void
     {
         $quoteId = (int) $quote->getId();
+        $submission = $this->submissionTransactions[$attemptId] ?? null;
+        if ($submission !== null && $submission['quoteId'] !== $quoteId) {
+            $this->rejectSubmission();
+        }
+        try {
+            $this->reserveComponents($quote, $quoteId, $attemptId);
+        } catch (\Throwable $exception) {
+            $this->rollbackSubmission($attemptId);
+            throw $exception;
+        }
+    }
+
+    /**
+     * @param Quote $quote
+     * @param int $quoteId
+     * @param string $attemptId
+     * @return void
+     */
+    private function reserveComponents(Quote $quote, int $quoteId, string $attemptId): void
+    {
         $this->executeTransaction($quoteId, function () use ($quote, $quoteId, $attemptId): void {
             $attempt = $this->movimentacaoResource->getAttempt($quoteId);
             if ($attempt['id'] !== $attemptId || $attempt['state'] !== self::STATE_ACTIVE) {

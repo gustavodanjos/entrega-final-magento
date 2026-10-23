@@ -29,6 +29,7 @@ class QuoteStockReservationTest extends TestCase
     private bool $hasOrder = false;
     private int $transactionLevel = 0;
     private array $snapshots = [];
+    private bool $failAfterCommit = false;
     private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
@@ -46,6 +47,9 @@ class QuoteStockReservationTest extends TestCase
         $this->connection->method('commit')->willReturnCallback(function () {
             array_pop($this->snapshots);
             $this->transactionLevel--;
+            if ($this->failAfterCommit && $this->transactionLevel === 0) {
+                throw new \Error('after commit callback failed');
+            }
             return $this->connection;
         });
         $this->connection->method('rollBack')->willReturnCallback(function () {
@@ -361,6 +365,155 @@ class QuoteStockReservationTest extends TestCase
             ->willThrowException(new DeadlockException('outer transaction'));
         $this->expectException(DeadlockException::class);
         $this->reservation->reserve($this->quote, $id);
+    }
+
+    public function testSubmissionKeepsReservationOpenUntilTheOrderIsSaved(): void
+    {
+        $this->connection->expects($this->once())->method('query')
+            ->with('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $id = $this->reservation->beginSubmission($this->quote);
+        $this->reservation->reserve($this->quote, $id);
+        $this->assertSame(1, $this->transactionLevel);
+        $this->assertSame('active', $this->attempt['state']);
+        $this->hasOrder = true;
+        $this->connection->beginTransaction();
+        $this->reservation->completeOrder(99, $id);
+        $this->connection->commit();
+        $this->assertSame(1, $this->transactionLevel);
+        $this->reservation->commitSubmission(99, $id);
+        $this->assertSame(0, $this->transactionLevel);
+        $this->assertSame('completed', $this->attempt['state']);
+        $this->reservation->endAttempt($this->quote, $id);
+        $this->assertSame('completed', $this->attempt['state']);
+    }
+
+    public function testFailedOrderRollsBackTheWholeSubmissionAndOwnership(): void
+    {
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $id = $this->reservation->beginSubmission($this->quote);
+        $this->stock->method('reserveForQuote')->willReturnCallback(function (): bool {
+            $this->balances = [['codigo' => 'SOL', 'net' => -1]];
+            return true;
+        });
+        $this->reservation->reserve($this->quote, $id);
+        $this->reservation->rollbackSubmission($id);
+        $this->stock->expects($this->never())->method('compensateForQuote');
+        $this->reservation->handleFailure($this->quote, $id, new \RuntimeException('order save failed'));
+        $this->assertSame(['id' => null, 'state' => null], $this->attempt);
+        $this->assertSame([], $this->balances);
+        $this->assertSame(0, $this->transactionLevel);
+    }
+
+    public function testFailureBeforeOrderPlacementCommitsABalancedCompensation(): void
+    {
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $id = $this->reservation->beginSubmission($this->quote);
+        $this->balances = [['codigo' => 'SOL', 'net' => -1]];
+        $this->stock->expects($this->once())->method('compensateForQuote')->willReturnCallback(function (): void {
+            $this->balances = [['codigo' => 'SOL', 'net' => 0]];
+        });
+        $this->reservation->handleFailure($this->quote, $id, new \RuntimeException('submit_before'));
+        $this->assertSame('compensated', $this->attempt['state']);
+        $this->assertSame(0, $this->balances[0]['net']);
+        $this->assertSame(0, $this->transactionLevel);
+    }
+
+    public function testReentryDoesNotRollbackTheOwnersOpenTransaction(): void
+    {
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $id = $this->reservation->beginSubmission($this->quote);
+        try {
+            $this->reservation->beginSubmission(clone $this->quote);
+            $this->fail('Expected reentry rejection.');
+        } catch (LocalizedException) {
+            $this->assertSame(1, $this->transactionLevel);
+            $this->assertSame(['id' => $id, 'state' => 'active'], $this->attempt);
+        } finally {
+            $this->reservation->endAttempt($this->quote, $id);
+        }
+        $this->assertSame(0, $this->transactionLevel);
+    }
+
+    public function testSubmissionCannotCommitBeforeTheOrderExists(): void
+    {
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $id = $this->reservation->beginSubmission($this->quote);
+        try {
+            $this->reservation->commitSubmission(99, $id);
+            $this->fail('Expected missing order rejection.');
+        } catch (LocalizedException) {
+            $this->assertSame(1, $this->transactionLevel);
+        } finally {
+            $this->reservation->endAttempt($this->quote, $id);
+        }
+    }
+
+    public function testSubmissionRollbackLeavesTheCallersTransactionOpen(): void
+    {
+        $this->connection->expects($this->never())->method('query');
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $this->connection->beginTransaction();
+        $id = $this->reservation->beginSubmission($this->quote);
+        $this->reservation->rollbackSubmission($id);
+        $this->assertSame(1, $this->transactionLevel);
+        $this->connection->rollBack();
+    }
+
+    public function testOrdinaryQuoteDoesNotOpenATransaction(): void
+    {
+        $this->reader->method('getComponentQuantities')->willReturn([]);
+        $this->assertNull($this->reservation->beginSubmission($this->quote));
+        $this->assertSame(0, $this->transactionLevel);
+        $this->assertSame(['id' => null, 'state' => null], $this->attempt);
+    }
+
+    public function testCallbackFailureAfterCommitNeverRollsBackOrCompensatesTheOrder(): void
+    {
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $id = $this->reservation->beginSubmission($this->quote);
+        $this->hasOrder = true;
+        $this->reservation->completeOrder(99, $id);
+        $this->failAfterCommit = true;
+        try {
+            $this->reservation->commitSubmission(99, $id);
+            $this->fail('Expected commit callback failure.');
+        } catch (\Error $exception) {
+            $this->failAfterCommit = false;
+            $this->stock->expects($this->never())->method('compensateForQuote');
+            $this->reservation->rollbackSubmission($id);
+            $this->reservation->handleFailure($this->quote, $id, $exception);
+            $this->assertSame('completed', $this->attempt['state']);
+            $this->assertSame(0, $this->transactionLevel);
+        }
+    }
+
+    public function testMissingOrderCommitBoundaryCannotBeSilentlyConfirmedAtTheEndOfSubmit(): void
+    {
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $id = $this->reservation->beginSubmission($this->quote);
+        $this->hasOrder = true;
+        $this->reservation->completeOrder(99, $id);
+        try {
+            $this->reservation->completeAttempt($this->quote, $id);
+            $this->fail('Expected missing commit boundary rejection.');
+        } catch (\LogicException $exception) {
+            $this->reservation->handleFailure($this->quote, $id, $exception);
+            $this->assertSame(['id' => null, 'state' => null], $this->attempt);
+            $this->assertSame(0, $this->transactionLevel);
+        }
+    }
+
+    public function testFailureForAnotherQuoteCannotCloseTheOwnersTransaction(): void
+    {
+        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        $id = $this->reservation->beginSubmission($this->quote);
+        $otherQuote = $this->createMock(Quote::class);
+        $otherQuote->method('getId')->willReturn(100);
+        $this->reservation->handleFailure($otherQuote, $id, new \RuntimeException('unrelated quote'));
+        $this->assertSame(1, $this->transactionLevel);
+        $this->assertSame(['id' => $id, 'state' => 'active'], $this->attempt);
+        $this->reservation->endAttempt($this->quote, $id);
     }
 
     private function newService(): QuoteStockReservation

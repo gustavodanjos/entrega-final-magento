@@ -69,6 +69,7 @@ class ComponentStockTest extends TestCase
     private ComponentStock $componentStock;
 
     private array $commitCallbacks = [];
+    private bool $deferCallbacks = false;
 
     protected function setUp(): void
     {
@@ -91,6 +92,9 @@ class ComponentStockTest extends TestCase
             }
         );
         $this->connectionMock->method('commit')->willReturnCallback(function (): void {
+            if ($this->deferCallbacks) {
+                return;
+            }
             foreach ($this->commitCallbacks as $callback) {
                 $callback();
             }
@@ -245,6 +249,20 @@ class ComponentStockTest extends TestCase
         $this->movimentacaoResourceMock->expects($this->never())->method('addCommitCallback');
 
         $this->componentStock->reserve('SOL-LUA-HOLO', 1);
+    }
+
+    public function testReservationAndCompensationKeepUnchangedAvailabilityCached(): void
+    {
+        $this->connectionMock->method('update')->willReturn(1);
+        $this->connectionMock->method('fetchOne')->willReturnOnConsecutiveCalls('2', '0');
+        $this->scopeConfigMock->method('getValue')->willReturn('5');
+        $this->eventManagerMock->expects($this->never())->method('dispatch');
+        $this->deferCallbacks = true;
+        $this->componentStock->reserveForQuote('SOL-LUA-HOLO', 2, 99);
+        $this->componentStock->compensateForQuote('SOL-LUA-HOLO', 2, 99);
+        $this->assertCount(1, $this->commitCallbacks);
+        $this->deferCallbacks = false;
+        $this->connectionMock->commit();
     }
 
     public function testCompensateReturnsStockAndRecordsLedgerMovement(): void

@@ -15,7 +15,7 @@ class CompensateFailedSubmissionTest extends TestCase
     {
         $reservation = $this->createMock(QuoteStockReservation::class);
         $failure = new \RuntimeException('active attempt');
-        $reservation->method('beginAttempt')->willThrowException($failure);
+        $reservation->method('beginSubmission')->willThrowException($failure);
         foreach (['handleFailure', 'endAttempt'] as $method) {
             $reservation->expects($this->never())->method($method);
         }
@@ -28,7 +28,7 @@ class CompensateFailedSubmissionTest extends TestCase
     public function testSuccessfulSubmissionFinalizesAndReleasesItsContext(): void
     {
         $reservation = $this->createMock(QuoteStockReservation::class);
-        $reservation->method('beginAttempt')->willReturn('owned');
+        $reservation->method('beginSubmission')->willReturn('owned');
         $quote = $this->createMock(Quote::class);
         $reservation->expects($this->once())->method('completeAttempt')->with($quote, 'owned');
         $reservation->expects($this->once())->method('endAttempt')->with($quote, 'owned');
@@ -39,7 +39,7 @@ class CompensateFailedSubmissionTest extends TestCase
     public function testFailureUsesItsOriginalAttemptAndPreservesOriginalError(): void
     {
         $reservation = $this->createMock(QuoteStockReservation::class);
-        $reservation->method('beginAttempt')->willReturn('owned');
+        $reservation->method('beginSubmission')->willReturn('owned');
         $quote = $this->createMock(Quote::class);
         $reservation->expects($this->once())->method('endAttempt')->with($quote, 'owned');
         $failure = new \Error('submit_before failure');
@@ -52,6 +52,16 @@ class CompensateFailedSubmissionTest extends TestCase
         } catch (\Error $actual) {
             $this->assertSame($failure, $actual);
         }
+    }
+
+    public function testOrdinaryQuoteBypassesStockLifecycle(): void
+    {
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('beginSubmission')->willReturn(null);
+        foreach (['completeAttempt', 'handleFailure', 'endAttempt'] as $method) {
+            $reservation->expects($this->never())->method($method);
+        }
+        $this->assertSame('ordinary order', $this->submit($reservation, static fn () => 'ordinary order'));
     }
 
     private function submit(
