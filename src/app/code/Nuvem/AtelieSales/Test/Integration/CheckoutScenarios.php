@@ -105,7 +105,7 @@ if ($command === 'concurrent-compensation') {
     assertStockScenario($orders === [], 'Compensation fixture unexpectedly persisted an order.');
     $objectManager->get(QuoteStockReservation::class)->compensate($quote, $attemptId);
     assertStockScenario($fixture->movements($quoteIds) === $movements, 'Repeated compensation added movements.');
-    foreach ($summary as $row) {
+    foreach ($summary as $code => $row) {
         assertStockScenario($row['before'] === $row['after'] && $row['net'] === 0 && $row['movements'] === 2,
             'Concurrent compensation must restore each component exactly once.');
         assertStockScenario(($movementSums[$code] ?? 0) === $row['after'] - $row['before'],

@@ -5,6 +5,14 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
 
+final class StaleOrderAttemptObserver implements \Magento\Framework\Event\ObserverInterface
+{
+    public function execute(\Magento\Framework\Event\Observer $observer): void
+    {
+        $observer->getEvent()->getOrder()->setData(QuoteStockReservation::ORDER_ATTEMPT_ID, 'old-owner');
+    }
+}
+
 $payload = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $codes = array_column($payload['configuracao']['selecoes'], 'componente');
 $before = $fixture->stocks($codes);
@@ -26,6 +34,26 @@ if ($command === 'partial-reservation') {
     } finally {
         $stock->adjust('SOL-LUA-HOLO', $before['SOL-LUA-HOLO'], 'F2.3 partial reservation cleanup');
     }
+} elseif ($command === 'stale-order') {
+    $events = $objectManager->get(\Magento\Framework\Event\Config\Data::class);
+    $event = 'sales_order_save_before';
+    $events->get($event);
+    $events->merge([$event => ['f23_stale_order' => [
+        'name' => 'f23_stale_order', 'instance' => StaleOrderAttemptObserver::class,
+    ]]]);
+    try {
+        $objectManager->get(\Magento\Quote\Model\QuoteManagement::class)->submit($quote);
+        throw new LogicException('Expected stale order rejection.');
+    } catch (LocalizedException $exception) {
+        assertStockScenario(str_contains($exception->getMessage(), 'já está sendo finalizado'), $exception->getMessage());
+        assertStockScenario(!$ledger->hasOrder($quoteId), 'Stale order was persisted.');
+        assertStockScenario($ledger->getAttempt($quoteId)['state'] === 'compensated', 'Owner was not compensated.');
+        $movements = $fixture->movements([$quoteId]);
+        assertStockScenario(count($movements) === 14, 'Expected seven reservations and seven compensations.');
+        foreach ($ledger->getNetQuantitiesByQuoteId($quoteId) as $balance) {
+            assertStockScenario($balance['net'] === 0, 'Stale order left an outstanding balance.');
+        }
+    }
 } elseif ($command === 'legacy-balance') {
     $quoteStock->reserveForQuote($codes[0], 1, $quoteId);
     $movements = $fixture->movements([$quoteId]);
@@ -46,6 +74,12 @@ if ($command === 'partial-reservation') {
     $reservation->reserve($quote, $newId);
     $movements = $fixture->movements([$quoteId]);
     $pendingStock = $fixture->stocks($codes);
+    $failedOrder = $objectManager->create(\Magento\Sales\Model\Order::class);
+    $failedOrder->setQuoteId($quoteId)->setData(QuoteStockReservation::ORDER_ATTEMPT_ID, $oldId);
+    $objectManager->get(\Magento\Framework\Event\ManagerInterface::class)->dispatch(
+        'sales_model_service_quote_submit_failure',
+        ['quote' => $quote, 'order' => $failedOrder, 'exception' => new \RuntimeException('Delayed old failure.')]
+    );
     $reservation->markFailed($quote, $oldId);
     $reservation->compensate($quote, $oldId);
     assertStockScenario($ledger->getAttempt($quoteId) === ['id' => $newId, 'state' => 'active'],

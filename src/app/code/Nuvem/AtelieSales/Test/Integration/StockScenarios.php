@@ -38,11 +38,14 @@ final class FailingSubmissionObserver implements ObserverInterface
 {
     public static array $codes = [];
     public static array $atFailure = [];
+    public static ?string $stateAtFailure = null;
 
     public function execute(Observer $observer): void
     {
         $manager = ObjectManager::getInstance();
         self::$atFailure = (new CheckoutFixture($manager))->stocks(self::$codes);
+        $quoteId = (int) $observer->getEvent()->getOrder()->getQuoteId();
+        self::$stateAtFailure = $manager->get(Movimentacao::class)->getAttempt($quoteId)['state'];
         throw new LocalizedException(__('F2.3 integration: forced submission failure.'));
     }
 }
@@ -72,10 +75,10 @@ $fixture = new CheckoutFixture($objectManager);
 ConcurrentStockScenarios::waitForStart($argv);
 
 if (in_array($command, [
-    'reentry', 'recovery', 'order-snapshot', 'active-owner', 'duplicate-reservation', 'stale-failure',
+    'reentry', 'recovery', 'order-snapshot', 'active-owner', 'duplicate-reservation', 'stale-failure', 'stale-order',
     'legacy-balance', 'partial-reservation',
 ], true)) {
-    if (in_array($command, ['stale-failure', 'legacy-balance', 'partial-reservation'], true)) {
+    if (in_array($command, ['stale-failure', 'stale-order', 'legacy-balance', 'partial-reservation'], true)) {
         require __DIR__ . '/OwnershipScenarios.php';
     } else {
         require __DIR__ . '/AttemptScenarios.php';
@@ -98,7 +101,7 @@ if (in_array($command, [
     try {
         $cache->save('cached', $cacheKey, [$tag]);
         $connection->beginTransaction();
-        $quoteStock->reserveForQuote($code, 1, $quoteId);
+        $quoteStock->reserveForQuote($code, 10, $quoteId);
         assertStockScenario($cache->load($cacheKey) === 'cached', 'Cache invalidated before outer commit.');
         $connection->rollBack();
         assertStockScenario($cache->load($cacheKey) === 'cached', 'Rollback did not discard cache callback.');
@@ -106,7 +109,7 @@ if (in_array($command, [
         assertStockScenario($ledger->getNetQuantitiesByQuoteId($quoteId) === [], 'Rollback left ledger rows.');
 
         $connection->beginTransaction();
-        $quoteStock->reserveForQuote($code, 1, $quoteId);
+        $quoteStock->reserveForQuote($code, 10, $quoteId);
         $connection->commit();
         assertStockScenario($cache->load($cacheKey) === false, 'Outer commit did not invalidate FPC.');
         $cache->save('cached', $cacheKey, [$tag]);
@@ -144,7 +147,8 @@ if (in_array($command, [
     $quoteId = (int) ($argv[2] ?? 0);
     $event = $argv[3] ?? 'sales_order_place_before';
     assertStockScenario(in_array($event, [
-        'sales_order_place_before', 'sales_model_service_quote_submit_before', 'sales_model_service_quote_submit_success',
+        'sales_order_place_before', 'sales_order_save_after', 'sales_model_service_quote_submit_before',
+        'sales_model_service_quote_submit_success',
     ], true), 'Unsupported failure event.');
     $quote = $objectManager->get(CartRepositoryInterface::class)->get($quoteId);
     $quote->setCustomerIsGuest(true)->setCustomerEmail('f23-integration@example.test');
@@ -172,6 +176,9 @@ if (in_array($command, [
     }
     $net = array_column($ledger->getNetQuantitiesByQuoteId($quoteId), 'net');
     $persisted = $event === 'sales_model_service_quote_submit_success';
+    $completedAtFailure = in_array($event, ['sales_order_save_after', 'sales_model_service_quote_submit_success'], true);
+    assertStockScenario(FailingSubmissionObserver::$stateAtFailure === ($completedAtFailure ? 'completed' : 'active'),
+        'Order completion must participate in the order save transaction.');
     assertStockScenario(count($net) === 7 && count(array_unique($net)) === 1, 'Expected all seven ledger balances.');
     assertStockScenario($net[0] === ($persisted ? -1 : 0), 'Unexpected checkout compensation balance.');
     $after = $fixture->stocks($codes);
@@ -179,6 +186,8 @@ if (in_array($command, [
     $orderCount = (int) $connection->fetchOne($connection->select()
         ->from($resource->getTableName('sales_order'), ['COUNT(*)'])->where('quote_id = ?', $quoteId));
     assertStockScenario($orderCount === (int) $persisted, 'Unexpected persisted order after forced failure.');
+    assertStockScenario($ledger->getAttempt($quoteId)['state'] === ($persisted ? 'completed' : 'compensated'),
+        'Unexpected durable ownership after forced failure.');
     foreach ($before as $code => $quantity) {
         assertStockScenario(FailingSubmissionObserver::$atFailure[$code] === $quantity - 1,
             "Missing reservation at failure for $code.");
@@ -196,6 +205,8 @@ if (in_array($command, [
     echo json_encode(['event' => $event, 'database' => $database, 'quote_id' => $quoteId,
         'orders' => $orderCount, 'before' => $before,
         'at_failure' => FailingSubmissionObserver::$atFailure, 'after' => $after,
+        'state_at_failure' => FailingSubmissionObserver::$stateAtFailure,
+        'final_state' => $ledger->getAttempt($quoteId)['state'],
         'movements' => $movements,
         'balances' => $ledger->getNetQuantitiesByQuoteId($quoteId)], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), "\n";
     echo 'PASS: ', $event, $persisted ? ' preserves persisted order stock' : ' compensates all seven components', "\n";
