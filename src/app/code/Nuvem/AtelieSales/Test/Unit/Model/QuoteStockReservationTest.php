@@ -69,39 +69,52 @@ class QuoteStockReservationTest extends TestCase
                 return true;
             }
         );
-        $this->connection->expects($this->once())->method('commit')->willReturnCallback(function (): void {
-            $this->assertFalse($this->reservation->hasReservation($this->quote));
-        });
+        // First call: inside reserve() transaction for hasPendingReservation check → empty.
+        // Second call: hasReservation() after commit → reservation exists.
+        $this->ledger->method('getNetQuantitiesByQuoteId')->willReturnOnConsecutiveCalls(
+            [],
+            [['codigo' => 'CAB', 'net' => -3], ['codigo' => 'SOL', 'net' => -2]]
+        );
         $this->reservation->reserve($this->quote);
         $this->assertSame(['lock', ['CAB', 3, 99], ['SOL', 2, 99]], $calls);
         $this->assertTrue($this->reservation->hasReservation($this->quote));
     }
 
+
     public function testReservationOwnershipSurvivesReloadingTheSameQuote(): void
     {
         $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
+        // First call: inside reserve() transaction for duplicate check → empty.
+        // Second call: in hasReservation() after reserve commit → negative.
+        $this->ledger->method('getNetQuantitiesByQuoteId')->willReturnOnConsecutiveCalls(
+            [],
+            [['codigo' => 'SOL', 'net' => -1]]
+        );
         $this->reservation->reserve($this->quote);
         $reloaded = $this->createMock(Quote::class);
         $reloaded->method('getId')->willReturn(99);
         $this->assertTrue($this->reservation->hasReservation($reloaded));
-        $this->reservation->clearAttempt($reloaded);
-        $this->assertFalse($this->reservation->hasReservation($this->quote));
     }
 
-    public function testCompensationKeepsOwnershipUntilItsTransactionCommits(): void
+    public function testCompensationMakesLedgerBalancedSoHasReservationReturnsFalse(): void
     {
-        $this->reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
-        $this->reservation->reserve($this->quote);
         $reloaded = $this->createMock(Quote::class);
         $reloaded->method('getId')->willReturn(99);
-        $this->ledger->method('getNetQuantitiesByQuoteId')->willReturn([['codigo' => 'SOL', 'net' => -1]]);
-        $this->connection->expects($this->once())->method('commit')
-            ->willReturnCallback(function () use ($reloaded): void {
-                $this->assertTrue($this->reservation->hasReservation($reloaded));
-            });
+        // First call: inside compensate() → pending reservation.
+        // Second call: hasReservation() before compensate → pending.
+        // Third call: inside compensate() after compensateForQuote is called → still in same TX read.
+        // After compensate() completes, hasReservation() calls ledger → empty.
+        $this->ledger->method('getNetQuantitiesByQuoteId')->willReturnOnConsecutiveCalls(
+            [['codigo' => 'SOL', 'net' => -1]], // hasReservation() before compensate
+            [['codigo' => 'SOL', 'net' => -1]], // inside compensate() transaction
+            []                                   // hasReservation() after compensate
+        );
+        $this->stock->method('compensateForQuote')->willReturnCallback(static function (): void {});
+        $this->assertTrue($this->reservation->hasReservation($reloaded));
         $this->reservation->compensate($reloaded);
-        $this->assertFalse($this->reservation->hasReservation($this->quote));
+        $this->assertFalse($this->reservation->hasReservation($reloaded));
     }
+
 
     public function testRejectedReentryDoesNotReleaseTheOuterGuard(): void
     {
@@ -168,6 +181,12 @@ class QuoteStockReservationTest extends TestCase
         $this->ledger->expects($this->exactly(2))->method('lockQuote');
         $this->connection->expects($this->once())->method('rollBack');
         $this->connection->expects($this->once())->method('commit');
+        // Two calls inside reserve() transactions (duplicate check), one call in hasReservation() after commit.
+        $this->ledger->method('getNetQuantitiesByQuoteId')->willReturnOnConsecutiveCalls(
+            [], // first attempt: no pending reservation
+            [], // second attempt (after deadlock retry): no pending reservation
+            [['codigo' => 'CAB', 'net' => -1], ['codigo' => 'SOL', 'net' => -1]] // hasReservation() after success
+        );
         $this->reservation->reserve($this->quote);
         $this->assertSame(['CAB', 'SOL', 'CAB', 'SOL'], $calls);
         $this->assertTrue($this->reservation->hasReservation($this->quote));
@@ -181,6 +200,7 @@ class QuoteStockReservationTest extends TestCase
         $this->connection->expects($this->exactly(5))->method('beginTransaction');
         $this->connection->expects($this->exactly(5))->method('rollBack');
         $this->connection->expects($this->never())->method('commit');
+        $this->ledger->method('getNetQuantitiesByQuoteId')->willReturn([]);
         try {
             $this->reservation->reserve($this->quote);
             $this->fail('Expected exhausted deadlock retries.');

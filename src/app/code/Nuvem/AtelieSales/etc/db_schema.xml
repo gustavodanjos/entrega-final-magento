@@ -32,14 +32,14 @@
                     referenceTable="nuvem_atelie_componente" referenceColumn="componente_id"
                     onDelete="CASCADE"/>
 
-        <index referenceId="NUVEM_ATELIE_MOV_COMPONENTE_ID" indexType="btree">
+        <index referenceId="NUVEM_ATELIE_MOVIMENTACAO_COMPONENTE_ID" indexType="btree">
             <column name="componente_id"/>
         </index>
         <index referenceId="NUVEM_ATELIE_MOVIMENTACAO_QUOTE_ID_COMPONENTE_ID" indexType="btree">
             <column name="quote_id"/>
             <column name="componente_id"/>
         </index>
-        <index referenceId="NUVEM_ATELIE_MOV_ORDER_ID" indexType="btree">
+        <index referenceId="NUVEM_ATELIE_MOVIMENTACAO_ORDER_ID" indexType="btree">
             <column name="order_id"/>
         </index>
     </table>

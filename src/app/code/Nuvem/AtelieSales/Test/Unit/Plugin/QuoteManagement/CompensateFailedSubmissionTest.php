@@ -37,18 +37,25 @@ class CompensateFailedSubmissionTest extends TestCase
     /** @var int */
     private int $net = 0;
 
+    /** @var Movimentacao&MockObject */
+    private Movimentacao&MockObject $ledger;
+
+    /** @var bool */
+    private bool $hasOrder = false;
+
     protected function setUp(): void
     {
         $this->stock = $this->createMock(QuoteComponentStockInterface::class);
         $connection = $this->createMock(AdapterInterface::class);
-        $ledger = $this->createMock(Movimentacao::class);
-        $ledger->method('getConnection')->willReturn($connection);
-        $ledger->method('getNetQuantitiesByQuoteId')->willReturnCallback(
+        $this->ledger = $this->createMock(Movimentacao::class);
+        $this->ledger->method('getConnection')->willReturn($connection);
+        $this->ledger->method('getNetQuantitiesByQuoteId')->willReturnCallback(
             fn (): array => $this->net < 0 ? [['codigo' => 'SOL', 'net' => $this->net]] : []
         );
+        $this->ledger->method('hasOrder')->willReturnCallback(fn (): bool => $this->hasOrder);
         $reader = $this->createMock(QuoteItemConfigurationReader::class);
         $reader->method('getComponentQuantities')->willReturn(['SOL' => 1]);
-        $this->reservation = new QuoteStockReservation($this->stock, $reader, $ledger);
+        $this->reservation = new QuoteStockReservation($this->stock, $reader, $this->ledger);
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->plugin = new CompensateFailedSubmission($this->reservation, $this->logger);
         $this->quote = $this->createQuote();
@@ -91,7 +98,7 @@ class CompensateFailedSubmissionTest extends TestCase
         $this->assertSame(0, $this->net);
     }
 
-    public function testSuccessfulSubmissionClearsOwnershipAfterReturningTheOrder(): void
+    public function testSuccessfulSubmissionHasNoReservationBecauseOrderExists(): void
     {
         $this->expectReservations(1);
         $this->stock->expects($this->never())->method('compensateForQuote');
@@ -99,6 +106,7 @@ class CompensateFailedSubmissionTest extends TestCase
         $this->assertSame($order, $this->submit(function () use ($order) {
             $this->reservation->reserve($this->quote);
             $this->assertTrue($this->reservation->hasReservation($this->quote));
+            $this->hasOrder = true;
             return $order;
         }));
         $this->assertFalse($this->reservation->hasReservation($this->quote));
@@ -126,6 +134,7 @@ class CompensateFailedSubmissionTest extends TestCase
                 }
                 $this->assertTrue($this->reservation->hasReservation($innerQuote));
             }
+            $this->hasOrder = true;
             return $order;
         });
         $this->assertSame($order, $result);
@@ -182,6 +191,7 @@ class CompensateFailedSubmissionTest extends TestCase
             $this->assertSame(0, $this->net);
             $this->assertFalse($this->reservation->hasReservation($reloaded));
             $this->reservation->reserve($reloaded);
+            $this->hasOrder = true;
             return $order;
         }, $reloaded));
         $this->assertSame(-1, $this->net);
@@ -209,12 +219,13 @@ class CompensateFailedSubmissionTest extends TestCase
         $this->reservation->endAttempt($this->quote);
     }
 
-    public function testReusingSuccessfulQuoteCannotCompensateItsPreviousReservation(): void
+    public function testReusingSuccessfulQuoteDoesNotCompensatePersistedOrder(): void
     {
         $this->expectReservations(1);
         $this->stock->expects($this->never())->method('compensateForQuote');
         $this->submit(function (): void {
             $this->reservation->reserve($this->quote);
+            $this->hasOrder = true;
         });
         $failure = new \RuntimeException('duplicate order');
         $this->assertFailure(fn () => $this->submit(static function () use ($failure): never {

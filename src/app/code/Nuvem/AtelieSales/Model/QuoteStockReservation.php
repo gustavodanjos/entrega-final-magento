@@ -17,9 +17,6 @@ class QuoteStockReservation
     /** @var array<string, true> */
     private array $activeSubmissions = [];
 
-    /** @var array<int, true> */
-    private array $pendingReservations = [];
-
     /**
      * @param QuoteComponentStockInterface $componentStock
      * @param QuoteItemConfigurationReader $configurationReader
@@ -87,7 +84,6 @@ class QuoteStockReservation
                 $this->componentStock->reserveForQuote($code, $qty, $quoteId);
             }
         });
-        $this->pendingReservations[$quoteId] = true;
     }
 
     /**
@@ -115,25 +111,35 @@ class QuoteStockReservation
     }
 
     /**
-     * Request-local ownership survives quote reloads and failed compensation.
+     * Checks if the quote has an outstanding negative balance in the ledger and no order.
      *
      * @param Quote $quote
      * @return bool
      */
     public function hasReservation(Quote $quote): bool
     {
-        return isset($this->pendingReservations[(int) $quote->getId()]);
+        $quoteId = (int) $quote->getId();
+        if (!$quoteId) {
+            return false;
+        }
+
+        if ($this->movimentacaoResource->hasOrder($quoteId)) {
+            return false;
+        }
+
+        return $this->hasPendingReservation($quoteId);
     }
 
     /**
-     * Forget ownership after submission or compensation has completed.
+     * Clear attempt is kept for backward compatibility with callers.
      *
      * @param Quote $quote
      * @return void
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function clearAttempt(Quote $quote): void
     {
-        unset($this->pendingReservations[(int) $quote->getId()]);
+        // No-op: ledger balance and hasOrder in database are the single source of truth.
     }
 
     /**
