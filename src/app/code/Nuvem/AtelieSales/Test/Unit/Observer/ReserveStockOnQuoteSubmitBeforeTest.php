@@ -6,6 +6,7 @@ namespace Nuvem\AtelieSales\Test\Unit\Observer;
 use Magento\Framework\Event;
 use Magento\Framework\Event\Observer;
 use Magento\Quote\Model\Quote;
+use Magento\Sales\Model\Order;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
 use Nuvem\AtelieSales\Observer\ReserveStockOnQuoteSubmitBefore;
 use PHPUnit\Framework\TestCase;
@@ -26,6 +27,10 @@ class ReserveStockOnQuoteSubmitBeforeTest extends TestCase
         $reservation = $this->createMock(QuoteStockReservation::class);
         $reservation->method('getAttemptId')->willReturn('owned');
         $reservation->expects($this->once())->method("reserve")->with($quote, 'owned');
-        (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer(['event' => new Event(['quote' => $quote])]));
+        $order = $this->getMockBuilder(Order::class)->disableOriginalConstructor()->onlyMethods([])->getMock();
+        (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer([
+            'event' => new Event(['quote' => $quote, 'order' => $order]),
+        ]));
+        $this->assertSame('owned', $order->getData(QuoteStockReservation::ORDER_ATTEMPT_ID));
     }
 }

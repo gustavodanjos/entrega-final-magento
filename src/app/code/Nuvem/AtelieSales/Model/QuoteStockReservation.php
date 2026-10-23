@@ -8,6 +8,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Quote\Model\Quote;
 use Nuvem\AtelieSales\Api\QuoteComponentStockInterface;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
+use Psr\Log\LoggerInterface;
 
 class QuoteStockReservation
 {
@@ -19,9 +20,10 @@ class QuoteStockReservation
     public const STATE_PENDING = 'compensation_pending';
     public const STATE_COMPENSATED = 'compensated';
     public const STATE_COMPLETED = 'completed';
+    public const ORDER_ATTEMPT_ID = 'atelie_stock_attempt_id';
 
-    /** @var array<string, string> */
-    private array $activeSubmissions = [];
+    /** @var \WeakMap<Quote, string> */
+    private \WeakMap $activeSubmissions;
 
     /**
      * Dependencies for transactional stock orchestration.
@@ -29,12 +31,15 @@ class QuoteStockReservation
      * @param QuoteComponentStockInterface $componentStock
      * @param QuoteItemConfigurationReader $configurationReader
      * @param Movimentacao $movimentacaoResource
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly QuoteComponentStockInterface $componentStock,
         private readonly QuoteItemConfigurationReader $configurationReader,
-        private readonly Movimentacao $movimentacaoResource
+        private readonly Movimentacao $movimentacaoResource,
+        private readonly LoggerInterface $logger
     ) {
+        $this->activeSubmissions = new \WeakMap();
     }
 
     /**
@@ -45,8 +50,7 @@ class QuoteStockReservation
      */
     public function beginAttempt(Quote $quote): string
     {
-        $key = $this->getAttemptKey($quote);
-        if (isset($this->activeSubmissions[$key])) {
+        if (isset($this->activeSubmissions[$quote])) {
             $this->rejectSubmission();
         }
         $attemptId = bin2hex(random_bytes(16));
@@ -54,18 +58,25 @@ class QuoteStockReservation
             $quoteId = (int) $quote->getId();
             $this->executeTransaction($quoteId, function () use ($quoteId, $attemptId): void {
                 $attempt = $this->movimentacaoResource->getAttempt($quoteId);
+                if (in_array($attempt['state'], [self::STATE_ACTIVE, self::STATE_COMPLETED], true)) {
+                    $this->rejectSubmission();
+                }
                 if ($this->movimentacaoResource->hasOrder($quoteId)) {
                     $this->rejectSubmission();
                 }
                 if ($attempt['state'] === self::STATE_PENDING) {
+                    if (!$attempt['id']) {
+                        $this->rejectSubmission();
+                    }
                     $this->releaseStock($quoteId);
-                } elseif ($attempt['state'] === self::STATE_ACTIVE || $this->hasPendingReservation($quoteId)) {
+                }
+                if ($this->hasPendingReservation($quoteId)) {
                     $this->rejectSubmission();
                 }
                 $this->movimentacaoResource->saveAttempt($quoteId, $attemptId, self::STATE_ACTIVE);
             });
         }
-        $this->activeSubmissions[$key] = $attemptId;
+        $this->activeSubmissions[$quote] = $attemptId;
         return $attemptId;
     }
 
@@ -77,7 +88,7 @@ class QuoteStockReservation
      */
     public function getAttemptId(Quote $quote): ?string
     {
-        return $this->activeSubmissions[$this->getAttemptKey($quote)] ?? null;
+        return $this->activeSubmissions[$quote] ?? null;
     }
 
     /**
@@ -90,7 +101,7 @@ class QuoteStockReservation
     public function endAttempt(Quote $quote, string $attemptId): void
     {
         if ($this->getAttemptId($quote) === $attemptId) {
-            unset($this->activeSubmissions[$this->getAttemptKey($quote)]);
+            unset($this->activeSubmissions[$quote]);
         }
     }
 
@@ -126,7 +137,63 @@ class QuoteStockReservation
      */
     public function completeAttempt(Quote $quote, string $attemptId): void
     {
-        $this->resolveAttempt($quote, $attemptId, self::STATE_ACTIVE);
+        $this->markFailed($quote, $attemptId);
+        $this->compensate($quote, $attemptId);
+    }
+
+    /**
+     * Finalize consumption inside the transaction that saves the order.
+     *
+     * @param int $quoteId
+     * @param string $attemptId
+     * @return void
+     */
+    public function completeOrder(int $quoteId, string $attemptId): void
+    {
+        if ($this->movimentacaoResource->getConnection()->getTransactionLevel() === 0) {
+            throw new \LogicException('Stock completion requires the order save transaction.');
+        }
+        $this->executeTransaction($quoteId, function () use ($quoteId, $attemptId): void {
+            $attempt = $this->movimentacaoResource->getAttempt($quoteId);
+            if ($attempt['id'] !== $attemptId
+                || !in_array($attempt['state'], [self::STATE_ACTIVE, self::STATE_COMPLETED], true)
+                || !$this->movimentacaoResource->hasOrder($quoteId)
+            ) {
+                $this->rejectSubmission();
+            }
+            if ($attempt['state'] === self::STATE_COMPLETED) {
+                return;
+            }
+            $this->movimentacaoResource->saveAttempt($quoteId, $attemptId, self::STATE_COMPLETED);
+        });
+    }
+
+    /**
+     * Keep failed compensation recoverable without replacing the checkout error.
+     *
+     * @param Quote $quote
+     * @param string $attemptId
+     * @param \Throwable $exception
+     * @return void
+     */
+    public function handleFailure(Quote $quote, string $attemptId, \Throwable $exception): void
+    {
+        try {
+            $this->markFailed($quote, $attemptId);
+            $this->compensate($quote, $attemptId);
+        } catch (\Throwable $compensationException) {
+            try {
+                $this->logger->critical('Failed to compensate component stock.', [
+                    'quote_id' => $quote->getId(),
+                    'attempt_id' => $attemptId,
+                    'exception' => $compensationException,
+                    'submission_exception' => $exception,
+                ]);
+            } catch (\Throwable) {
+                // Logging failures must not replace the checkout exception.
+                return;
+            }
+        }
     }
 
     /**
@@ -139,18 +206,8 @@ class QuoteStockReservation
      */
     public function reserve(Quote $quote, string $attemptId): void
     {
-        $demand = [];
-        foreach ($quote->getAllItems() as $item) {
-            foreach ($this->configurationReader->getComponentQuantities($item) as $code => $qty) {
-                $demand[$code] = ($demand[$code] ?? 0) + $qty;
-            }
-        }
-        if ($demand === []) {
-            return;
-        }
-        ksort($demand);
         $quoteId = (int) $quote->getId();
-        $this->executeTransaction($quoteId, function () use ($quoteId, $demand, $attemptId): void {
+        $this->executeTransaction($quoteId, function () use ($quote, $quoteId, $attemptId): void {
             $attempt = $this->movimentacaoResource->getAttempt($quoteId);
             if ($attempt['id'] !== $attemptId || $attempt['state'] !== self::STATE_ACTIVE) {
                 $this->rejectSubmission();
@@ -158,6 +215,13 @@ class QuoteStockReservation
             if ($this->movimentacaoResource->hasOrder($quoteId)) {
                 $this->rejectSubmission();
             }
+            $demand = [];
+            foreach ($quote->getAllItems() as $item) {
+                foreach ($this->configurationReader->getComponentQuantities($item) as $code => $qty) {
+                    $demand[$code] = ($demand[$code] ?? 0) + $qty;
+                }
+            }
+            ksort($demand);
             $balances = $this->getNetQuantitiesByComponent($quoteId);
             if ($balances !== []) {
                 $expected = [];
@@ -184,26 +248,13 @@ class QuoteStockReservation
      */
     public function compensate(Quote $quote, string $attemptId): void
     {
-        $this->resolveAttempt($quote, $attemptId, self::STATE_PENDING);
-    }
-
-    /**
-     * Finalize only the matching owner in the state allowed by the caller.
-     *
-     * @param Quote $quote
-     * @param string $attemptId
-     * @param string $expectedState
-     * @return void
-     */
-    private function resolveAttempt(Quote $quote, string $attemptId, string $expectedState): void
-    {
         if (!$quote->getId()) {
             return;
         }
         $quoteId = (int) $quote->getId();
-        $this->executeTransaction($quoteId, function () use ($quoteId, $attemptId, $expectedState): void {
+        $this->executeTransaction($quoteId, function () use ($quoteId, $attemptId): void {
             $attempt = $this->movimentacaoResource->getAttempt($quoteId);
-            if ($attempt['id'] !== $attemptId || $attempt['state'] !== $expectedState) {
+            if ($attempt['id'] !== $attemptId || $attempt['state'] !== self::STATE_PENDING) {
                 return;
             }
             $state = self::STATE_COMPLETED;
@@ -324,16 +375,5 @@ class QuoteStockReservation
         }
         ksort($balances);
         return $balances;
-    }
-
-    /**
-     * Persisted identity survives reloads without conflating unrelated unsaved quotes.
-     *
-     * @param Quote $quote
-     * @return string
-     */
-    private function getAttemptKey(Quote $quote): string
-    {
-        return $quote->getId() ? 'quote:' . $quote->getId() : 'object:' . spl_object_id($quote);
     }
 }

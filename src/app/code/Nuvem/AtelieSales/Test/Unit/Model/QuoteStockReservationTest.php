@@ -14,6 +14,7 @@ use Nuvem\AtelieSales\Model\QuoteStockReservation;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class QuoteStockReservationTest extends TestCase
 {
@@ -28,6 +29,7 @@ class QuoteStockReservationTest extends TestCase
     private bool $hasOrder = false;
     private int $transactionLevel = 0;
     private array $snapshots = [];
+    private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
     {
@@ -38,14 +40,17 @@ class QuoteStockReservationTest extends TestCase
         $this->connection->method('getTransactionLevel')->willReturnCallback(fn () => $this->transactionLevel);
         $this->connection->method('beginTransaction')->willReturnCallback(function () {
             $this->snapshots[] = [$this->attempt, $this->balances];
+            $this->transactionLevel++;
             return $this->connection;
         });
         $this->connection->method('commit')->willReturnCallback(function () {
             array_pop($this->snapshots);
+            $this->transactionLevel--;
             return $this->connection;
         });
         $this->connection->method('rollBack')->willReturnCallback(function () {
             [$this->attempt, $this->balances] = array_pop($this->snapshots);
+            $this->transactionLevel--;
             return $this->connection;
         });
         $this->ledger->method('getAttempt')->willReturnCallback(fn () => $this->attempt);
@@ -55,6 +60,7 @@ class QuoteStockReservationTest extends TestCase
         $this->ledger->method('hasOrder')->willReturnCallback(fn () => $this->hasOrder);
         $this->ledger->method('getNetQuantitiesByQuoteId')->willReturnCallback(fn () => $this->balances);
         $this->reader = $this->createMock(QuoteItemConfigurationReader::class);
+        $this->logger = $this->createMock(LoggerInterface::class);
         $this->reservation = $this->newService();
         $this->quote = $this->createMock(Quote::class);
         $this->quote->method('getId')->willReturn(99);
@@ -73,6 +79,82 @@ class QuoteStockReservationTest extends TestCase
             $this->assertSame(['id' => $id, 'state' => 'active'], $this->attempt);
             $this->assertTrue($this->reservation->hasReservation($this->quote));
         }
+    }
+
+    public function testInvocationTokenIsNotSharedWithAnotherQuoteObject(): void
+    {
+        $id = $this->reservation->beginAttempt($this->quote);
+        $otherQuote = clone $this->quote;
+        $this->assertNull($this->reservation->getAttemptId($otherQuote));
+        $this->assertSame($id, $this->reservation->getAttemptId($this->quote));
+        $this->reservation->handleFailure($this->quote, $id, new \RuntimeException('checkout failed'));
+        $this->reservation->endAttempt($this->quote, $id);
+        $newId = $this->reservation->beginAttempt($otherQuote);
+        $this->assertNull($this->reservation->getAttemptId($this->quote));
+        $this->assertSame($newId, $this->reservation->getAttemptId($otherQuote));
+    }
+
+    public function testOrderAndCompletionAreRolledBackTogether(): void
+    {
+        $id = $this->reservation->beginAttempt($this->quote);
+        $this->connection->beginTransaction();
+        $this->hasOrder = true;
+        $this->reservation->completeOrder(99, $id);
+        $this->assertSame('completed', $this->attempt['state']);
+        $this->assertSame(1, $this->transactionLevel);
+
+        $this->connection->rollBack();
+        $this->hasOrder = false;
+        $this->assertSame(['id' => $id, 'state' => 'active'], $this->attempt);
+        $this->reservation->handleFailure($this->quote, $id, new \RuntimeException('order save failed'));
+        $this->assertSame('compensated', $this->attempt['state']);
+    }
+
+    public function testCommittedOrderCompletionIsIdempotentAndNeverCompensates(): void
+    {
+        $id = $this->reservation->beginAttempt($this->quote);
+        $this->connection->beginTransaction();
+        $this->hasOrder = true;
+        $this->reservation->completeOrder(99, $id);
+        $this->reservation->completeOrder(99, $id);
+        $this->connection->commit();
+        $this->stock->expects($this->never())->method('compensateForQuote');
+        $this->reservation->handleFailure($this->quote, $id, new \RuntimeException('after commit'));
+        $this->assertSame('completed', $this->attempt['state']);
+    }
+
+    public function testOrderCompletionRequiresItsResourceTransaction(): void
+    {
+        $id = $this->reservation->beginAttempt($this->quote);
+        $this->expectException(\LogicException::class);
+        $this->reservation->completeOrder(99, $id);
+    }
+
+    public function testOrderFromAnOldAttemptCannotFinalizeANewOwner(): void
+    {
+        $id = $this->reservation->beginAttempt($this->quote);
+        $this->hasOrder = true;
+        $this->connection->beginTransaction();
+        try {
+            $this->reservation->completeOrder(99, 'old-owner');
+            $this->fail('Expected stale order rejection.');
+        } catch (LocalizedException) {
+            $this->assertSame(['id' => $id, 'state' => 'active'], $this->attempt);
+        } finally {
+            $this->connection->rollBack();
+        }
+    }
+
+    public function testCompensationAndLoggingFailuresLeaveADurablePendingAttempt(): void
+    {
+        $id = $this->reservation->beginAttempt($this->quote);
+        $this->balances = [['codigo' => 'SOL', 'net' => -1]];
+        $this->stock->method('compensateForQuote')->willThrowException(new \RuntimeException('stock unavailable'));
+        $this->logger->expects($this->once())->method('critical')->willThrowException(new \Error('logger unavailable'));
+        $this->reservation->handleFailure($this->quote, $id, new \RuntimeException('original checkout failure'));
+        $this->assertSame(['id' => $id, 'state' => 'compensation_pending'], $this->attempt);
+        $this->assertSame([['codigo' => 'SOL', 'net' => -1]], $this->balances);
+        $this->assertSame(0, $this->transactionLevel);
     }
 
     public function testRejectedReentryCannotClearOuterContext(): void
@@ -283,6 +365,6 @@ class QuoteStockReservationTest extends TestCase
 
     private function newService(): QuoteStockReservation
     {
-        return new QuoteStockReservation($this->stock, $this->reader, $this->ledger);
+        return new QuoteStockReservation($this->stock, $this->reader, $this->ledger, $this->logger);
     }
 }

@@ -5,6 +5,7 @@ namespace Nuvem\AtelieSales\Observer;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Magento\Sales\Model\Order;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
 
 class ReserveStockOnQuoteSubmitBefore implements ObserverInterface
@@ -31,6 +32,10 @@ class ReserveStockOnQuoteSubmitBefore implements ObserverInterface
         $attemptId = $this->reservation->getAttemptId($quote);
         if ($attemptId === null) {
             throw new \Magento\Framework\Exception\LocalizedException(__('A tentativa de checkout não foi iniciada.'));
+        }
+        $order = $observer->getEvent()->getOrder();
+        if ($order instanceof Order) {
+            $order->setData(QuoteStockReservation::ORDER_ATTEMPT_ID, $attemptId);
         }
         $this->reservation->reserve($quote, $attemptId);
     }

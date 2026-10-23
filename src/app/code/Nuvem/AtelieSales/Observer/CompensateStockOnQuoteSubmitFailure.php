@@ -5,21 +5,16 @@ namespace Nuvem\AtelieSales\Observer;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Magento\Sales\Model\Order;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
-use Nuvem\AtelieSales\Plugin\QuoteManagement\CompensateFailedSubmission;
 
 class CompensateStockOnQuoteSubmitFailure implements ObserverInterface
 {
     /**
-     * Share failure handling with the submit boundary.
-     *
      * @param QuoteStockReservation $reservation
-     * @param CompensateFailedSubmission $submission
      */
-    public function __construct(
-        private readonly QuoteStockReservation $reservation,
-        private readonly CompensateFailedSubmission $submission
-    ) {
+    public function __construct(private readonly QuoteStockReservation $reservation)
+    {
     }
 
     /**
@@ -31,12 +26,15 @@ class CompensateStockOnQuoteSubmitFailure implements ObserverInterface
     public function execute(Observer $observer): void
     {
         $quote = $observer->getEvent()->getQuote();
-        if ($quote === null || !$quote->getId()) {
+        $order = $observer->getEvent()->getOrder();
+        if ($quote === null || !$quote->getId() || !$order instanceof Order
+            || (int) $order->getQuoteId() !== (int) $quote->getId()
+        ) {
             return;
         }
-        $attemptId = $this->reservation->getAttemptId($quote);
-        if ($attemptId !== null) {
-            $this->submission->handleFailure($quote, $attemptId, $observer->getEvent()->getException());
+        $attemptId = $order->getData(QuoteStockReservation::ORDER_ATTEMPT_ID);
+        if (is_string($attemptId) && $attemptId !== '') {
+            $this->reservation->handleFailure($quote, $attemptId, $observer->getEvent()->getException());
         }
     }
 }
