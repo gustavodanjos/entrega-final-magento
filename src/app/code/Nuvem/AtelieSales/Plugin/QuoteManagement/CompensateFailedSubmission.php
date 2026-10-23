@@ -33,9 +33,8 @@ class CompensateFailedSubmission
      */
     public function aroundSubmit(QuoteManagement $subject, callable $proceed, Quote $quote, array $orderData = [])
     {
-        $this->reservation->clearAttempt($quote);
         try {
-            return $proceed($quote, $orderData);
+            $result = $proceed($quote, $orderData);
         } catch (\Throwable $exception) {
             if ($this->reservation->hasReservation($quote)) {
                 try {
@@ -49,8 +48,10 @@ class CompensateFailedSubmission
                 }
             }
             throw $exception;
-        } finally {
-            $this->reservation->clearAttempt($quote);
         }
+
+        $this->reservation->clearAttempt($quote);
+
+        return $result;
     }
 }

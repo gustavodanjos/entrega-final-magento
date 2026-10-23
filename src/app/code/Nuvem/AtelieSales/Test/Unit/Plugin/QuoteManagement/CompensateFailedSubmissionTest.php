@@ -16,17 +16,30 @@ class CompensateFailedSubmissionTest extends TestCase
     public function testFailureOnlyCompensatesTheAttemptThatReserved(bool $ownsReservation): void
     {
         $reservation = $this->createMock(QuoteStockReservation::class);
+        $clearAttemptCount = 0;
         $reservation->method('hasReservation')->willReturn($ownsReservation);
-        $reservation->expects($ownsReservation ? $this->once() : $this->never())->method('compensate');
-        $reservation->expects($this->exactly(2))->method('clearAttempt');
+        $reservation->expects($ownsReservation ? $this->once() : $this->never())
+            ->method('compensate')
+            ->willReturnCallback(function (Quote $quote) use ($reservation): void {
+                $reservation->clearAttempt($quote);
+            });
+        $reservation->expects($ownsReservation ? $this->once() : $this->never())
+            ->method('clearAttempt')
+            ->willReturnCallback(function () use (&$clearAttemptCount): void {
+                $clearAttemptCount++;
+            });
         $plugin = new CompensateFailedSubmission($reservation, $this->createMock(LoggerInterface::class));
         $failure = new \Error('later submit_before observer failed');
         $this->expectException(\Error::class);
         $this->expectExceptionMessage($failure->getMessage());
+        $quote = $this->createMock(Quote::class);
         $plugin->aroundSubmit(
             $this->createMock(QuoteManagement::class),
-            static function () use ($failure): never { throw $failure; },
-            $this->createMock(Quote::class)
+            function () use ($failure, &$clearAttemptCount): never {
+                $this->assertSame(0, $clearAttemptCount);
+                throw $failure;
+            },
+            $quote
         );
     }
 
@@ -42,6 +55,7 @@ class CompensateFailedSubmissionTest extends TestCase
         $reservation->method('compensate')->willThrowException(new \RuntimeException('database unavailable'));
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())->method('critical');
+        $reservation->expects($this->never())->method('clearAttempt');
         $plugin = new CompensateFailedSubmission($reservation, $logger);
         $failure = new \RuntimeException('order failed');
         $this->expectExceptionObject($failure);
@@ -55,14 +69,23 @@ class CompensateFailedSubmissionTest extends TestCase
     public function testSuccessfulSubmissionPreservesTheOrderAndClearsTheAttempt(): void
     {
         $reservation = $this->createMock(QuoteStockReservation::class);
+        $clearAttemptCount = 0;
         $reservation->expects($this->never())->method('compensate');
-        $reservation->expects($this->exactly(2))->method('clearAttempt');
+        $reservation->expects($this->once())
+            ->method('clearAttempt')
+            ->willReturnCallback(function () use (&$clearAttemptCount): void {
+                $clearAttemptCount++;
+            });
         $plugin = new CompensateFailedSubmission($reservation, $this->createMock(LoggerInterface::class));
         $order = new \stdClass();
         $this->assertSame($order, $plugin->aroundSubmit(
             $this->createMock(QuoteManagement::class),
-            static fn () => $order,
+            function () use ($order, &$clearAttemptCount) {
+                $this->assertSame(0, $clearAttemptCount);
+                return $order;
+            },
             $this->createMock(Quote::class)
         ));
+        $this->assertSame(1, $clearAttemptCount);
     }
 }
