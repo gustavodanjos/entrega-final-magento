@@ -9,4 +9,8 @@
         <plugin name="nuvem_atelie_sales_strip_tampered_price"
                 type="Nuvem\AtelieSales\Plugin\Webapi\StripTamperedPricePlugin"/>
     </type>
+    <type name="Magento\Checkout\Model\Cart\ImageProvider">
+        <plugin name="nuvem_atelie_sales_preview_image"
+                type="Nuvem\AtelieSales\Plugin\Checkout\Model\Cart\PreviewImageProvider"/>
+    </type>
 </config>

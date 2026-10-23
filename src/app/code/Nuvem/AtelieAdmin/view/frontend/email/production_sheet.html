@@ -1,0 +1,19 @@
+<!--@subject {{trans "Ficha de produção #%sheet — Pedido #%order" sheet=$sheet_id order=$order_number}} @-->
+<!--@vars {
+"var sheet_id":"Número da ficha",
+"var order_number":"Número do pedido",
+"var product_name":"Nome do produto",
+"var sku":"SKU",
+"var quantity":"Quantidade de pares",
+"var size":"Tamanho",
+"var engraving":"Gravação",
+"var component_lines":"Componentes com nomes, cores e acabamentos"
+} @-->
+<h1>{{trans "Ficha de produção #%sheet" sheet=$sheet_id}}</h1>
+<p><strong>{{trans "Pedido:"}}</strong> {{var order_number}}</p>
+<p><strong>{{trans "Produto:"}}</strong> {{var product_name}} — {{var sku}}</p>
+<p><strong>{{trans "Quantidade de pares:"}}</strong> {{var quantity}}</p>
+<p><strong>{{trans "Tamanho:"}}</strong> {{var size}}</p>
+<p><strong>{{trans "Gravação:"}}</strong> {{var engraving}}</p>
+<h2>{{trans "Componentes"}}</h2>
+<pre>{{var component_lines}}</pre>
