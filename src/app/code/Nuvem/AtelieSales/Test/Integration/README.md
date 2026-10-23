@@ -24,7 +24,7 @@ php app/code/Nuvem/AtelieSales/Test/Integration/StockScenarios.php reset-fixture
 php app/code/Nuvem/AtelieSales/Test/Integration/StockScenarios.php active-owner < /path/to/kit/exemplos/configuracao-lua.json
 ```
 
-Other scenarios using the same JSON input: `stale-failure`, `legacy-balance`, `partial-reservation`, `reentry`, `recovery`, `order-snapshot`, `concurrent-compensation`, `duplicate`, and `race`. Reset the fixture before `race`. `transactions` needs no JSON. For failure observers, use `prepare` with the JSON, then `failure QUOTE_ID EVENT`; supported events are `sales_model_service_quote_submit_before`, `sales_order_place_before`, and `sales_model_service_quote_submit_success`. Observers are registered only in the test process.
+Other scenarios using the same JSON input: `stale-failure`, `legacy-balance`, `partial-reservation`, `reentry`, `recovery`, `order-snapshot`, `concurrent-compensation`, `duplicate`, `duplicate-reservation`, and `race`. Reset the fixture before `race`. `transactions` needs no JSON. For failure observers, use `prepare` with the JSON, then `failure QUOTE_ID EVENT`; supported events are `sales_model_service_quote_submit_before`, `sales_order_place_before`, and `sales_model_service_quote_submit_success`. Observers are registered only in the test process.
 
 `active-owner` starts a competing PHP process after the first process has reserved all components and before it places the order. It checks rejection and an unchanged ledger before letting the owner continue. It also verifies that saving a stale quote cannot overwrite completed ownership.
 
@@ -32,13 +32,16 @@ For upgrade preservation, record `SchemaScenario.php` before and after another `
 
 ## Evidence — 2026-10-23
 
-- Unit suite: 89 tests, 192 assertions, passing.
-- PHPCS on changed production files: zero errors and warnings. The full module has 38 existing warnings in other files and zero errors.
-- All scenarios listed above passed, including forced failures at all three supported events.
-- Clean declarative schema creation and repeated upgrade passed. The repeated upgrade preserved all 1,257 ledger rows and their SHA-256 digest. `setup:db:status` reported all modules up to date.
-- Three consecutive CLI races with 40 workers passed: each produced exactly 10 orders, 30 stock refusals, stock zero and ledger net -10.
-- Official `prova-final.sh`, `SO=corrida`, using a temporary HTTP server with 40 PHP workers and an isolated database: 10 orders, 30 clean refusals, zero server errors. Sola Lua stock changed from 10 to 0, with 10 ledger rows totaling -10 and 10 corresponding persisted orders.
-- The official script returned failure on its final public availability assertion: `/V1/atelie/disponibilidade/NUVEM-RUNNER` returns 404 because that REST route is absent from this checkout. Stock exhaustion was verified directly in MySQL. The full acceptance script is therefore **not entirely passing**.
+- Unit suite: 95 tests and 208 assertions passed.
+- PHPCS on changed production files: zero errors and warnings.
+- `setup:upgrade` completed against the isolated validation database with the availability route enabled.
+- Repeated observer scenario: one quote left exactly seven reservation ledger rows and reduced each selected component by one.
+- Forced exception at `sales_model_service_quote_submit_before`: no order persisted, all seven components returned to stock 10, and each quote ledger balance returned to zero with one compensation row.
+- Forced exception at `sales_model_service_quote_submit_success`: the order remained persisted, each component stayed at stock 9, and the quote kept one reservation row per component without compensation.
+- Eight concurrent compensation calls produced two ledger rows per component (reservation and one compensation), restored all seven stocks to 10, and reconciled each ledger delta to zero.
+- CLI race with 40 checkout workers: exactly 10 orders and 30 clean stock refusals. All seven component stocks changed from 10 to 0, and each component's total ledger delta was exactly -10.
+- Official `prova-final.sh` at Stage 5 (`SO=corrida`, `CORRIDA=40`): 10 orders, 30 clean refusals, zero 5xx, and the public endpoint reported Sola Lua unavailable. The run completed with 3 checks passed and 0 failed.
+- The public route `/V1/atelie/disponibilidade/NUVEM-RUNNER` returned the documented JSON fields and no stock quantities.
 
 ## Operational reconciliation
 
