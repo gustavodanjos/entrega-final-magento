@@ -5,4 +5,12 @@
         <plugin name="nuvem_atelieadmin_component_invalidate_cache"
                 type="Nuvem\AtelieAdmin\Plugin\Component\InvalidateCache"/>
     </type>
+    <type name="Magento\Framework\Console\CommandList">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="nuvem_atelie_stock_set" xsi:type="object">Nuvem\AtelieAdmin\Console\Command\SetStock</item>
+                <item name="nuvem_atelie_stock_show" xsi:type="object">Nuvem\AtelieAdmin\Console\Command\ShowStock</item>
+            </argument>
+        </arguments>
+    </type>
 </config>
