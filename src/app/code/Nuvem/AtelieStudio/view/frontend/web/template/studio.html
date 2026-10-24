@@ -1,17 +1,19 @@
 <div class="atelie-studio">
     <header class="atelie-studio__header">
         <div class="atelie-studio__title-wrap">
-            <h2 class="atelie-studio__title" data-bind="text: productName"></h2>
+            <h1 class="atelie-studio__title" data-bind="text: productName"></h1>
             <p class="atelie-studio__subtitle">
-                Feito à mão
+                a partir de <span data-bind="text: formattedBasePrice"></span>
                 <!-- ko if: prazoProducao() > 0 -->
-                · pronto em até <span data-bind="text: prazoProducao"></span> dias úteis
+                · pronto em <span data-bind="text: prazoProducao"></span> dias úteis
                 <!-- /ko -->
             </p>
         </div>
         <div class="atelie-studio__price" aria-live="polite" aria-atomic="true">
-            <span class="atelie-studio__price-label">Preço total</span>
             <span class="atelie-studio__price-value" data-bind="text: formattedMirrorPrice"></span>
+            <!-- ko if: extraPriceText() -->
+            <span class="atelie-studio__price-extra" data-bind="text: extraPriceText"></span>
+            <!-- /ko -->
         </div>
     </header>
 
@@ -37,10 +39,11 @@
     <section class="atelie-studio__panel" role="tabpanel"
              data-bind="attr: { id: 'atelie-panel-' + activeTab(), 'aria-label': currentGroup().nome }">
         <header class="atelie-studio__group-header">
-            <h3 class="atelie-studio__group-title" data-bind="text: currentGroup().nome"></h3>
-            <!-- ko if: currentGroup().descricao -->
-            <p class="atelie-studio__group-desc" data-bind="text: currentGroup().descricao"></p>
-            <!-- /ko -->
+            <h3 class="atelie-studio__group-title">
+                <span class="atelie-studio__group-name" data-bind="text: currentGroup().nome"></span>
+                <span class="atelie-studio__group-sep"> · </span>
+                <span class="atelie-studio__group-desc" data-bind="text: getGroupDescription(currentGroup())"></span>
+            </h3>
         </header>
 
         <div class="atelie-studio__options" role="radiogroup"
@@ -54,7 +57,7 @@
                                 'aria-disabled': $parent.isBlocked(option.codigo) ? 'true' : 'false',
                                 'aria-describedby': $parent.isBlocked(option.codigo) ? 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo : null,
                                 'aria-label': option.nome
-                                    + ($parent.getOptionPrice(option) > 0 ? ', mais ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',') + ' reais' : '')
+                                    + ($parent.getOptionPrice(option) > 0 ? ', mais ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',') + ' reais' : ', incluso')
                                     + ($parent.isSelected($parent.activeTab(), option.codigo) ? ', selecionado' : '')
                             },
                             css: {
@@ -63,64 +66,60 @@
                                 'is-esgotado': $parent.isEsgotado(option.codigo)
                             },
                             click: function () { $parent.selectOption($parent.activeTab(), option); }">
-                    <span class="atelie-swatch__color"
-                          data-bind="style: { backgroundColor: $parent.getOptionColor(option) }"></span>
+                    <span class="atelie-swatch__circle-wrap">
+                        <span class="atelie-swatch__color"
+                              data-bind="style: { backgroundColor: $parent.getOptionColor(option) }"></span>
+                        <span class="atelie-swatch__check" aria-hidden="true">✓</span>
+                    </span>
                     <span class="atelie-swatch__info">
                         <span class="atelie-swatch__name" data-bind="text: option.nome"></span>
-                        <span class="atelie-swatch__finish" data-bind="text: option.acabamento || 'liso'"></span>
-                        <!-- ko if: $parent.getOptionPrice(option) > 0 -->
                         <span class="atelie-swatch__price"
-                              data-bind="text: '+ ' + $parent.formatPrice($parent.getOptionPrice(option))"></span>
-                        <!-- /ko -->
+                              data-bind="text: $parent.getOptionPrice(option) > 0 ? '+ ' + $parent.formatPrice($parent.getOptionPrice(option)) : 'incluso'"></span>
                     </span>
                 </button>
+                <!-- ko if: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo -->
                 <div class="atelie-swatch__tooltip" role="alert"
-                     data-bind="
-                        visible: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo,
-                        text: $parent.getBlockReason(option.codigo)"></div>
+                     data-bind="attr: { id: 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo }">
+                    <p class="atelie-swatch__tooltip-text" data-bind="text: $parent.getBlockReason(option.codigo)"></p>
+                </div>
+                <!-- /ko -->
             </div>
             <!-- /ko -->
         </div>
     </section>
 
-    <section class="atelie-studio__size">
-        <span class="atelie-studio__section-label" id="atelie-size-label">Tamanho</span>
-        <div class="atelie-studio__size-grid" role="radiogroup" aria-labelledby="atelie-size-label">
-            <!-- ko foreach: gradeTamanhos -->
-            <button type="button" class="atelie-size-btn" role="radio"
-                    data-bind="text: $data,
-                        attr: { 'aria-checked': $parent.selectedSize() === $data ? 'true' : 'false' },
-                        css: { 'is-selected': $parent.selectedSize() === $data },
-                        click: function () { $parent.selectSize($data); }"></button>
-            <!-- /ko -->
-        </div>
-    </section>
+    <div class="atelie-studio__row">
+        <section class="atelie-studio__size">
+            <label class="atelie-studio__section-label" for="atelie-size-select">Tamanho</label>
+            <div class="atelie-select-wrapper">
+                <select id="atelie-size-select" class="atelie-size-select"
+                        data-bind="options: gradeTamanhos, value: selectedSize, event: { change: function (d, e) { selectSize(e.target.value); } }"></select>
+            </div>
+        </section>
 
-    <!-- ko if: permiteGravacao -->
-    <section class="atelie-studio__laser">
-        <label class="atelie-studio__laser-label" for="atelie-laser-input">
-            <span class="atelie-studio__section-label">Gravação na entressola</span>
-            <span class="atelie-studio__laser-price"
-                  data-bind="text: laserPrice() > 0 ? '+ ' + formatPrice(laserPrice()) : 'incluso'"></span>
-        </label>
-        <input type="text" id="atelie-laser-input" class="atelie-studio__laser-input" autocomplete="off"
-               data-bind="textInput: laserText,
-                    attr: {
-                        maxlength: laserLimit,
-                        placeholder: laserPlaceholder,
-                        'aria-describedby': 'atelie-laser-counter atelie-laser-hint'
-                    }">
-        <p class="atelie-studio__laser-hint" id="atelie-laser-hint">
-            Letras, números, espaço e hífen.
-            <!-- ko if: engravingBlocked() -->
-            <strong data-bind="text: engravingBlockedReason()"></strong>
-            <!-- /ko -->
-        </p>
-        <p class="atelie-studio__laser-counter" id="atelie-laser-counter" aria-live="polite">
-            <span data-bind="text: laserRemainingChars"></span> caracteres restantes
-        </p>
-    </section>
-    <!-- /ko -->
+        <!-- ko if: permiteGravacao -->
+        <section class="atelie-studio__laser">
+            <label class="atelie-studio__section-label" for="atelie-laser-input">Gravação na entressola</label>
+            <div class="atelie-laser-wrapper">
+                <input type="text" id="atelie-laser-input" class="atelie-studio__laser-input" autocomplete="off"
+                       data-bind="textInput: laserText,
+                            attr: {
+                                maxlength: laserLimit,
+                                placeholder: laserPlaceholder,
+                                'aria-describedby': 'atelie-laser-hint'
+                            }">
+                <span class="atelie-laser-counter" data-bind="text: laserCounterText"></span>
+            </div>
+            <p class="atelie-studio__laser-hint" id="atelie-laser-hint">
+                <span data-bind="text: laserPrice() > 0 ? '+ ' + formatPrice(laserPrice()) : 'incluso'"></span>
+                · letras, números e espaço
+                <!-- ko if: engravingBlocked() -->
+                <strong data-bind="text: ' · ' + engravingBlockedReason()"></strong>
+                <!-- /ko -->
+            </p>
+        </section>
+        <!-- /ko -->
+    </div>
 
     <div class="atelie-studio__actions">
         <button type="submit" form="product_addtocart_form" class="atelie-studio__submit">

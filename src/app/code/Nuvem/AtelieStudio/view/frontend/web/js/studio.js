@@ -1,8 +1,7 @@
 define([
     'uiComponent',
-    'ko',
-    'underscore'
-], function (Component, ko, _) {
+    'ko'
+], function (Component, ko) {
     'use strict';
 
     return Component.extend({
@@ -13,11 +12,12 @@ define([
         initObservable: function () {
             this._super();
 
-            var config = this.getConfigData();
+            var rawConfig = this.getConfigData();
+            var catalog = this.normalizeCatalog(rawConfig);
 
-            this.initCatalog(config);
-            this.initObservables(config);
-            this.initSelections(config);
+            this.catalog = catalog;
+            this.initCatalogObservables(catalog);
+            this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
             this.initComputed();
 
             return this;
@@ -30,82 +30,143 @@ define([
                 || {};
         },
 
-        initCatalog: function (config) {
-            var grupos = config.grupos || [];
+        /**
+         * Normaliza o payload bruto do catálogo em entidades canônicas do domínio.
+         * Garante contrato único e desacopla a UI de variações ad-hoc do JSON.
+         */
+        normalizeCatalog: function (raw) {
+            var rawProduct = raw.produto || {};
+            var rawGrupos = raw.grupos || [];
+            var rawRegras = raw.regras || [];
 
-            grupos = grupos.map(function (grupo) {
-                var itens = grupo.componentes || grupo.opcoes || grupo.itens || [];
-                grupo.itens = itens;
-                return grupo;
+            var product = {
+                sku: String(rawProduct.sku || ''),
+                nome: String(rawProduct.nome || 'Ateliê Nuvem'),
+                precoBase: parseFloat(rawProduct.preco_base) || 0,
+                prazoProducaoDias: parseInt(rawProduct.prazo_producao_dias, 10) || 0,
+                gradeTamanhos: Array.isArray(rawProduct.grade_tamanhos) ? rawProduct.grade_tamanhos : [],
+                gravacao: {
+                    permitida: !!(rawProduct.gravacao && rawProduct.gravacao.permitida),
+                    preco: parseFloat(rawProduct.gravacao && rawProduct.gravacao.preco) || 0,
+                    limiteCaracteres: parseInt(rawProduct.gravacao && rawProduct.gravacao.limite_caracteres, 10) || 12,
+                    placeholder: (rawProduct.gravacao && rawProduct.gravacao.placeholder) || 'Ex: NUVEM'
+                }
+            };
+
+            var componentMap = {};
+            var grupos = rawGrupos.map(function (g) {
+                var rawComps = g.componentes || g.opcoes || g.itens || [];
+                var componentes = rawComps.map(function (c) {
+                    var precoAdicional = parseFloat(c.preco_adicional);
+                    if (isNaN(precoAdicional)) {
+                        precoAdicional = 0;
+                    }
+                    var comp = {
+                        codigo: String(c.codigo),
+                        nome: String(c.nome || c.codigo),
+                        corHex: String(c.cor_hex || '#FFFFFF'),
+                        acabamento: String(c.acabamento || ''),
+                        precoAdicional: precoAdicional,
+                        disponivel: c.disponivel !== false,
+                        padrao: !!c.padrao,
+                        grupoCodigo: String(g.codigo),
+                        // Compatibilidade retroativa de propriedades
+                        cor_hex: String(c.cor_hex || '#FFFFFF'),
+                        preco_adicional: precoAdicional
+                    };
+                    componentMap[comp.codigo] = comp;
+                    return comp;
+                });
+
+                return {
+                    codigo: String(g.codigo),
+                    nome: String(g.nome || g.codigo),
+                    ordem: parseInt(g.ordem, 10) || 0,
+                    camadaSvg: String(g.camada_svg || ''),
+                    descricao: g.descricao || '',
+                    componentes: componentes,
+                    // Compatibilidade de acesso
+                    itens: componentes
+                };
             });
 
+            // Ordena os grupos estritamente pela coluna ordem do banco
             grupos.sort(function (a, b) {
-                return (parseInt(a.ordem, 10) || 0) - (parseInt(b.ordem, 10) || 0);
+                return a.ordem - b.ordem;
             });
 
-            this.grupos = ko.observableArray(grupos);
-            this.regras = config.regras || [];
+            var regras = rawRegras.map(function (r) {
+                return {
+                    codigo: String(r.codigo || ''),
+                    tipo: String(r.tipo || '').toLowerCase().trim(),
+                    origem: String(r.origem || ''),
+                    alvoTipo: String(r.alvo_tipo || r.alvoTipo || '').toLowerCase().trim(),
+                    alvo: String(r.alvo || ''),
+                    mensagem: String(r.mensagem || 'Combinação indisponível para esta configuração.')
+                };
+            });
 
-            var produto = config.produto || {};
-            this.productName = ko.observable(produto.nome || 'Ateliê Nuvem');
-            this.prazoProducao = ko.observable(parseInt(produto.prazo_producao_dias, 10) || 0);
-
-            var basePrice = parseFloat(produto.preco_base);
-            this.basePrice = ko.observable(!isNaN(basePrice) ? basePrice : 0);
-
-            var grade = produto.grade_tamanhos || [];
-            this.gradeTamanhos = ko.observableArray(grade);
-
-            var gravacao = produto.gravacao || {};
-            this.permiteGravacao = ko.observable(!!gravacao.permitida);
-            this.laserPrice = ko.observable(parseFloat(gravacao.preco) || 0);
-            this.laserLimit = ko.observable(parseInt(gravacao.limite_caracteres, 10) || 12);
-            this.laserPlaceholder = ko.observable(gravacao.placeholder || 'Ex: NUVEM');
-
-            this.activeTab = ko.observable(grupos.length > 0 ? grupos[0].codigo : '');
+            return {
+                product: product,
+                grupos: grupos,
+                componentMap: componentMap,
+                regras: regras
+            };
         },
 
-        initObservables: function (config) {
-            var cfgInicial = config.configuracao_inicial || {};
+        initCatalogObservables: function (catalog) {
+            this.grupos = ko.observableArray(catalog.grupos);
+            this.productName = ko.observable(catalog.product.nome);
+            this.prazoProducao = ko.observable(catalog.product.prazoProducaoDias);
+            this.basePrice = ko.observable(catalog.product.precoBase);
+            this.gradeTamanhos = ko.observableArray(catalog.product.gradeTamanhos);
+
+            this.permiteGravacao = ko.observable(catalog.product.gravacao.permitida);
+            this.laserPrice = ko.observable(catalog.product.gravacao.preco);
+            this.laserLimit = ko.observable(catalog.product.gravacao.limiteCaracteres);
+            this.laserPlaceholder = ko.observable(catalog.product.gravacao.placeholder);
+
+            // A aba inicial é sempre o primeiro código disponível da lista ordenada
+            var firstTab = catalog.grupos.length > 0 ? catalog.grupos[0].codigo : '';
+            this.activeTab = ko.observable(firstTab);
+            this.activeTooltip = ko.observable(null);
+        },
+
+        initSelectionObservables: function (catalog, cfgInicial) {
+            var self = this;
+            var selecoesIniciais = cfgInicial.selecoes || [];
+            var selecaoPorGrupo = {};
+
+            selecoesIniciais.forEach(function (s) {
+                if (s && s.grupo && s.componente) {
+                    selecaoPorGrupo[s.grupo] = s.componente;
+                }
+            });
 
             var tamanhoInicial = parseInt(cfgInicial.tamanho, 10);
-            if (isNaN(tamanhoInicial) || this.gradeTamanhos.indexOf(tamanhoInicial) === -1) {
-                var gradeArr = this.gradeTamanhos();
-                tamanhoInicial = gradeArr.indexOf(38) !== -1 ? 38 : (gradeArr[0] || null);
+            var gradeArr = this.gradeTamanhos();
+            if (isNaN(tamanhoInicial) || gradeArr.indexOf(tamanhoInicial) === -1) {
+                tamanhoInicial = gradeArr.indexOf(38) !== -1 ? 38 : (gradeArr[0] || 38);
             }
             this.selectedSize = ko.observable(tamanhoInicial);
 
             var gravacaoInicial = cfgInicial.gravacao || '';
             this.laserText = ko.observable(gravacaoInicial ? String(gravacaoInicial) : '');
 
-            this.activeTooltip = ko.observable(null);
-        },
-
-        initSelections: function (config) {
-            var self = this;
-            var cfgInicial = config.configuracao_inicial || {};
-            var selecoesIniciais = cfgInicial.selecoes || [];
-
-            var selecaoPorGrupo = {};
-            selecoesIniciais.forEach(function (s) {
-                selecaoPorGrupo[s.grupo] = s.componente;
-            });
-
             this.selections = {};
-
-            this.grupos().forEach(function (grupo) {
+            catalog.grupos.forEach(function (grupo) {
                 var codigoInicial = selecaoPorGrupo[grupo.codigo];
 
-                var encontrado = (grupo.itens || []).some(function (c) {
+                var encontrado = (grupo.componentes || []).some(function (c) {
                     return c.codigo === codigoInicial;
                 });
 
                 if (!encontrado) {
-                    var padrao = (grupo.itens || []).find(function (c) { return c.padrao; });
+                    var padrao = (grupo.componentes || []).find(function (c) { return c.padrao; });
                     if (padrao) {
                         codigoInicial = padrao.codigo;
-                    } else if (grupo.itens.length > 0) {
-                        codigoInicial = grupo.itens[0].codigo;
+                    } else if (grupo.componentes.length > 0) {
+                        codigoInicial = grupo.componentes[0].codigo;
                     } else {
                         codigoInicial = '';
                     }
@@ -126,40 +187,46 @@ define([
                         return lista[i];
                     }
                 }
-                return lista[0] || { codigo: '', nome: '', itens: [] };
+                return lista[0] || { codigo: '', nome: '', componentes: [] };
             });
 
             this.currentOptions = ko.pureComputed(function () {
-                return self.currentGroup().itens || [];
+                return self.currentGroup().componentes || [];
             });
 
             this.selectedComponents = ko.pureComputed(function () {
                 var map = {};
                 self.grupos().forEach(function (grupo) {
                     var codigo = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
-                    if (codigo) {
-                        var opt = (grupo.itens || []).find(function (c) { return c.codigo === codigo; });
-                        if (opt) {
-                            map[grupo.codigo] = opt;
-                        }
+                    if (codigo && self.catalog.componentMap[codigo]) {
+                        map[grupo.codigo] = self.catalog.componentMap[codigo];
                     }
                 });
                 return map;
             });
 
+            this.selectedComponentsList = ko.pureComputed(function () {
+                var list = [];
+                var selMap = self.selectedComponents();
+                Object.keys(selMap).forEach(function (k) {
+                    list.push(selMap[k]);
+                });
+                return list;
+            });
+
             this.blockedMap = ko.pureComputed(function () {
-                return self.computeBlockedMap(self.selectedComponents());
+                return self.computeBlockedMap(self.selectedComponentsList());
             });
 
             this.invalidSelections = ko.pureComputed(function () {
-                return self.computeInvalidSelections(self.selectedComponents());
+                return self.computeInvalidSelections(self.selectedComponentsList());
             });
 
             this.esgotadoMap = ko.pureComputed(function () {
                 var map = {};
                 self.grupos().forEach(function (grupo) {
-                    (grupo.itens || []).forEach(function (opt) {
-                        if (opt.disponivel === false) {
+                    (grupo.componentes || []).forEach(function (opt) {
+                        if (!opt.disponivel) {
                             map[opt.codigo] = true;
                         }
                     });
@@ -168,7 +235,7 @@ define([
             });
 
             this.engravingBlockedReason = ko.pureComputed(function () {
-                return self.computeEngravingBlockReason(self.selectedComponents());
+                return self.computeEngravingBlockReason(self.selectedComponentsList());
             });
 
             this.engravingBlocked = ko.pureComputed(function () {
@@ -180,12 +247,8 @@ define([
 
                 self.grupos().forEach(function (grupo) {
                     var codigo = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
-                    if (!codigo) {
-                        return;
-                    }
-                    var opt = (grupo.itens || []).find(function (c) { return c.codigo === codigo; });
-                    if (opt) {
-                        total += self.getOptionPrice(opt);
+                    if (codigo && self.catalog.componentMap[codigo]) {
+                        total += self.catalog.componentMap[codigo].precoAdicional;
                     }
                 });
 
@@ -200,9 +263,24 @@ define([
                 return self.formatPrice(self.mirrorPrice());
             });
 
+            this.formattedBasePrice = ko.pureComputed(function () {
+                return self.formatPrice(self.basePrice());
+            });
+
+            this.extraPriceText = ko.pureComputed(function () {
+                var diff = Math.round((self.mirrorPrice() - self.basePrice()) * 100) / 100;
+                return diff > 0 ? '+ ' + self.formatPrice(diff) + ' em escolhas suas' : '';
+            });
+
             this.laserRemainingChars = ko.pureComputed(function () {
                 var max = self.laserLimit();
                 return Math.max(0, max - self.laserText().length);
+            });
+
+            this.laserCounterText = ko.pureComputed(function () {
+                var current = (self.laserText() || '').length;
+                var max = self.laserLimit();
+                return current + '/' + max;
             });
 
             this.validationErrors = ko.pureComputed(function () {
@@ -214,43 +292,41 @@ define([
             });
         },
 
-        computeBlockedMap: function (selectedMap) {
+        computeBlockedMap: function (selectedList) {
             var self = this;
             var blocked = {};
 
-            var selectedList = [];
-            _.each(selectedMap, function (opt) {
-                selectedList.push(opt);
-            });
-
-            function isSelected(value, tipoAlvo) {
+            function isCodeSelected(code) {
                 return selectedList.some(function (opt) {
-                    if (tipoAlvo === 'acabamento') {
-                        return self.normalize(opt.acabamento) === self.normalize(value);
-                    }
-                    return self.normalize(opt.codigo) === self.normalize(value);
+                    return self.normalize(opt.codigo) === self.normalize(code);
                 });
             }
 
-            self.regras.forEach(function (regra) {
-                var tipo = self.normalize(regra.tipo);
+            function isFinishSelected(finish) {
+                return selectedList.some(function (opt) {
+                    return self.normalize(opt.acabamento) === self.normalize(finish);
+                });
+            }
+
+            self.catalog.regras.forEach(function (regra) {
+                var tipo = regra.tipo;
                 var origem = regra.origem;
-                var alvoTipo = self.normalize(regra.alvo_tipo || regra.alvoTipo || '');
+                var alvoTipo = regra.alvoTipo;
                 var alvo = regra.alvo;
-                var msg = regra.mensagem || 'Combinação indisponível para esta configuração.';
+                var msg = regra.mensagem;
 
                 if (tipo === 'bloqueia') {
                     if (alvoTipo === 'componente') {
-                        if (isSelected(origem, 'componente') && !isSelected(alvo, 'componente')) {
+                        if (isCodeSelected(origem) && !isCodeSelected(alvo)) {
                             blocked[alvo] = msg;
-                        } else if (isSelected(alvo, 'componente') && !isSelected(origem, 'componente')) {
+                        } else if (isCodeSelected(alvo) && !isCodeSelected(origem)) {
                             blocked[origem] = msg;
                         }
                     } else if (alvoTipo === 'acabamento') {
-                        if (isSelected(origem, 'componente')) {
-                            self.grupos().forEach(function (grupo) {
-                                (grupo.itens || []).forEach(function (opt) {
-                                    if (self.normalize(opt.acabamento) === self.normalize(alvo)) {
+                        if (isCodeSelected(origem)) {
+                            self.catalog.grupos.forEach(function (grupo) {
+                                grupo.componentes.forEach(function (opt) {
+                                    if (self.normalize(opt.acabamento) === self.normalize(alvo) && !isCodeSelected(opt.codigo)) {
                                         blocked[opt.codigo] = msg;
                                     }
                                 });
@@ -259,11 +335,11 @@ define([
                     }
                 } else if (tipo === 'exige') {
                     if (alvoTipo === 'acabamento') {
-                        if (!isSelected(alvo, 'acabamento')) {
+                        if (!isFinishSelected(alvo)) {
                             blocked[origem] = msg;
                         }
                     } else if (alvoTipo === 'componente') {
-                        if (!isSelected(alvo, 'componente')) {
+                        if (!isCodeSelected(alvo)) {
                             blocked[origem] = msg;
                         }
                     }
@@ -273,40 +349,38 @@ define([
             return blocked;
         },
 
-        computeInvalidSelections: function (selectedMap) {
+        computeInvalidSelections: function (selectedList) {
             var self = this;
             var invalid = {};
 
-            var selectedList = [];
-            _.each(selectedMap, function (opt) {
-                selectedList.push(opt);
-            });
-
-            function isSelected(value, tipoAlvo) {
+            function isCodeSelected(code) {
                 return selectedList.some(function (opt) {
-                    if (tipoAlvo === 'acabamento') {
-                        return self.normalize(opt.acabamento) === self.normalize(value);
-                    }
-                    return self.normalize(opt.codigo) === self.normalize(value);
+                    return self.normalize(opt.codigo) === self.normalize(code);
                 });
             }
 
-            self.regras.forEach(function (regra) {
-                var tipo = self.normalize(regra.tipo);
+            function isFinishSelected(finish) {
+                return selectedList.some(function (opt) {
+                    return self.normalize(opt.acabamento) === self.normalize(finish);
+                });
+            }
+
+            self.catalog.regras.forEach(function (regra) {
+                var tipo = regra.tipo;
                 var origem = regra.origem;
-                var alvoTipo = self.normalize(regra.alvo_tipo || regra.alvoTipo || '');
+                var alvoTipo = regra.alvoTipo;
                 var alvo = regra.alvo;
-                var msg = regra.mensagem || 'Combinação inválida.';
+                var msg = regra.mensagem;
 
                 if (tipo === 'bloqueia' && alvoTipo === 'componente') {
-                    if (isSelected(origem, 'componente') && isSelected(alvo, 'componente')) {
+                    if (isCodeSelected(origem) && isCodeSelected(alvo)) {
                         invalid[alvo] = msg;
                     }
                 } else if (tipo === 'exige') {
-                    if (isSelected(origem, 'componente')) {
+                    if (isCodeSelected(origem)) {
                         var alvoOk = (alvoTipo === 'acabamento')
-                            ? isSelected(alvo, 'acabamento')
-                            : isSelected(alvo, 'componente');
+                            ? isFinishSelected(alvo)
+                            : isCodeSelected(alvo);
                         if (!alvoOk) {
                             invalid[origem] = msg;
                         }
@@ -317,31 +391,20 @@ define([
             return invalid;
         },
 
-        computeEngravingBlockReason: function (selectedMap) {
+        computeEngravingBlockReason: function (selectedList) {
             var self = this;
-
             if (!self.permiteGravacao()) {
                 return '';
             }
 
-            var selectedList = [];
-            _.each(selectedMap, function (opt) {
-                selectedList.push(opt);
-            });
-
             var reason = '';
-
-            self.regras.forEach(function (regra) {
-                var tipo = self.normalize(regra.tipo);
-                var origem = regra.origem;
-                var alvoTipo = self.normalize(regra.alvo_tipo || regra.alvoTipo || '');
-
-                if (tipo === 'bloqueia' && alvoTipo === 'gravacao') {
+            self.catalog.regras.forEach(function (regra) {
+                if (regra.tipo === 'bloqueia' && regra.alvoTipo === 'gravacao') {
                     var origemSelecionada = selectedList.some(function (opt) {
-                        return self.normalize(opt.codigo) === self.normalize(origem);
+                        return self.normalize(opt.codigo) === self.normalize(regra.origem);
                     });
                     if (origemSelecionada) {
-                        reason = regra.mensagem || 'Esta combinação não permite gravação.';
+                        reason = regra.mensagem;
                     }
                 }
             });
@@ -358,16 +421,19 @@ define([
                 if (!codigo) {
                     errors.push('Escolha uma opção para ' + (grupo.nome || grupo.codigo) + '.');
                 } else {
-                    var opt = (grupo.itens || []).find(function (c) { return c.codigo === codigo; });
+                    var opt = self.catalog.componentMap[codigo];
                     if (opt && self.isEsgotado(opt.codigo)) {
                         errors.push('"' + (opt.nome || opt.codigo) + '" está esgotado. Escolha outra opção.');
                     }
                 }
             });
 
-            _.each(self.invalidSelections(), function (msg) {
-                errors.push(msg);
-            });
+            var invalidMap = self.invalidSelections();
+            if (invalidMap) {
+                Object.keys(invalidMap).forEach(function (k) {
+                    errors.push(invalidMap[k]);
+                });
+            }
 
             var tamanho = self.selectedSize();
             if (!tamanho || self.gradeTamanhos.indexOf(tamanho) === -1) {
@@ -407,10 +473,6 @@ define([
             return !!this.invalidSelections()[code];
         },
 
-        /**
-         * Estado "esgotado" — derivado do estoque carregado no JSON.
-         * A F3.7 (polling) pode atualizar o estoque e este computed reage.
-         */
         isEsgotado: function (code) {
             return !!this.esgotadoMap()[code];
         },
@@ -494,16 +556,38 @@ define([
             this.activeTooltip(null);
         },
 
+        getGroupDescription: function (grupo) {
+            if (!grupo) {
+                return '';
+            }
+            if (grupo.descricao) {
+                return grupo.descricao;
+            }
+            var descriptions = {
+                'cabedal': 'a parte de cima, que abraça o pé',
+                'biqueira': 'a ponta que protege os dedos',
+                'calcanhar': 'apoio traseiro e firmeza',
+                'cadarco': 'amarração e ajuste no peito do pé',
+                'emblema': 'o detalhe da nossa nuvem artesanal',
+                'entressola': 'o amortecimento e base do conforto',
+                'solado': 'o contato direto com o chão'
+            };
+            return descriptions[grupo.codigo] || '';
+        },
+
         getOptionColor: function (opt) {
             if (!opt) {
                 return '#E6E1F2';
             }
-            return opt.cor_hex || '#E6E1F2';
+            return opt.corHex || opt.cor_hex || '#E6E1F2';
         },
 
         getOptionPrice: function (opt) {
             if (!opt) {
                 return 0;
+            }
+            if (typeof opt.precoAdicional === 'number') {
+                return opt.precoAdicional;
             }
             var v = parseFloat(opt.preco_adicional);
             return isNaN(v) ? 0 : v;
