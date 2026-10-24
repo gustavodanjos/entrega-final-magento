@@ -1,330 +1,627 @@
-// Tokens e Variáveis Locais
-@nuvem-magenta-profundo: #732353;
-@nuvem-grafite: #383838;
-@nuvem-nevoa: #F6F4F9;
+// ============================================================
+//  Nuvem_AtelieStudio · Estúdio (F3.2) — Match 100% Mockup
+//  Manual de Marca Nuvem Ateliê
+// ============================================================
+
+@nuvem-ceu: #BEE3F8;
+@nuvem-menta: #C6F0DC;
+@nuvem-rosa: #F7C6E4;
+@nuvem-lavanda: #DCCFF7;
+@nuvem-pessego: #FFD8C2;
+@nuvem-baunilha: #FFF1B8;
+@nuvem-fundo: #FBFAFF;
+@nuvem-nevoa: #F3F0FF;
 @nuvem-bruma: #E6E1F2;
+@nuvem-grafite: #2E2A3B;
+@nuvem-grafite-suave: #5E5873;
+@nuvem-magenta: #A3307A;
+@nuvem-ceu-profundo: #25618A;
+@nuvem-menta-profunda: #1D6B4B;
+@nuvem-coral: #A8322A;
 @nuvem-branco: #FFFFFF;
 
-& when (@media-common = true) {
-    .atelie-studio {
-        color: @nuvem-grafite;
-        font-family: 'Nunito', sans-serif;
+@nuvem-raio-campo: 8px;
+@nuvem-raio-msg: 14px;
+@nuvem-raio-card: 22px;
+@nuvem-raio-pilula: 999px;
 
-        .atelie-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 24px;
+// Oculta os blocos de compra nativos padrão do Magento
+form#product_addtocart_form,
+.box-tocart,
+.product-info-price,
+.product-addto-links,
+.product-social-links,
+.action.towishlist,
+.action.tocompare {
+    display: none !important;
+}
 
-            .atelie-title {
-                font-size: 28px;
-                font-weight: 700;
-                color: @nuvem-magenta-profundo;
-                margin: 0;
-            }
+// Container principal do estúdio
+.atelie-studio-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    margin-bottom: 40px;
+}
 
-            .atelie-subtitle {
-                font-size: 14px;
-                color: @nuvem-grafite;
-                opacity: 0.8;
-                margin-top: 4px;
-            }
+// ------------------------------------------------------------
+//  Palco da Pré-visualização (Left Column)
+// ------------------------------------------------------------
+.atelie-studio__stage {
+    background-color: @nuvem-nevoa;
+    border-radius: @nuvem-raio-card;
+    padding: 32px 32px 28px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 520px;
 
-            .atelie-mirror-price {
-                text-align: right;
+    &::before, &::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        z-index: 0;
+        pointer-events: none;
+    }
+    &::before {
+        width: 380px;
+        height: 380px;
+        background: rgba(220, 207, 247, 0.45);
+        top: -40px;
+        left: -40px;
+    }
+    &::after {
+        width: 340px;
+        height: 340px;
+        background: rgba(247, 198, 228, 0.4);
+        bottom: -40px;
+        right: -40px;
+    }
 
-                .atelie-price-label {
-                    font-size: 11px;
-                    letter-spacing: 0.05em;
-                    text-transform: uppercase;
-                    color: @nuvem-grafite;
-                    opacity: 0.7;
-                    display: block;
-                }
+    .atelie-studio__svg {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 500px;
+        margin: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
-                .atelie-price-value {
-                    font-size: 32px;
-                    font-weight: 700;
-                    color: @nuvem-magenta-profundo;
-                    line-height: 1.1;
-                }
-            }
-        }
-
-        // Abas em Pílula
-        .atelie-tabs-nav {
-            display: flex;
-            gap: 8px;
-            border-bottom: 1px solid @nuvem-bruma;
-            padding-bottom: 12px;
-            margin-bottom: 24px;
-            overflow-x: auto;
-
-            .atelie-tab-btn {
-                background: @nuvem-nevoa;
-                border: 1px solid transparent;
-                border-radius: 999px;
-                padding: 8px 18px;
-                font-size: 14px;
-                font-weight: 600;
-                color: @nuvem-grafite;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                white-space: nowrap;
-
-                &:hover {
-                    background: @nuvem-bruma;
-                }
-
-                &.is-active {
-                    background: @nuvem-magenta-profundo;
-                    color: @nuvem-branco;
-                }
-            }
-        }
-
-        // Painel e Cabeçalho do Grupo
-        .atelie-tab-panel {
-            .atelie-group-header {
-                margin-bottom: 16px;
-
-                .atelie-group-title {
-                    font-size: 18px;
-                    font-weight: 700;
-                    color: @nuvem-grafite;
-                    margin: 0 0 4px;
-                }
-
-                .atelie-group-desc {
-                    font-size: 13px;
-                    color: @nuvem-grafite;
-                    opacity: 0.7;
-                    margin: 0;
-                }
-            }
-        }
-
-        // Grade de Amostras
-        .atelie-options-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-
-        .atelie-swatch-wrapper {
-            position: relative;
-        }
-
-        .atelie-swatch {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        svg {
             width: 100%;
-            padding: 12px 14px;
-            background: @nuvem-branco;
-            border: 2px solid @nuvem-bruma;
-            border-radius: 12px;
-            cursor: pointer;
-            text-align: left;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-
-            &:hover {
-                border-color: @nuvem-grafite;
-            }
-
-            &.is-selected {
-                border: 2px solid @nuvem-magenta-profundo;
-                box-shadow: 0 0 0 2px rgba(115, 35, 83, 0.2);
-            }
-
-            // Estado Bloqueado: translúcido com risco diagonal
-            &.is-blocked {
-                opacity: 0.55;
-                background: @nuvem-nevoa;
-                border-style: dashed;
-                cursor: help;
-                position: relative;
-
-                &::after {
-                    content: '';
-                    position: absolute;
-                    top: 50%;
-                    left: 8%;
-                    right: 8%;
-                    height: 2px;
-                    background: #E02B27;
-                    transform: rotate(-15deg);
-                    pointer-events: none;
-                }
-            }
-
-            .atelie-swatch-color {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                border: 2px solid @nuvem-grafite;
-                flex-shrink: 0;
-                display: inline-block;
-            }
-
-            .atelie-swatch-info {
-                display: flex;
-                flex-direction: column;
-                gap: 2px;
-                overflow: hidden;
-
-                .atelie-swatch-name {
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: @nuvem-grafite;
-                }
-
-                .atelie-swatch-finish {
-                    font-size: 11px;
-                    color: @nuvem-grafite;
-                    opacity: 0.7;
-                    text-transform: capitalize;
-                }
-
-                .atelie-swatch-badge {
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: @nuvem-magenta-profundo;
-                }
-            }
+            height: auto;
+            display: block;
         }
 
-        // Balão Explicativo Amigável
-        .atelie-block-balloon {
-            position: absolute;
-            bottom: 100%;
-            margin-bottom: 10px;
-            left: 0;
-            right: 0;
-            background: #2D2D2D;
-            color: @nuvem-branco;
-            font-size: 12px;
-            line-height: 1.4;
-            padding: 10px 12px;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-            z-index: 50;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-
-            &::after {
-                content: '';
-                position: absolute;
-                top: 100%;
-                left: 24px;
-                border: 6px solid transparent;
-                border-top-color: #2D2D2D;
-            }
-
-            .atelie-balloon-text {
-                font-weight: 500;
-            }
-
-            .atelie-balloon-close {
-                background: transparent;
-                border: none;
-                color: #FFFFFF;
-                font-size: 18px;
-                cursor: pointer;
-                padding: 0 4px;
-                line-height: 1;
-                opacity: 0.8;
-                &:hover { opacity: 1; }
-            }
-        }
-
-        // Grade de Tamanhos
-        .atelie-size-section {
-            margin-top: 24px;
-            .atelie-section-label {
-                font-size: 14px;
-                font-weight: 600;
-                color: @nuvem-grafite;
-                display: block;
-                margin-bottom: 8px;
-            }
-            .atelie-size-grid {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-
-                .atelie-size-btn {
-                    min-width: 44px;
-                    height: 40px;
-                    padding: 0 8px;
-                    background: @nuvem-branco;
-                    border: 1px solid @nuvem-bruma;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: @nuvem-grafite;
-                    cursor: pointer;
-
-                    &.is-selected {
-                        background: @nuvem-magenta-profundo;
-                        border-color: @nuvem-magenta-profundo;
-                        color: @nuvem-branco;
-                    }
-                }
-            }
-        }
-
-        // Gravação a Laser
-        .atelie-laser-section {
-            margin-top: 24px;
-
-            .atelie-laser-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 8px;
-
-                .atelie-section-label {
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: @nuvem-grafite;
-                }
-
-                .atelie-laser-badge {
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: @nuvem-magenta-profundo;
-                }
-            }
-
-            .atelie-laser-input {
-                width: 100%;
-                height: 44px;
-                padding: 8px 14px;
-                border: 1.6px solid @nuvem-bruma;
-                border-radius: 8px;
-                font-size: 14px;
-                color: @nuvem-grafite;
-                box-sizing: border-box;
-                outline: none;
-
-                &:focus {
-                    border-color: @nuvem-magenta-profundo;
-                    box-shadow: 0 0 0 2px rgba(115, 35, 83, 0.2);
-                }
-            }
-
-            .atelie-laser-counter {
-                font-size: 12px;
-                color: @nuvem-grafite;
-                opacity: 0.7;
-                text-align: right;
-                margin-top: 4px;
-            }
+        [data-pintar] {
+            transition: fill 0.3s ease, stroke 0.3s ease;
         }
     }
+}
+
+// ------------------------------------------------------------
+//  Painel de Decisões do Estúdio (Right Column)
+// ------------------------------------------------------------
+.atelie-studio {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    color: @nuvem-grafite;
+    font-family: @font-family-name__base;
+
+    &__header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__title-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__title {
+        font-family: @heading__font-family__base;
+        font-size: 36px;
+        font-weight: 700;
+        color: @nuvem-grafite;
+        margin: 0;
+        line-height: 1.1;
+    }
+
+    &__subtitle {
+        font-size: 14px;
+        color: @nuvem-grafite-suave;
+        margin: 0;
+    }
+
+    &__price {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    &__price-value {
+        font-size: 36px;
+        font-weight: 800;
+        color: @nuvem-grafite;
+        line-height: 1;
+    }
+
+    &__price-extra {
+        font-size: 14px;
+        font-weight: 500;
+        color: @nuvem-grafite-suave;
+    }
+
+    // Abas de Grupos (Pills)
+    &__tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0;
+        margin: 8px 0;
+        border: none;
+    }
+
+    &__tab {
+        background: @nuvem-branco;
+        border: 1.5px solid @nuvem-bruma;
+        border-radius: @nuvem-raio-pilula;
+        padding: 8px 18px;
+        font-family: @font-family-name__base;
+        font-size: 14px;
+        font-weight: 500;
+        color: @nuvem-grafite;
+        cursor: pointer;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.2s ease;
+
+        &.is-active {
+            background: @nuvem-grafite;
+            color: @nuvem-branco;
+            border-color: @nuvem-grafite;
+            font-weight: 600;
+        }
+
+        &:hover:not(.is-active) {
+            border-color: @nuvem-grafite;
+        }
+
+        &:focus-visible {
+            outline: 3px solid @nuvem-magenta;
+            outline-offset: 2px;
+        }
+    }
+
+    // Título e descrição do grupo ativo
+    &__group-header {
+        margin: 4px 0 12px;
+    }
+
+    &__group-title {
+        font-size: 15px;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    &__group-name {
+        font-weight: 700;
+        color: @nuvem-grafite;
+    }
+
+    &__group-sep {
+        color: @nuvem-grafite-suave;
+    }
+
+    &__group-desc {
+        font-weight: 400;
+        color: @nuvem-grafite-suave;
+    }
+
+    // Grid de amostras de componentes (3 colunas)
+    &__options {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px 16px;
+        margin-bottom: 20px;
+    }
+
+    // Linha de Tamanho e Gravação lado a lado
+    &__row {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+        margin-bottom: 8px;
+    }
+
+    &__size {
+        flex: 0 0 120px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__laser {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__section-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: @nuvem-grafite;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    // Select customizado para Tamanho
+    .atelie-select-wrapper {
+        position: relative;
+        width: 100%;
+
+        &::after {
+            content: '';
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid @nuvem-grafite;
+            pointer-events: none;
+        }
+    }
+
+    .atelie-size-select {
+        width: 100%;
+        height: 48px;
+        border: 1.6px solid @nuvem-bruma;
+        border-radius: @nuvem-raio-campo;
+        background: @nuvem-branco;
+        font-family: @font-family-name__base;
+        font-size: 15px;
+        font-weight: 600;
+        color: @nuvem-grafite;
+        padding: 0 36px 0 16px;
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        transition: border-color 0.2s;
+
+        &:focus {
+            border-color: @nuvem-magenta;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(163, 48, 122, 0.2);
+        }
+    }
+
+    // Input customizado para Gravação
+    .atelie-laser-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    &__laser-input {
+        width: 100%;
+        height: 48px;
+        border: 1.6px solid @nuvem-bruma;
+        border-radius: @nuvem-raio-campo;
+        background: @nuvem-branco;
+        font-family: @font-family-name__base;
+        font-size: 15px;
+        font-weight: 600;
+        color: @nuvem-grafite;
+        letter-spacing: 0.05em;
+        padding: 0 56px 0 16px;
+        transition: border-color 0.2s;
+
+        &:focus {
+            border-color: @nuvem-magenta;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(163, 48, 122, 0.2);
+        }
+    }
+
+    .atelie-laser-counter {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 13px;
+        color: @nuvem-grafite-suave;
+        pointer-events: none;
+    }
+
+    &__laser-hint {
+        font-size: 12px;
+        color: @nuvem-grafite-suave;
+        margin: 6px 0 0;
+
+        strong {
+            color: @nuvem-coral;
+        }
+    }
+
+    // Botão Adicionar ao Carrinho
+    &__actions {
+        margin-top: 12px;
+    }
+
+    &__submit {
+        width: 100%;
+        min-height: 54px;
+        background: @nuvem-magenta;
+        color: @nuvem-branco;
+        border: none;
+        border-radius: @nuvem-raio-pilula;
+        font-family: @font-family-name__base;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+            background: darken(@nuvem-magenta, 6%);
+        }
+
+        &:focus-visible {
+            outline: 3px solid @nuvem-grafite;
+            outline-offset: 2px;
+        }
+    }
+}
+
+// ------------------------------------------------------------
+//  Amostras de Componente (Swatches) e Quatro Estados
+// ------------------------------------------------------------
+.atelie-swatch-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+.atelie-swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 0;
+    gap: 8px;
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+
+    &:hover, &:focus, &:active {
+        background: transparent !important;
+        outline: none !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    &:focus-visible .atelie-swatch__color {
+        outline: 3px solid @nuvem-magenta;
+        outline-offset: 2px;
+    }
+
+    &__circle-wrap {
+        position: relative;
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    &__color {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 1.6px solid @nuvem-grafite;
+        position: absolute;
+        top: 0;
+        left: 0;
+        box-sizing: border-box;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    // 1. Estado Selecionado: Anel Magenta + Badge de Check
+    &.is-selected &__color {
+        box-shadow: 0 0 0 2px @nuvem-branco, 0 0 0 4.5px @nuvem-magenta;
+        border-color: @nuvem-grafite;
+    }
+
+    &__check {
+        display: none;
+        position: absolute;
+        top: -3px;
+        right: -3px;
+        width: 20px;
+        height: 20px;
+        background: @nuvem-magenta;
+        color: @nuvem-branco;
+        border-radius: 50%;
+        border: 2px solid @nuvem-branco;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        z-index: 2;
+    }
+
+    &.is-selected &__check {
+        display: flex;
+    }
+
+    // 2. Estado Bloqueado: Traço diagonal cortando o círculo
+    &.is-blocked &__color {
+        cursor: pointer;
+
+        &::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -2px;
+            right: -2px;
+            height: 1.6px;
+            background: @nuvem-grafite;
+            transform: rotate(-45deg);
+        }
+    }
+
+    // 3. Estado Esgotado
+    &.is-esgotado &__color {
+        background-color: @nuvem-nevoa !important;
+        border-style: dashed;
+        border-color: @nuvem-grafite-suave;
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    &__esgotado-text {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 10px;
+        font-weight: 700;
+        color: @nuvem-grafite-suave;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        z-index: 2;
+    }
+
+    &.is-esgotado &__esgotado-text {
+        display: block;
+    }
+
+    // Textos informativos da amostra
+    &__info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
+
+    &__name {
+        font-size: 13px;
+        font-weight: 600;
+        color: @nuvem-grafite;
+        line-height: 1.3;
+    }
+
+    &.is-blocked &__name {
+        color: @nuvem-grafite-suave;
+    }
+
+    &__price {
+        font-size: 12px;
+        color: @nuvem-grafite-suave;
+    }
+}
+
+// ------------------------------------------------------------
+//  Tooltip de Bloqueio (Ancorado abaixo da amostra bloqueada)
+// ------------------------------------------------------------
+.atelie-swatch__tooltip {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: @nuvem-grafite;
+    color: @nuvem-branco;
+    font-size: 12px;
+    line-height: 1.4;
+    border-radius: @nuvem-raio-campo;
+    padding: 12px 16px;
+    width: max-content;
+    max-width: 240px;
+    text-align: left;
+    box-shadow: 0 8px 24px rgba(46, 42, 59, 0.25);
+    z-index: 100;
+    pointer-events: none;
+
+    &::before {
+        content: '';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-bottom-color: @nuvem-grafite;
+    }
+
+    &-text {
+        margin: 0;
+        color: @nuvem-branco;
+    }
+}
+
+// ------------------------------------------------------------
+//  Responsividade (Desktop >= 1024px & Mobile)
+// ------------------------------------------------------------
+@media (min-width: 1024px) {
+    .atelie-studio-wrapper {
+        flex-direction: row;
+        gap: 60px;
+        align-items: flex-start;
+    }
+
+    .atelie-studio__stage {
+        flex: 0 0 55%;
+        max-width: 55%;
+        position: sticky;
+        top: 20px;
+    }
+
+    .atelie-studio {
+        flex: 1 1 45%;
+        max-width: calc(45% - 60px);
+    }
+}
+
+@media (max-width: 767px) {
+    .atelie-studio {
+        &__title {
+            font-size: 26px;
+        }
+
+        &__price-value {
+            font-size: 28px;
+        }
+
+        &__row {
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        &__size {
+            flex: 1 1 auto;
+            width: 100%;
+        }
+    }
+}
+
+// Salvaguarda: garantir visibilidade do cabeçalho
+.page-header {
+    display: block !important;
 }
