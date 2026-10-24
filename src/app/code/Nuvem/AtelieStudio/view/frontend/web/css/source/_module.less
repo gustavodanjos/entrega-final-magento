@@ -625,3 +625,10 @@ form#product_addtocart_form,
 .page-header {
     display: block !important;
 }
+
+// F3.3 — smooth color transition on SVG painted layers
+.atelie-camada [data-pintar],
+.atelie-studio__svg [data-pintar],
+[data-pintar] {
+    transition: fill 0.3s ease, stroke 0.3s ease;
+}

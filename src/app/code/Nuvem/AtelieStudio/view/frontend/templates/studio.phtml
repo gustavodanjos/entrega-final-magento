@@ -7,41 +7,108 @@ $viewModel = $block->getData('view_model');
 $jsLayout = $viewModel
     ? $viewModel->getMergedJsLayout($block->getJsLayout())
     : $block->getJsLayout();
-
-$svgContent = '';
-$svgPath = $block->getViewFileUrl('Nuvem_AtelieStudio::images/camadas/tenis-completo.svg');
-$svgFile = BP . '/pub/' . ltrim((string) parse_url($svgPath, PHP_URL_PATH), '/');
-
-if (is_file($svgFile)) {
-    $svgContent = (string) file_get_contents($svgFile);
-}
-
-// Fallback para o módulo (garante funcionamento em dev/developer mode)
-if (empty($svgContent)) {
-    $moduleSvg = BP . '/app/code/Nuvem/AtelieStudio/view/frontend/web/images/camadas/tenis-completo.svg';
-    if (is_file($moduleSvg)) {
-        $svgContent = (string) file_get_contents($moduleSvg);
-    }
-}
 ?>
 <div id="atelie-studio-app"
      class="atelie-studio-wrapper"
      data-bind="scope: 'atelieStudio'">
 
+    <!-- Coluna Esquerda: Palco da Pré-visualização SVG ao Vivo (F3.3) -->
     <div class="atelie-studio__stage">
-        <?php if ($svgContent !== ''): ?>
-            <div class="atelie-studio__svg"
+        <div class="atelie-studio__svg">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 viewBox="0 0 620 290"
+                 width="620"
+                 height="290"
                  role="img"
-                 aria-label="<?= $escaper->escapeHtmlAttr(__('Pré-visualização do tênis personalizado')) ?>">
-                <?= /* @noEscape */ $svgContent ?>
-            </div>
-        <?php else: ?>
-            <p class="atelie-studio__svg-fallback">
-                <?= $escaper->escapeHtml(__('Pré-visualização indisponível.')) ?>
-            </p>
-        <?php endif; ?>
+                 data-bind="attr: { 'aria-label': svgAriaLabel }">
+                <g id="camada-sombra">
+                    <ellipse cx="314" cy="262" rx="262" ry="12" fill="#2E2A3B" opacity="0.10"/>
+                </g>
+                <g id="camada-solado" class="atelie-camada" data-grupo="solado"
+                   data-bind="atelieCamada: 'camada-solado'">
+                    <path id="solado-cor" data-pintar="fill" d="M62,234 L562,234 Q570,246 552,252 L84,252 Q60,250 62,234 Z" fill="#DCCFF7" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                </g>
+                <g id="camada-entressola" class="atelie-camada" data-grupo="entressola"
+                   data-bind="atelieCamada: 'camada-entressola'">
+                    <path id="entressola-cor" data-pintar="fill" d="M64,212 L566,212 Q572,224 562,234 L62,234 Q57,223 64,212 Z" fill="#FBFAFF" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                </g>
+                <g id="camada-cabedal" class="atelie-camada" data-grupo="cabedal"
+                   data-bind="atelieCamada: 'camada-cabedal'">
+                    <path id="cabedal-cor" data-pintar="fill" d="M66,212 C58,170 60,122 78,92 Q122,96 160,116 Q186,126 200,108 L214,78 Q226,70 237,82 L252,102 Q330,140 412,160 Q500,176 548,190 Q570,199 566,212 Z" fill="#C6F0DC" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                </g>
+                <g id="camada-calcanhar" class="atelie-camada" data-grupo="calcanhar"
+                   data-bind="atelieCamada: 'camada-calcanhar'">
+                    <path id="calcanhar-cor" data-pintar="fill" d="M66,212 C58,170 60,122 78,92 Q100,93 120,101 Q108,156 144,212 Z" fill="#F7C6E4" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                </g>
+                <g id="camada-biqueira" class="atelie-camada" data-grupo="biqueira"
+                   data-bind="atelieCamada: 'camada-biqueira'">
+                    <path id="biqueira-cor" data-pintar="fill" d="M474,170 Q512,178 548,190 Q570,199 566,212 L466,212 Q452,190 474,170 Z" fill="#BEE3F8" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                </g>
+                <g id="camada-emblema" class="atelie-camada" data-grupo="emblema"
+                   data-bind="atelieCamada: 'camada-emblema'">
+                    <path id="emblema-cor" data-pintar="fill" d="M258,198 a14,14 0 0,1 6,-27 a21,21 0 0,1 39,-8 a16,16 0 0,1 26,12 a13,13 0 0,1 -3,23 Z" fill="#FFD8C2" stroke="#2E2A3B" stroke-width="3" stroke-linejoin="round"/>
+                </g>
+                <g id="camada-cadarco" class="atelie-camada" data-grupo="cadarco"
+                   data-bind="atelieCamada: 'camada-cadarco'">
+                    <g stroke="#2E2A3B" stroke-width="9" stroke-linecap="round">
+                        <line x1="262" y1="114" x2="288" y2="100"/>
+                        <line x1="291" y1="126" x2="317" y2="112"/>
+                        <line x1="320" y1="137" x2="346" y2="124"/>
+                        <line x1="349" y1="147" x2="375" y2="135"/>
+                        <line x1="378" y1="156" x2="404" y2="145"/>
+                    </g>
+                    <g id="cadarco-cor" data-pintar="stroke" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round">
+                        <line x1="262" y1="114" x2="288" y2="100"/>
+                        <line x1="291" y1="126" x2="317" y2="112"/>
+                        <line x1="320" y1="137" x2="346" y2="124"/>
+                        <line x1="349" y1="147" x2="375" y2="135"/>
+                        <line x1="378" y1="156" x2="404" y2="145"/>
+                    </g>
+                </g>
+                <g id="camada-detalhes" fill="none" stroke="#2E2A3B" stroke-linecap="round">
+                    <path d="M86,104 Q124,108 158,126" stroke-width="1.6" stroke-dasharray="5 5" opacity="0.55"/>
+                    <path d="M120,104 Q112,156 146,206" stroke-width="1.6" stroke-dasharray="5 5" opacity="0.55"/>
+                    <path d="M478,176 Q458,192 470,206" stroke-width="1.6" stroke-dasharray="5 5" opacity="0.55"/>
+                    <line x1="96" y1="240" x2="106" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="122" y1="240" x2="132" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="148" y1="240" x2="158" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="174" y1="240" x2="184" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="200" y1="240" x2="210" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="226" y1="240" x2="236" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="252" y1="240" x2="262" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="278" y1="240" x2="288" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="304" y1="240" x2="314" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="330" y1="240" x2="340" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="356" y1="240" x2="366" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="382" y1="240" x2="392" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="408" y1="240" x2="418" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="434" y1="240" x2="444" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="460" y1="240" x2="470" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="486" y1="240" x2="496" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="512" y1="240" x2="522" y2="248" stroke-width="2" opacity="0.35"/>
+                    <line x1="538" y1="240" x2="548" y2="248" stroke-width="2" opacity="0.35"/>
+                </g>
+                <g id="camada-ilhoses" fill="#FBFAFF" stroke="#2E2A3B" stroke-width="2">
+                    <circle cx="260" cy="117" r="3.2"/>
+                    <circle cx="289" cy="129" r="3.2"/>
+                    <circle cx="318" cy="140" r="3.2"/>
+                    <circle cx="347" cy="150" r="3.2"/>
+                    <circle cx="376" cy="159" r="3.2"/>
+                </g>
+                <g id="camada-gravacao">
+                    <text id="gravacao-texto"
+                          x="96" y="228"
+                          font-family="Quicksand, Quicksand Light, Nunito, sans-serif"
+                          font-size="13" font-weight="700"
+                          letter-spacing="2.5"
+                          fill="#2E2A3B"
+                          data-bind="text: engravingPreviewText"></text>
+                </g>
+            </svg>
+        </div>
     </div>
 
+    <!-- Coluna Direita: Painel do Configurador (Knockout Template) -->
     <!-- ko template: getTemplate() --><!-- /ko -->
 </div>
 

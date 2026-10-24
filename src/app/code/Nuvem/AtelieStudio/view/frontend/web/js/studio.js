@@ -4,6 +4,50 @@ define([
 ], function (Component, ko) {
     'use strict';
 
+    /**
+     * Custom Binding solicitado no backlog (F3.3).
+     * Aplica a cor da camada baseada no observable de seleção.
+     */
+    ko.bindingHandlers.atelieCamada = {
+        init: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
+            if (typeof ko.bindingHandlers.atelieCamada.update === 'function') {
+                ko.bindingHandlers.atelieCamada.update(element, valueAccessor, allBindings, viewModel, bindingContext);
+            }
+        },
+        update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
+            var camadaId = ko.unwrap(valueAccessor());
+            if (!camadaId) {
+                return;
+            }
+
+            var vm = (bindingContext && bindingContext.$data) || viewModel;
+            if (!vm || typeof vm.getLayerColor !== 'function') {
+                return;
+            }
+
+            var color = vm.getLayerColor(camadaId);
+            if (!color) {
+                return;
+            }
+
+            var targets = element.querySelectorAll ? element.querySelectorAll('[data-pintar]') : [];
+            if (targets.length === 0 && element.hasAttribute && element.hasAttribute('data-pintar')) {
+                targets = [element];
+            }
+
+            for (var i = 0; i < targets.length; i++) {
+                var target = targets[i];
+                var attr = target.getAttribute('data-pintar') || 'fill';
+                if (attr !== 'fill' && attr !== 'stroke') {
+                    attr = 'fill';
+                }
+                if (target.getAttribute(attr) !== color) {
+                    target.setAttribute(attr, color);
+                }
+            }
+        }
+    };
+
     return Component.extend({
         defaults: {
             template: 'Nuvem_AtelieStudio/studio'
@@ -19,6 +63,8 @@ define([
             this.initCatalogObservables(catalog);
             this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
             this.initComputed();
+            this.initPreview();
+            this.autoResolveBlockedSelections();
 
             return this;
         },
@@ -290,6 +336,21 @@ define([
             this.isValid = ko.pureComputed(function () {
                 return self.validationErrors().length === 0;
             });
+
+            this.engravingPreviewText = ko.pureComputed(function () {
+                if (!self.permiteGravacao() || self.engravingBlocked()) {
+                    return '';
+                }
+                var text = self.laserText() || '';
+                if (text.length > self.laserLimit()) {
+                    text = text.substring(0, self.laserLimit());
+                }
+                return text;
+            });
+
+            this.svgAriaLabel = ko.pureComputed(function () {
+                return self.buildAriaLabel();
+            });
         },
 
         computeBlockedMap: function (selectedList) {
@@ -317,16 +378,17 @@ define([
 
                 if (tipo === 'bloqueia') {
                     if (alvoTipo === 'componente') {
-                        if (isCodeSelected(origem) && !isCodeSelected(alvo)) {
+                        if (isCodeSelected(origem)) {
                             blocked[alvo] = msg;
-                        } else if (isCodeSelected(alvo) && !isCodeSelected(origem)) {
+                        }
+                        if (isCodeSelected(alvo)) {
                             blocked[origem] = msg;
                         }
                     } else if (alvoTipo === 'acabamento') {
                         if (isCodeSelected(origem)) {
                             self.catalog.grupos.forEach(function (grupo) {
                                 grupo.componentes.forEach(function (opt) {
-                                    if (self.normalize(opt.acabamento) === self.normalize(alvo) && !isCodeSelected(opt.codigo)) {
+                                    if (self.normalize(opt.acabamento) === self.normalize(alvo)) {
                                         blocked[opt.codigo] = msg;
                                     }
                                 });
@@ -487,11 +549,11 @@ define([
                 return;
             }
 
-            if (this.isEsgotado(option.codigo) && !this.isSelected(grupoCodigo, option.codigo)) {
+            if (this.isEsgotado(option.codigo)) {
                 return;
             }
 
-            if (this.isBlocked(option.codigo) && !this.isSelected(grupoCodigo, option.codigo)) {
+            if (this.isBlocked(option.codigo)) {
                 this.activeTooltip(option.codigo);
                 return;
             }
@@ -499,7 +561,33 @@ define([
             this.activeTooltip(null);
             if (this.selections[grupoCodigo]) {
                 this.selections[grupoCodigo](option.codigo);
+                this.autoResolveBlockedSelections();
             }
+        },
+
+        /**
+         * Auto-resolve seleções de grupos que se tornaram incompatíveis/bloqueadas
+         * após a alteração de outro componente, revertendo-as para o padrão válido do grupo.
+         */
+        autoResolveBlockedSelections: function () {
+            var self = this;
+            var blocked = self.blockedMap();
+            self.grupos().forEach(function (grupo) {
+                var currentCode = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
+                if (currentCode && blocked[currentCode]) {
+                    var fallback = (grupo.componentes || []).find(function (c) {
+                        return c.padrao && !blocked[c.codigo] && !self.isEsgotado(c.codigo);
+                    });
+                    if (!fallback) {
+                        fallback = (grupo.componentes || []).find(function (c) {
+                            return !blocked[c.codigo] && !self.isEsgotado(c.codigo);
+                        });
+                    }
+                    if (fallback) {
+                        self.selections[grupo.codigo](fallback.codigo);
+                    }
+                }
+            });
         },
 
         switchTab: function (grupoCodigo) {
@@ -582,6 +670,46 @@ define([
             return opt.corHex || opt.cor_hex || '#E6E1F2';
         },
 
+        /**
+         * F3.3: Localiza o grupo correspondente a uma camada SVG específica.
+         * Suporta busca por camadaSvg, codigo ou prefixo camada-[codigo].
+         */
+        getGroupByCamada: function (camadaId) {
+            if (!camadaId) {
+                return null;
+            }
+            var grupos = this.grupos ? this.grupos() : [];
+            for (var i = 0; i < grupos.length; i++) {
+                var g = grupos[i];
+                if (g.camadaSvg === camadaId || g.camada_svg === camadaId || g.codigo === camadaId || ('camada-' + g.codigo) === camadaId) {
+                    return g;
+                }
+            }
+            return null;
+        },
+
+        /**
+         * F3.3: Obtém a cor atual selecionada para a camada indicada.
+         * Garante dependência reativa do Knockout sem acoplamento a grupos específicos.
+         */
+        getLayerColor: function (camadaId) {
+            if (!camadaId) {
+                return null;
+            }
+            var grupo = this.getGroupByCamada(camadaId);
+            if (!grupo) {
+                return null;
+            }
+
+            if (this.selections && this.selections[grupo.codigo]) {
+                this.selections[grupo.codigo]();
+            }
+            var selectedMap = this.selectedComponents ? this.selectedComponents() : {};
+            var selectedOpt = selectedMap[grupo.codigo];
+
+            return selectedOpt ? (selectedOpt.corHex || selectedOpt.cor_hex || null) : null;
+        },
+
         getOptionPrice: function (opt) {
             if (!opt) {
                 return 0;
@@ -625,6 +753,117 @@ define([
         getUrl: function (key) {
             var cfg = this.getConfigData();
             return (cfg.urls && cfg.urls[key]) || '';
+        },
+
+        initPreview: function () {
+            var self = this;
+            if (typeof document === 'undefined') {
+                return;
+            }
+            var root = self.element || document.getElementById('atelie-studio-app');
+            if (!root) {
+                return;
+            }
+
+            var gruposByCodigo = {};
+            self.grupos().forEach(function (grupo) {
+                gruposByCodigo[grupo.codigo] = grupo;
+            });
+
+            self.svgNodes = {};
+            var svgGroups = root.querySelectorAll('.atelie-camada');
+            Array.prototype.forEach.call(svgGroups, function (gEl) {
+                var grupoCodigo = gEl.getAttribute('data-grupo') || '';
+                var grupoObj = gruposByCodigo[grupoCodigo];
+                if (!grupoObj) {
+                    return;
+                }
+                self.svgNodes[grupoCodigo] = gEl;
+            });
+
+            // Força a pintura imperativa sempre que a seleção mudar
+            self.svgPaintComputed = ko.computed(function () {
+                self.selectedComponents();
+                self.paintSvg();
+                self.paintEngraving();
+                self.paintAriaLabel();
+            });
+        },
+
+        paintSvg: function () {
+            var self = this;
+            var root = this.element || document.getElementById('atelie-studio-app');
+            if (!root) { return; }
+
+            var selections = self.selectedComponents();
+            self.grupos().forEach(function (grupo) {
+                var opt = selections[grupo.codigo];
+                if (!opt || !opt.corHex) { return; }
+
+                var gEl = root.querySelector('.atelie-camada[data-grupo="' + grupo.codigo + '"]');
+                if (!gEl) { return; }
+
+                var target = gEl.querySelector('[data-pintar]');
+                if (!target) { return; }
+
+                var attr = target.getAttribute('data-pintar');
+                if (attr !== 'fill' && attr !== 'stroke') { attr = 'fill'; }
+
+                if (target.getAttribute(attr) !== opt.corHex) {
+                    target.setAttribute(attr, opt.corHex);
+                }
+            });
+        },
+
+        paintEngraving: function () {
+            var root = this.element || document.getElementById('atelie-studio-app');
+            if (!root) { return; }
+            var el = root.querySelector('#gravacao-texto');
+            if (!el) { return; }
+
+            if (!this.permiteGravacao() || this.engravingBlocked()) {
+                el.textContent = '';
+                return;
+            }
+
+            var value = this.laserText() || '';
+            if (value.length > this.laserLimit()) {
+                value = value.substring(0, this.laserLimit());
+            }
+
+            el.textContent = String(value);
+        },
+
+        paintAriaLabel: function () {
+            var root = this.element || document.getElementById('atelie-studio-app');
+            if (!root) { return; }
+            var el = root.querySelector('.atelie-studio__svg');
+            if (!el) { return; }
+            el.setAttribute('aria-label', this.buildAriaLabel());
+        },
+
+        buildAriaLabel: function () {
+            var parts = [];
+            var nome = this.productName ? this.productName() : '';
+            if (nome) {
+                parts.push(nome);
+            }
+
+            var selections = this.selectedComponents ? this.selectedComponents() : {};
+            var listaGrupos = this.grupos ? this.grupos() : [];
+            listaGrupos.forEach(function (grupo) {
+                var opt = selections[grupo.codigo];
+                if (opt && opt.nome) {
+                    parts.push(grupo.nome + ': ' + opt.nome);
+                }
+            });
+
+            var laser = this.laserText ? String(this.laserText() || '').trim() : '';
+            if (laser !== '' && (!this.engravingBlocked || !this.engravingBlocked())) {
+                parts.push('Gravação: ' + laser);
+            }
+
+            return parts.length ? (parts.join('. ') + '.') : 'Pré-visualização do tênis personalizado.';
         }
     });
 });
