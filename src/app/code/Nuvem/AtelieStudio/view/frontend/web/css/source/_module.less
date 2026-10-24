@@ -325,12 +325,21 @@ form#product_addtocart_form,
         color: @nuvem-grafite;
         letter-spacing: 0.05em;
         padding: 0 56px 0 16px;
-        transition: border-color 0.2s;
+        transition: border-color 0.2s, background-color 0.2s, opacity 0.2s;
 
         &:focus {
             border-color: @nuvem-magenta;
             outline: none;
             box-shadow: 0 0 0 2px rgba(163, 48, 122, 0.2);
+        }
+
+        &:disabled {
+            background-color: @nuvem-nevoa;
+            border-color: @nuvem-bruma;
+            color: @nuvem-grafite-suave;
+            cursor: not-allowed;
+            opacity: 0.85;
+            box-shadow: none;
         }
     }
 
@@ -351,6 +360,12 @@ form#product_addtocart_form,
 
         strong {
             color: @nuvem-coral;
+        }
+
+        .atelie-laser-blocked-reason {
+            display: inline-block;
+            color: @nuvem-coral;
+            font-weight: 700;
         }
     }
 
@@ -598,6 +613,7 @@ form#product_addtocart_form,
     box-shadow: 0 8px 24px rgba(46, 42, 59, 0.25);
     z-index: 100;
     pointer-events: none;
+    animation: atelieTooltipFadeIn 0.2s ease-out;
 
     &::before {
         content: '';
@@ -609,9 +625,33 @@ form#product_addtocart_form,
         border-bottom-color: @nuvem-grafite;
     }
 
+    &-badge {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: @nuvem-magenta;
+        color: @nuvem-branco;
+        padding: 2px 7px;
+        border-radius: @nuvem-raio-pilula;
+        margin-bottom: 6px;
+    }
+
     &-text {
         margin: 0;
         color: @nuvem-branco;
+    }
+}
+
+@keyframes atelieTooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -6px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
     }
 }
 
