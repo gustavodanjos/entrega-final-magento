@@ -56,9 +56,11 @@
                                 'aria-checked': ($parent.isSelected($parent.activeTab(), option.codigo) && !$parent.isBlocked(option.codigo)) ? 'true' : 'false',
                                 'aria-disabled': $parent.isBlocked(option.codigo) ? 'true' : 'false',
                                 'aria-describedby': $parent.isBlocked(option.codigo) ? 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo : null,
+                                title: $parent.isBlocked(option.codigo) ? $parent.getBlockReason(option.codigo) : ($parent.getOptionHint(option.codigo) || option.nome),
                                 'aria-label': option.nome
                                     + ($parent.getOptionPrice(option) > 0 ? ', mais ' + $parent.getOptionPrice(option).toFixed(2).replace('.', ',') + ' reais' : ', incluso')
                                     + (($parent.isSelected($parent.activeTab(), option.codigo) && !$parent.isBlocked(option.codigo)) ? ', selecionado' : '')
+                                    + ($parent.isBlocked(option.codigo) ? ', bloqueado: ' + $parent.getBlockReason(option.codigo) : '')
                             },
                             css: {
                                 'is-selected': $parent.isSelected($parent.activeTab(), option.codigo) && !$parent.isBlocked(option.codigo),
@@ -80,6 +82,9 @@
                 <!-- ko if: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo -->
                 <div class="atelie-swatch__tooltip" role="alert"
                      data-bind="attr: { id: 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo }">
+                    <!-- ko if: $parent.isExigeRule(option.codigo) -->
+                    <span class="atelie-swatch__tooltip-badge">Dica</span>
+                    <!-- /ko -->
                     <p class="atelie-swatch__tooltip-text" data-bind="text: $parent.getBlockReason(option.codigo)"></p>
                 </div>
                 <!-- /ko -->
@@ -98,23 +103,28 @@
         </section>
 
         <!-- ko if: permiteGravacao -->
-        <section class="atelie-studio__laser">
+        <section class="atelie-studio__laser" data-bind="css: { 'is-disabled': engravingBlocked }">
             <label class="atelie-studio__section-label" for="atelie-laser-input">Gravação na entressola</label>
             <div class="atelie-laser-wrapper">
                 <input type="text" id="atelie-laser-input" class="atelie-studio__laser-input" autocomplete="off"
                        data-bind="textInput: laserText,
+                            disable: engravingBlocked,
                             attr: {
                                 maxlength: laserLimit,
-                                placeholder: laserPlaceholder,
+                                placeholder: engravingBlocked() ? engravingBlockedReason() : laserPlaceholder,
                                 'aria-describedby': 'atelie-laser-hint'
                             }">
+                <!-- ko ifnot: engravingBlocked -->
                 <span class="atelie-laser-counter" data-bind="text: laserCounterText"></span>
+                <!-- /ko -->
             </div>
             <p class="atelie-studio__laser-hint" id="atelie-laser-hint">
+                <!-- ko ifnot: engravingBlocked -->
                 <span data-bind="text: laserPrice() > 0 ? '+ ' + formatPrice(laserPrice()) : 'incluso'"></span>
                 · letras, números e espaço
-                <!-- ko if: engravingBlocked() -->
-                <strong data-bind="text: ' · ' + engravingBlockedReason()"></strong>
+                <!-- /ko -->
+                <!-- ko if: engravingBlocked -->
+                <strong class="atelie-laser-blocked-reason" data-bind="text: engravingBlockedReason"></strong>
                 <!-- /ko -->
             </p>
         </section>
@@ -143,6 +153,6 @@
         <input type="hidden" form="product_addtocart_form" name="atelie[tamanho]"
                data-bind="attr: { value: selectedSize() }">
         <input type="hidden" form="product_addtocart_form" name="atelie[gravacao]"
-               data-bind="attr: { value: permiteGravacao() ? laserText() : '' }">
+               data-bind="attr: { value: (permiteGravacao() && !engravingBlocked()) ? laserText() : '' }">
     </div>
 </div>
