@@ -9,6 +9,7 @@
         <sequence>
             <module name="Nuvem_Atelie"/>
             <module name="Magento_PageBuilder"/>
+            <module name="Nuvem_AtelieStudio"/>
         </sequence>
     </module>
 </config>

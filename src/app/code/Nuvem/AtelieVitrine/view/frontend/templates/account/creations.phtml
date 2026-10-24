@@ -1,0 +1,112 @@
+<?php
+/**
+ * @var \Nuvem\AtelieVitrine\Block\Account\Creations $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+
+$creations = $block->getCreations();
+?>
+
+<div class="atelie-my-creations">
+    <?php if (empty($creations)): ?>
+        <div class="message info empty">
+            <div>
+                <?= $escaper->escapeHtml(
+                    __('Você ainda não salvou nenhuma criação.')
+                ) ?>
+            </div>
+        </div>
+    <?php else: ?>
+        <p>
+            <?= $escaper->escapeHtml(
+                __('Você tem %1 criações salvas.', count($creations))
+            ) ?>
+        </p>
+
+        <div class="atelie-creations-list">
+            <?php foreach ($creations as $creation): ?>
+                <?php
+                $hash = (string) $creation->getData('hash');
+                $isPublic = (int) $creation->getData('publica') === 1;
+                ?>
+
+                <div class="atelie-creation-card">
+                    <h3>
+                        <?= $escaper->escapeHtml(
+                            (string) $creation->getData('nome')
+                        ) ?>
+                    </h3>
+
+                    <p>
+                        <strong><?= $escaper->escapeHtml(__('Produto:')) ?></strong>
+                        <?= $escaper->escapeHtml(
+                            (string) $creation->getData('sku')
+                        ) ?>
+                    </p>
+
+                    <p>
+                        <strong><?= $escaper->escapeHtml(__('Visibilidade:')) ?></strong>
+                        <?= $escaper->escapeHtml(
+                            $isPublic ? __('Pública') : __('Privada')
+                        ) ?>
+                    </p>
+
+                    <div class="atelie-creation-actions">
+                        <a class="action primary"
+                           href="<?= $escaper->escapeUrl(
+                               $block->getCreationUrl($creation)
+                           ) ?>">
+                            <span><?= $escaper->escapeHtml(__('Abrir no estúdio')) ?></span>
+                        </a>
+
+                        <button type="button"
+                                class="action secondary"
+                                data-copy-url="<?= $escaper->escapeHtmlAttr(
+                                    $block->getCreationUrl($creation)
+                                ) ?>"
+                                data-mage-init='{"Nuvem_AtelieVitrine/js/copy-link":{}}'>
+                            <?= $escaper->escapeHtml(__('Copiar link')) ?>
+                        </button>
+
+                        <form action="<?= $escaper->escapeUrl(
+                            $block->getUrl('atelie/creation/publish')
+                        ) ?>"
+                              method="post">
+
+                            <?= $block->getBlockHtml('formkey') ?>
+
+                            <input type="hidden"
+                                   name="hash"
+                                   value="<?= $escaper->escapeHtmlAttr($hash) ?>">
+
+                            <button type="submit" class="action secondary">
+                                <span>
+                                    <?= $escaper->escapeHtml(
+                                        $isPublic ? __('Despublicar') : __('Publicar')
+                                    ) ?>
+                                </span>
+                            </button>
+                        </form>
+
+                        <form action="<?= $escaper->escapeUrl(
+                            $block->getUrl('atelie/creation/delete')
+                        ) ?>"
+                            method="post"
+                            data-mage-init='{"Nuvem_AtelieVitrine/js/confirm-delete":{}}'>
+
+                            <?= $block->getBlockHtml('formkey') ?>
+
+                            <input type="hidden"
+                                name="hash"
+                                value="<?= $escaper->escapeHtmlAttr($hash) ?>">
+
+                            <button type="submit" class="action secondary">
+                                <span><?= $escaper->escapeHtml(__('Excluir')) ?></span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</div>
