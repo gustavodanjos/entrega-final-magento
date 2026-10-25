@@ -79,15 +79,13 @@
                               data-bind="text: $parent.getOptionPrice(option) > 0 ? '+ ' + $parent.formatPrice($parent.getOptionPrice(option)) : 'incluso'"></span>
                     </span>
                 </button>
-                <!-- ko if: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo -->
                 <div class="atelie-swatch__tooltip" role="alert"
-                     data-bind="attr: { id: 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo }">
-                    <!-- ko if: $parent.isExigeRule(option.codigo) -->
-                    <span class="atelie-swatch__tooltip-badge">Dica</span>
-                    <!-- /ko -->
+                     data-bind="
+                        visible: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo,
+                        attr: { id: 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo }">
+                    <span class="atelie-swatch__tooltip-badge" data-bind="visible: $parent.isExigeRule(option.codigo)">Dica</span>
                     <p class="atelie-swatch__tooltip-text" data-bind="text: $parent.getBlockReason(option.codigo)"></p>
                 </div>
-                <!-- /ko -->
             </div>
             <!-- /ko -->
         </div>
@@ -138,14 +136,12 @@
                 data-bind="
                     disable: isSubmitting,
                     css: { 'is-loading': isSubmitting }">
-            <!-- ko ifnot: isSubmitting -->
-            <span>Adicionar ao carrinho</span>
-            <span class="atelie-studio__submit-sep" aria-hidden="true">·</span>
-            <span data-bind="text: formattedMirrorPrice"></span>
-            <!-- /ko -->
-            <!-- ko if: isSubmitting -->
-            <span>Adicionando ao carrinho...</span>
-            <!-- /ko -->
+            <span class="atelie-studio__submit-default" data-bind="visible: !isSubmitting()">
+                <span>Adicionar ao carrinho</span>
+                <span class="atelie-studio__submit-sep" aria-hidden="true">·</span>
+                <span data-bind="text: formattedMirrorPrice"></span>
+            </span>
+            <span class="atelie-studio__submit-loading" data-bind="visible: isSubmitting">Adicionando ao carrinho...</span>
         </button>
 
         <!-- ko if: actionError -->
