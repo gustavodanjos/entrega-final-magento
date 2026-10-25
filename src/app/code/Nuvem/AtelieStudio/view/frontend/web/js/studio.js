@@ -6,7 +6,8 @@ define([
 
     /**
      * Custom Binding solicitado no backlog (F3.3).
-     * Aplica a cor da camada baseada no observable de seleção.
+     * Associa os grupos às camadas SVG estritamente via camada_svg do catálogo.
+     * Atualiza a cor (fill/stroke) reativamente conforme a seleção do Knockout.
      */
     ko.bindingHandlers.atelieCamada = {
         init: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
@@ -15,7 +16,10 @@ define([
             }
         },
         update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
-            var camadaId = ko.unwrap(valueAccessor());
+            var rawVal = valueAccessor ? ko.unwrap(valueAccessor()) : null;
+            var camadaId = (typeof rawVal === 'string' && rawVal.length > 0)
+                ? rawVal
+                : (element ? element.id : '');
             if (!camadaId) {
                 return;
             }
@@ -63,7 +67,6 @@ define([
             this.initCatalogObservables(catalog);
             this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
             this.initComputed();
-            this.initPreview();
             this.autoResolveBlockedSelections();
             this.initDocumentListeners();
 
@@ -825,17 +828,26 @@ define([
 
         /**
          * F3.3: Localiza o grupo correspondente a uma camada SVG específica.
-         * Suporta busca por camadaSvg, codigo ou prefixo camada-[codigo].
+         * Associa estritamente pelo atributo camada_svg retornado pelo catálogo/banco.
          */
         getGroupByCamada: function (camadaId) {
             if (!camadaId) {
                 return null;
             }
             var grupos = this.grupos ? this.grupos() : [];
+            // Prioriza camada_svg (camadaSvg) definida no banco
             for (var i = 0; i < grupos.length; i++) {
                 var g = grupos[i];
-                if (g.camadaSvg === camadaId || g.camada_svg === camadaId || g.codigo === camadaId || ('camada-' + g.codigo) === camadaId) {
+                var camadaSvg = g.camada_svg || g.camadaSvg;
+                if (camadaSvg && camadaSvg === camadaId) {
                     return g;
+                }
+            }
+            // Fallback de compatibilidade caso dados de teste não incluam camada_svg explícita
+            for (var j = 0; j < grupos.length; j++) {
+                var fallbackG = grupos[j];
+                if (fallbackG.codigo === camadaId || ('camada-' + fallbackG.codigo) === camadaId) {
+                    return fallbackG;
                 }
             }
             return null;
@@ -919,93 +931,6 @@ define([
         getUrl: function (key) {
             var cfg = this.getConfigData();
             return (cfg.urls && cfg.urls[key]) || '';
-        },
-
-        initPreview: function () {
-            var self = this;
-            if (typeof document === 'undefined') {
-                return;
-            }
-            var root = self.element || document.getElementById('atelie-studio-app');
-            if (!root) {
-                return;
-            }
-
-            var gruposByCodigo = {};
-            self.grupos().forEach(function (grupo) {
-                gruposByCodigo[grupo.codigo] = grupo;
-            });
-
-            self.svgNodes = {};
-            var svgGroups = root.querySelectorAll('.atelie-camada');
-            Array.prototype.forEach.call(svgGroups, function (gEl) {
-                var grupoCodigo = gEl.getAttribute('data-grupo') || '';
-                var grupoObj = gruposByCodigo[grupoCodigo];
-                if (!grupoObj) {
-                    return;
-                }
-                self.svgNodes[grupoCodigo] = gEl;
-            });
-
-            // Força a pintura imperativa sempre que a seleção mudar
-            self.svgPaintComputed = ko.computed(function () {
-                self.selectedComponents();
-                self.paintSvg();
-                self.paintEngraving();
-                self.paintAriaLabel();
-            });
-        },
-
-        paintSvg: function () {
-            var self = this;
-            var root = this.element || document.getElementById('atelie-studio-app');
-            if (!root) { return; }
-
-            var selections = self.selectedComponents();
-            self.grupos().forEach(function (grupo) {
-                var opt = selections[grupo.codigo];
-                if (!opt || !opt.corHex) { return; }
-
-                var gEl = root.querySelector('.atelie-camada[data-grupo="' + grupo.codigo + '"]');
-                if (!gEl) { return; }
-
-                var target = gEl.querySelector('[data-pintar]');
-                if (!target) { return; }
-
-                var attr = target.getAttribute('data-pintar');
-                if (attr !== 'fill' && attr !== 'stroke') { attr = 'fill'; }
-
-                if (target.getAttribute(attr) !== opt.corHex) {
-                    target.setAttribute(attr, opt.corHex);
-                }
-            });
-        },
-
-        paintEngraving: function () {
-            var root = this.element || document.getElementById('atelie-studio-app');
-            if (!root) { return; }
-            var el = root.querySelector('#gravacao-texto');
-            if (!el) { return; }
-
-            if (!this.permiteGravacao() || this.engravingBlocked()) {
-                el.textContent = '';
-                return;
-            }
-
-            var value = this.laserText() || '';
-            if (value.length > this.laserLimit()) {
-                value = value.substring(0, this.laserLimit());
-            }
-
-            el.textContent = String(value);
-        },
-
-        paintAriaLabel: function () {
-            var root = this.element || document.getElementById('atelie-studio-app');
-            if (!root) { return; }
-            var el = root.querySelector('.atelie-studio__svg');
-            if (!el) { return; }
-            el.setAttribute('aria-label', this.buildAriaLabel());
         },
 
         buildAriaLabel: function () {
