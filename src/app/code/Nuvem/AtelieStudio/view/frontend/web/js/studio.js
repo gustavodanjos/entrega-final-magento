@@ -202,6 +202,8 @@ define([
             var firstTab = catalog.grupos.length > 0 ? catalog.grupos[0].codigo : '';
             this.activeTab = ko.observable(firstTab);
             this.activeTooltip = ko.observable(null);
+            this.isSubmitting = ko.observable(false);
+            this.actionError = ko.observable('');
         },
 
         initSelectionObservables: function (catalog, cfgInicial) {
@@ -224,6 +226,9 @@ define([
 
             var gravacaoInicial = cfgInicial.gravacao || '';
             this.laserText = ko.observable(gravacaoInicial ? String(gravacaoInicial) : '');
+            this.laserText.subscribe(function () {
+                self.actionError('');
+            });
 
             this.selections = {};
             catalog.grupos.forEach(function (grupo) {
@@ -319,6 +324,12 @@ define([
 
             this.engravingBlocked = ko.pureComputed(function () {
                 return self.engravingBlockedReason() !== '';
+            });
+
+            this.engravingBlocked.subscribe(function (isBlocked) {
+                if (isBlocked) {
+                    self.laserText('');
+                }
             });
 
             this.mirrorPrice = ko.pureComputed(function () {
@@ -555,10 +566,8 @@ define([
                 errors.push('Escolha um tamanho.');
             }
 
-            if (self.permiteGravacao() && self.laserText().trim() !== '') {
-                if (self.engravingBlocked()) {
-                    errors.push(self.engravingBlockedReason());
-                } else if (!self.isEngravingFormatValid()) {
+            if (self.permiteGravacao() && !self.engravingBlocked() && self.laserText().trim() !== '') {
+                if (!self.isEngravingFormatValid()) {
                     errors.push('A gravação deve conter apenas letras, números, espaço e hífen.');
                 } else if (self.laserText().length > self.laserLimit()) {
                     errors.push('A gravação excede o limite de ' + self.laserLimit() + ' caracteres.');
@@ -622,6 +631,8 @@ define([
                 return;
             }
 
+            this.actionError('');
+
             if (this.isEsgotado(option.codigo)) {
                 return;
             }
@@ -636,6 +647,9 @@ define([
             if (this.selections[grupoCodigo]) {
                 this.selections[grupoCodigo](option.codigo);
                 this.autoResolveBlockedSelections();
+                if (this.engravingBlocked()) {
+                    this.laserText('');
+                }
             }
         },
 
@@ -733,7 +747,50 @@ define([
         },
 
         selectSize: function (size) {
+            this.actionError('');
             this.selectedSize(parseInt(size, 10));
+        },
+
+        /**
+         * Front-end validation before form submission (F3.5).
+         * Bars submission if local configuration is invalid.
+         *
+         * @return {Boolean}
+         */
+        validate: function () {
+            var errors = this.computeValidationErrors();
+            if (errors && errors.length > 0) {
+                this.actionError(errors[0]);
+                return false;
+            }
+            this.actionError('');
+            return true;
+        },
+
+        /**
+         * Sets an error message returned by the server (F3.5).
+         *
+         * @param {String} message
+         */
+        setServerError: function (message) {
+            this.actionError(message);
+            this.isSubmitting(false);
+        },
+
+        /**
+         * Clears all action errors.
+         */
+        clearErrors: function () {
+            this.actionError('');
+        },
+
+        /**
+         * Updates submitting state observable.
+         *
+         * @param {Boolean} isSubmitting
+         */
+        setSubmitting: function (isSubmitting) {
+            this.isSubmitting(!!isSubmitting);
         },
 
         closeTooltip: function () {
