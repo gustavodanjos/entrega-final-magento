@@ -166,3 +166,35 @@ test('preview text and getLayerColor reactivity', () => {
     instance.laserText('<script>');
     assert.equal(instance.engravingPreviewText(), '<script>');
 });
+
+test('associates groups to layers via camada_svg and updates element color via atelieCamada', () => {
+    const data = contract();
+    data.grupos[0].camada_svg = 'custom-camada-id';
+    const instance = studio(data);
+
+    // Group resolved by camada_svg
+    assert.equal(instance.getGroupByCamada('custom-camada-id').codigo, 'cabedal');
+    assert.equal(instance.getLayerColor('custom-camada-id'), '#C6F0DC');
+
+    // Test atelieCamada bindingHandler update
+    let appliedColor = null;
+    let appliedAttr = null;
+    const fakeElement = {
+        id: 'custom-camada-id',
+        querySelectorAll: () => [fakeElement],
+        getAttribute: (attr) => attr === 'data-pintar' ? 'fill' : appliedColor,
+        setAttribute: (attr, val) => {
+            appliedAttr = attr;
+            appliedColor = val;
+        }
+    };
+
+    ko.bindingHandlers.atelieCamada.update(fakeElement, () => 'custom-camada-id', {}, instance);
+    assert.equal(appliedAttr, 'fill');
+    assert.equal(appliedColor, '#C6F0DC');
+
+    // Switch option
+    instance.selectOption('cabedal', instance.currentOptions()[0]);
+    ko.bindingHandlers.atelieCamada.update(fakeElement, () => 'custom-camada-id', {}, instance);
+    assert.equal(appliedColor, '#DCCFF7');
+});
