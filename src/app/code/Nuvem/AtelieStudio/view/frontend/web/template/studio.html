@@ -79,15 +79,13 @@
                               data-bind="text: $parent.getOptionPrice(option) > 0 ? '+ ' + $parent.formatPrice($parent.getOptionPrice(option)) : 'incluso'"></span>
                     </span>
                 </button>
-                <!-- ko if: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo -->
                 <div class="atelie-swatch__tooltip" role="alert"
-                     data-bind="attr: { id: 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo }">
-                    <!-- ko if: $parent.isExigeRule(option.codigo) -->
-                    <span class="atelie-swatch__tooltip-badge">Dica</span>
-                    <!-- /ko -->
+                     data-bind="
+                        visible: $parent.isBlocked(option.codigo) && $parent.activeTooltip() === option.codigo,
+                        attr: { id: 'atelie-tooltip-' + $parent.activeTab() + '-' + option.codigo }">
+                    <span class="atelie-swatch__tooltip-badge" data-bind="visible: $parent.isExigeRule(option.codigo)">Dica</span>
                     <p class="atelie-swatch__tooltip-text" data-bind="text: $parent.getBlockReason(option.codigo)"></p>
                 </div>
-                <!-- /ko -->
             </div>
             <!-- /ko -->
         </div>
