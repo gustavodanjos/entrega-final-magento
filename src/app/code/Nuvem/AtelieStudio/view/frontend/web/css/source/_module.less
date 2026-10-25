@@ -36,6 +36,13 @@ form#product_addtocart_form,
     display: none !important;
 }
 
+// Suprime mensagens soltas no topo da página no estúdio (F3.5: mensagens posicionadas abaixo do botão)
+.atelie-studio-wrapper ~ .page.messages,
+.page-main:has(#atelie-studio-app) > .page.messages,
+.catalog-product-view:has(#atelie-studio-app) .page.messages {
+    display: none !important;
+}
+
 // Container principal do estúdio
 .atelie-studio-wrapper {
     display: flex;
@@ -372,14 +379,17 @@ form#product_addtocart_form,
     // Botão Adicionar ao Carrinho
     &__actions {
         margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
 
     &__submit {
         width: 100%;
         min-height: 54px;
-        background: @nuvem-magenta;
-        color: @nuvem-branco;
-        border: none;
+        background: @nuvem-magenta !important;
+        color: @nuvem-branco !important;
+        border: none !important;
         border-radius: @nuvem-raio-pilula;
         font-family: @font-family-name__base;
         font-size: 16px;
@@ -390,22 +400,35 @@ form#product_addtocart_form,
         align-items: center;
         justify-content: center;
         gap: 8px;
+        box-shadow: none !important;
 
         &:hover {
-            background: darken(@nuvem-magenta, 6%);
+            background: darken(@nuvem-magenta, 6%) !important;
+            color: @nuvem-branco !important;
         }
 
-        &:disabled,
-        &.is-disabled {
-            background: @nuvem-magenta;
-            color: @nuvem-branco;
-            opacity: 0.55;
-            cursor: not-allowed;
+        &:focus,
+        &:active {
+            background: @nuvem-magenta !important;
+            color: @nuvem-branco !important;
+            outline: none !important;
+            box-shadow: none !important;
         }
 
         &:focus-visible {
-            outline: 3px solid @nuvem-grafite;
+            outline: 3px solid @nuvem-grafite !important;
             outline-offset: 2px;
+        }
+
+        &:disabled,
+        &.is-disabled,
+        &.is-loading,
+        &.disabled {
+            background: @nuvem-magenta !important;
+            color: @nuvem-branco !important;
+            opacity: 0.55 !important;
+            cursor: not-allowed !important;
+            pointer-events: none !important;
         }
     }
 
@@ -416,6 +439,22 @@ form#product_addtocart_form,
         font-size: 16px;
         line-height: 1;
         opacity: 0.85;
+    }
+
+    // Mensagem de erro posicionada imediatamente abaixo do botão (F3.5)
+    &__error-message {
+        background-color: #FFF2F0;
+        border: 1px solid #FFCCC7;
+        border-left: 4px solid @nuvem-coral;
+        color: @nuvem-coral;
+        border-radius: @nuvem-raio-msg;
+        padding: 12px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.4;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(168, 50, 42, 0.08);
+        animation: atelieErrorFadeIn 0.2s ease-in-out;
     }
 }
 
@@ -652,6 +691,17 @@ form#product_addtocart_form,
     to {
         opacity: 1;
         transform: translate(-50%, 0);
+    }
+}
+
+@keyframes atelieErrorFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 
