@@ -1,0 +1,45 @@
+<?php
+/**
+ * @var \Nuvem\AtelieVitrine\Block\Widget\Creations $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+
+$creations = $block->getCreations();
+$title = $block->getShowcaseTitle();
+?>
+
+<section class="atelie-showcase">
+    <?php if ($title !== ''): ?>
+        <h2 class="atelie-showcase__title">
+            <?= $escaper->escapeHtml($title) ?>
+        </h2>
+    <?php endif; ?>
+
+    <div class="atelie-showcase__grid">
+        <?php foreach ($creations as $creation): ?>
+            <?php
+                $name = trim((string) $creation->getData('nome'));
+
+                if ($name === '') {
+                    $name = (string) __('Criação Nuvem');
+                }
+            ?>
+
+            <article class="atelie-showcase__card">
+                <h3>
+                    <a href="<?= $escaper->escapeUrl(
+                        $block->getCreationUrl($creation)
+                    ) ?>">
+                        <?= $escaper->escapeHtml($name) ?>
+                    </a>
+                </h3>
+
+                <a href="<?= $escaper->escapeUrl(
+                    $block->getCreationUrl($creation)
+                ) ?>">
+                    <?= $escaper->escapeHtml(__('Abrir e remixar')) ?>
+                </a>
+            </article>
+        <?php endforeach; ?>
+    </div>
+</section>
