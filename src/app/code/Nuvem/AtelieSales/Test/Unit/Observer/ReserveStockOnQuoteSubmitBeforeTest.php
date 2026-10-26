@@ -6,6 +6,7 @@ namespace Nuvem\AtelieSales\Test\Unit\Observer;
 use Magento\Framework\Event;
 use Magento\Framework\Event\Observer;
 use Magento\Quote\Model\Quote;
+use Magento\Sales\Model\Order;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
 use Nuvem\AtelieSales\Observer\ReserveStockOnQuoteSubmitBefore;
 use PHPUnit\Framework\TestCase;
@@ -24,8 +25,37 @@ class ReserveStockOnQuoteSubmitBeforeTest extends TestCase
         $quote = $this->createMock(Quote::class);
         $quote->method('getId')->willReturn(99);
         $reservation = $this->createMock(QuoteStockReservation::class);
-        $reservation->method('hasReservation')->willReturn(true);
-        $reservation->expects($this->once())->method("reserve")->with($quote);
-        (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer(['event' => new Event(['quote' => $quote])]));
+        $reservation->method('getAttemptId')->willReturn('owned');
+        $reservation->expects($this->once())->method("reserve")->with($quote, 'owned');
+        $order = $this->getMockBuilder(Order::class)->disableOriginalConstructor()->onlyMethods([])->getMock();
+        (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer([
+            'event' => new Event(['quote' => $quote, 'order' => $order]),
+        ]));
+        $this->assertSame('owned', $order->getData(QuoteStockReservation::ORDER_ATTEMPT_ID));
+    }
+
+    public function testOrdinaryQuoteNeedsNoReservationToken(): void
+    {
+        $quote = $this->createMock(Quote::class);
+        $quote->method('getId')->willReturn(99);
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('requiresReservation')->willReturn(false);
+        $reservation->expects($this->never())->method('reserve');
+        (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer([
+            'event' => new Event(['quote' => $quote]),
+        ]));
+    }
+
+    public function testAtelieQuoteCannotReserveWithoutItsSubmissionToken(): void
+    {
+        $quote = $this->createMock(Quote::class);
+        $quote->method('getId')->willReturn(99);
+        $reservation = $this->createMock(QuoteStockReservation::class);
+        $reservation->method('requiresReservation')->willReturn(true);
+        $reservation->expects($this->never())->method('reserve');
+        $this->expectException(\Magento\Framework\Exception\LocalizedException::class);
+        (new ReserveStockOnQuoteSubmitBefore($reservation))->execute(new Observer([
+            'event' => new Event(['quote' => $quote]),
+        ]));
     }
 }

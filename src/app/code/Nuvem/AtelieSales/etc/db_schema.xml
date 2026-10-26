@@ -2,6 +2,13 @@
 <schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
 
+    <table name="quote" resource="checkout" engine="innodb">
+        <column xsi:type="varchar" name="atelie_stock_attempt_id" nullable="true" length="32"
+                comment="Component Stock Attempt ID"/>
+        <column xsi:type="varchar" name="atelie_stock_attempt_state" nullable="true" length="24"
+                comment="Component Stock Attempt State"/>
+    </table>
+
     <table name="nuvem_atelie_movimentacao" resource="default" engine="innodb"
            comment="Razão do estoque: toda mudança gera uma linha">
         <column xsi:type="bigint" name="movimentacao_id" padding="20" unsigned="true"
@@ -32,14 +39,14 @@
                     referenceTable="nuvem_atelie_componente" referenceColumn="componente_id"
                     onDelete="CASCADE"/>
 
-        <index referenceId="NUVEM_ATELIE_MOV_COMPONENTE_ID" indexType="btree">
+        <index referenceId="NUVEM_ATELIE_MOVIMENTACAO_COMPONENTE_ID" indexType="btree">
             <column name="componente_id"/>
         </index>
-        <index referenceId="NUVEM_ATELIE_MOV_QUOTE_COMPONENT" indexType="btree">
+        <index referenceId="NUVEM_ATELIE_MOVIMENTACAO_QUOTE_ID_COMPONENTE_ID" indexType="btree">
             <column name="quote_id"/>
             <column name="componente_id"/>
         </index>
-        <index referenceId="NUVEM_ATELIE_MOV_ORDER_ID" indexType="btree">
+        <index referenceId="NUVEM_ATELIE_MOVIMENTACAO_ORDER_ID" indexType="btree">
             <column name="order_id"/>
         </index>
     </table>

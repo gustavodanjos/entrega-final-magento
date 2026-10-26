@@ -1,0 +1,3 @@
+sku,nome,preco_base,tamanho_min,tamanho_max,permite_gravacao,prazo_producao_dias
+NUVEM-RUNNER,Nuvem Runner,449.90,34,44,1,12
+NUVEM-MINI,Nuvem Mini,329.90,26,33,0,10

@@ -57,7 +57,13 @@ function requestAvailability(string $url, int $expectedStatus = 200): array
     return $body;
 }
 
-$objectManager = Bootstrap::create(BP, $_SERVER)->getObjectManager();
+$testDatabase = getenv('F25_TEST_DATABASE');
+if (is_string($testDatabase) && $testDatabase !== '') {
+    require __DIR__ . '/IsolatedEnvironment.php';
+    $objectManager = \Nuvem\AtelieSales\Test\Integration\createIsolatedEnvironment($testDatabase);
+} else {
+    $objectManager = Bootstrap::create(BP, $_SERVER)->getObjectManager();
+}
 $database = $objectManager->get(DeploymentConfig::class)->get('db/connection/default/dbname');
 assertAvailabilityScenario(
     is_string($database) && str_starts_with($database, 'f25_validation_'),
@@ -84,6 +90,15 @@ try {
     $productRepository->save($simple);
     $url = $baseUrl . '/atelie/disponibilidade/NUVEM-RUNNER';
     $initial = requestAvailability($url);
+    $output = $objectManager->get(\Magento\Framework\Webapi\ServiceOutputProcessor::class);
+    foreach ([
+        \Nuvem\AtelieSales\Api\PublicAvailabilityInterface::class => 'getBySku',
+        \Nuvem\AtelieSales\Api\AvailabilityManagementInterface::class => 'getAvailability',
+    ] as $service => $method) {
+        $serialized = $output->process($objectManager->get($service)->$method('NUVEM-RUNNER'), $service, $method);
+        assertAvailabilityScenario($serialized === $initial, 'Availability services disagree with the HTTP contract.');
+    }
+    echo "PASS: both availability contracts serialize to the same public HTTP response\n";
     assertAvailabilityScenario(
         count(array_filter($initial, static fn (array $row): bool => $row['componente'] === $code)) === 1,
         'HTTP server must use the same isolated database and include the validation component.'
@@ -115,6 +130,22 @@ try {
         array_filter($rows, static fn (array $row): bool => $row['componente'] === $code) === [],
         'Inactive component remains in public availability.'
     );
+    $criteria = $objectManager->get(\Magento\Framework\Api\SearchCriteriaBuilder::class)
+        ->addFilter('ativo', 1)->create();
+    $active = $repository->getList($criteria)->getItems();
+    try {
+        foreach ($active as $activeComponent) {
+            $activeComponent->setAtivo(false);
+            $repository->save($activeComponent);
+        }
+        assertAvailabilityScenario(requestAvailability($url) === [], 'Empty catalog must return an empty list.');
+    } finally {
+        foreach ($active as $activeComponent) {
+            $activeComponent->setAtivo(true);
+            $repository->save($activeComponent);
+        }
+    }
+    echo "PASS: empty component catalog returns an HTTP empty list with no-cache headers\n";
     echo "PASS: REST fields, headers, 404/400, inactive components and stock changes without cache cleaning\n";
 } finally {
     $repository->delete($component);

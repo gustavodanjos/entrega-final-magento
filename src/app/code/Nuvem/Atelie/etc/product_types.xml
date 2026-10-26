@@ -13,7 +13,7 @@
           isQty="false"
           canUseQtyDecimals="false"
           sortOrder="70">
-        <priceModel instance="Magento\Catalog\Model\Product\Type\Price" />
+        <priceModel instance="Nuvem\AtelieSales\Model\Product\Price" />
         <indexerModel instance="Nuvem\Atelie\Model\ResourceModel\Product\Indexer\Price\AtelieProductPrice" />
         <customAttributes>
             <attribute name="refundable" value="true"/>

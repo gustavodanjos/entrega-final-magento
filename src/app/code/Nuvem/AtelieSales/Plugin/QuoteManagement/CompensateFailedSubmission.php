@@ -6,22 +6,18 @@ namespace Nuvem\AtelieSales\Plugin\QuoteManagement;
 use Magento\Quote\Model\Quote;
 use Magento\Quote\Model\QuoteManagement;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
-use Psr\Log\LoggerInterface;
 
 class CompensateFailedSubmission
 {
     /**
      * @param QuoteStockReservation $reservation
-     * @param LoggerInterface $logger
      */
-    public function __construct(
-        private readonly QuoteStockReservation $reservation,
-        private readonly LoggerInterface $logger
-    ) {
+    public function __construct(private readonly QuoteStockReservation $reservation)
+    {
     }
 
     /**
-     * submit_before runs outside core's failure handler, so a later observer can strand reservations.
+     * Core dispatches submit_before outside its failure handler, so later observers can strand reservations.
      *
      * @param QuoteManagement $subject
      * @param callable $proceed
@@ -33,24 +29,19 @@ class CompensateFailedSubmission
      */
     public function aroundSubmit(QuoteManagement $subject, callable $proceed, Quote $quote, array $orderData = [])
     {
-        $this->reservation->clearAttempt($quote);
-        try {
+        $attemptId = $this->reservation->beginSubmission($quote);
+        if ($attemptId === null) {
             return $proceed($quote, $orderData);
+        }
+        try {
+            $result = $proceed($quote, $orderData);
+            $this->reservation->completeAttempt($quote, $attemptId);
+            return $result;
         } catch (\Throwable $exception) {
-            if ($this->reservation->hasReservation($quote)) {
-                try {
-                    $this->reservation->compensate($quote);
-                } catch (\Throwable $compensationException) {
-                    $this->logger->critical('Failed to compensate component stock.', [
-                        'quote_id' => $quote->getId(),
-                        'exception' => $compensationException,
-                        'submission_exception' => $exception,
-                    ]);
-                }
-            }
+            $this->reservation->handleFailure($quote, $attemptId, $exception);
             throw $exception;
         } finally {
-            $this->reservation->clearAttempt($quote);
+            $this->reservation->endAttempt($quote, $attemptId);
         }
     }
 }
