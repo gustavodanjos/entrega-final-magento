@@ -5,4 +5,32 @@
         <observer name="nuvem_atelieadmin_record_production"
                   instance="Nuvem\AtelieAdmin\Observer\RecordProduction"/>
     </event>
+    <event name="nuvem_atelie_componente_save_commit_after">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
+    <event name="nuvem_atelie_componente_delete_commit_after">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
+    <event name="nuvem_atelie_grupo_save_commit_after">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
+    <event name="nuvem_atelie_grupo_delete_commit_after">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
+    <event name="nuvem_atelie_regra_save_commit_after">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
+    <event name="nuvem_atelie_regra_delete_commit_after">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
+    <event name="catalog_product_save_commit_after">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
+    <event name="catalog_product_delete_commit_after">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
+    <event name="admin_system_config_changed_section_nuvem_atelie">
+        <observer name="nuvem_atelieadmin_invalidate_catalog" instance="Nuvem\AtelieAdmin\Observer\InvalidateCatalogCache"/>
+    </event>
 </config>
+
