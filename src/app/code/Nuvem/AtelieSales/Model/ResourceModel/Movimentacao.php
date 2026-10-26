@@ -165,4 +165,63 @@ class Movimentacao extends AbstractDb
         }
         return array_values($balances);
     }
+
+    /**
+     * Serialize cancellation and refund returns for the same persisted order.
+     *
+     * @param int $orderId
+     * @return void
+     * @throws LocalizedException
+     */
+    public function lockOrder(int $orderId): void
+    {
+        $connection = $this->getConnection();
+        $exists = $connection->fetchOne(
+            $connection->select()->from($this->getTable('sales_order'), 'entity_id')
+                ->where('entity_id = ?', $orderId)->forUpdate(true)
+        );
+        if (!$exists) {
+            throw new LocalizedException(__('O pedido não existe mais.'));
+        }
+    }
+
+    /**
+     * Current reads include returns committed after an enclosing transaction's snapshot.
+     * The caller must hold the order lock until its stock movements are committed.
+     *
+     * @param int $orderItemId
+     * @param string|null $note null includes all return documents
+     * @param int|null $orderId narrows locking reads to the indexed order movements
+     * @return array<string, int>
+     */
+    public function getReturnedQuantitiesByOrderItemId(
+        int $orderItemId,
+        ?string $note = null,
+        ?int $orderId = null
+    ): array
+    {
+        $connection = $this->getConnection();
+        $select = $connection->select()
+            ->from(['movement' => $this->getMainTable()], ['quantidade'])
+            ->join(
+                ['component' => $this->getTable(self::TABLE_COMPONENTE)],
+                'component.componente_id = movement.componente_id',
+                ['codigo']
+            )
+            ->where('movement.order_item_id = ?', $orderItemId)
+            ->where('movement.tipo = ?', self::TIPO_DEVOLUCAO)
+            ->forUpdate(true);
+        if ($orderId !== null) {
+            $select->where('movement.order_id = ?', $orderId);
+        }
+        if ($note !== null) {
+            $select->where('movement.observacao = ?', $note);
+        }
+        $quantities = [];
+        foreach ($connection->fetchAll($select) as $row) {
+            $code = (string) $row['codigo'];
+            $quantities[$code] = ($quantities[$code] ?? 0) + (int) $row['quantidade'];
+        }
+        return $quantities;
+    }
 }

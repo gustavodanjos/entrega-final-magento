@@ -9,6 +9,8 @@
         <sequence>
             <module name="Magento_Cron"/>
             <module name="Nuvem_Atelie"/>
+            <module name="Nuvem_AtelieSales"/>
+            <module name="Magento_Ui"/>
             <module name="Magento_Email"/>
             <module name="Magento_Amqp"/>
             <module name="Magento_MessageQueue"/>

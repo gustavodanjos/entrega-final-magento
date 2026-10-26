@@ -16,7 +16,10 @@
         "magento/module-sales": "*",
         "magento/module-quote": "*",
         "magento/module-email": "*",
-        "magento/module-cron": "*"
+        "magento/module-cron": "*",
+        "nuvem/module-atelie-sales": "*",
+        "magento/module-ui": "*",
+        "symfony/console": "*"
     },
     "autoload": {
         "files": [

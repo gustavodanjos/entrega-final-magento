@@ -73,6 +73,7 @@ class OrderOptionsBuilderTest extends TestCase
 
         $comp = $this->createMock(ComponentInterface::class);
         $comp->method('getNome')->willReturn('Azul Petróleo');
+        $comp->method('getCorHex')->willReturn('#BEE3F8');
         $this->compRepoMock->method('getByCodigo')->with('CAB-TRICO-AZUL')->willReturn($comp);
 
         $result = $this->builder->build($product, []);
@@ -86,5 +87,30 @@ class OrderOptionsBuilderTest extends TestCase
         $this->assertEquals('NUVEM', $result['attributes_info'][1]['value']);
         $this->assertEquals('Cabedal Tricô', $result['attributes_info'][2]['label']);
         $this->assertEquals('Azul Petróleo', $result['attributes_info'][2]['value']);
+        $this->assertSame($result['attributes_info'], $result['additional_options']);
+        $snapshot = $result[OrderOptionsBuilder::SNAPSHOT_KEY];
+        $this->assertSame(['label' => 'Tamanho', 'value' => '40'], $snapshot[0]);
+        $this->assertSame([
+            'label' => 'Cabedal Tricô',
+            'value' => 'Azul Petróleo',
+            'grupo' => 'cabedal',
+            'componente' => 'CAB-TRICO-AZUL',
+            'cor_hex' => '#BEE3F8',
+        ], $snapshot[2]);
+        $this->assertArrayNotHasKey('cor_hex', $result['additional_options'][2]);
     }
+
+    public function testKeepsNumericZeroAsFilledEngraving(): void
+    {
+        $product = $this->createMock(Product::class);
+        $customOption = $this->createMock(OptionInterface::class);
+        $customOption->method('getValue')->willReturn(json_encode([
+            'tamanho' => 38, 'gravacao' => '0', 'selecoes' => [],
+        ]));
+        $product->method('getCustomOption')->willReturn($customOption);
+        $result = $this->builder->build($product);
+        $this->assertSame(['label' => 'Gravação', 'value' => '0'], $result['additional_options'][1]);
+        $this->assertSame($result['additional_options'], $result[OrderOptionsBuilder::SNAPSHOT_KEY]);
+    }
+
 }

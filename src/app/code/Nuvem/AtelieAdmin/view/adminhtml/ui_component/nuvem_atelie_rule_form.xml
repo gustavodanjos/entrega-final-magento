@@ -1,0 +1,253 @@
+<?xml version="1.0"?>
+<form xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">nuvem_atelie_rule_form.rule_form_data_source</item>
+        </item>
+        <item name="label" xsi:type="string" translate="true">Regra</item>
+        <item name="template" xsi:type="string">templates/form/collapsible</item>
+    </argument>
+
+    <settings>
+        <buttons>
+            <button name="back"
+                    class="Nuvem\AtelieAdmin\Block\Adminhtml\Rule\Edit\BackButton"/>
+            <button name="save"
+                    class="Nuvem\AtelieAdmin\Block\Adminhtml\Rule\Edit\SaveButton"/>
+        </buttons>
+        <namespace>nuvem_atelie_rule_form</namespace>
+        <dataScope>data</dataScope>
+        <deps>
+            <dep>nuvem_atelie_rule_form.rule_form_data_source</dep>
+        </deps>
+    </settings>
+
+    <dataSource name="rule_form_data_source">
+        <argument name="data" xsi:type="array">
+            <item name="js_config" xsi:type="array">
+                <item name="component" xsi:type="string">Magento_Ui/js/form/provider</item>
+            </item>
+        </argument>
+        <settings>
+            <submitUrl path="nuvem_atelieadmin/rule/save"/>
+        </settings>
+        <dataProvider
+            class="Nuvem\AtelieAdmin\Ui\DataProvider\Rule\FormDataProvider"
+            name="rule_form_data_source">
+            <settings>
+                <requestFieldName>regra_id</requestFieldName>
+                <primaryFieldName>regra_id</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+
+    <fieldset name="general">
+        <settings>
+            <label translate="true">Dados da regra</label>
+        </settings>
+
+        <field name="regra_id" formElement="input">
+            <settings>
+                <dataType>text</dataType>
+                <visible>false</visible>
+                <dataScope>regra_id</dataScope>
+            </settings>
+        </field>
+
+        <field name="codigo" sortOrder="10" formElement="input">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Código</label>
+                <dataScope>codigo</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    <rule name="max_text_length" xsi:type="number">16</rule>
+                </validation>
+            </settings>
+        </field>
+
+        <field name="tipo" sortOrder="20" formElement="select">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="options" xsi:type="array">
+                        <item name="0" xsi:type="array">
+                            <item name="value" xsi:type="string">bloqueia</item>
+                            <item name="label" xsi:type="string" translate="true">Bloqueia</item>
+                        </item>
+                        <item name="1" xsi:type="array">
+                            <item name="value" xsi:type="string">exige</item>
+                            <item name="label" xsi:type="string" translate="true">Exige</item>
+                        </item>
+                    </item>
+                </item>
+            </argument>
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Tipo de regra</label>
+                <dataScope>tipo</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                </validation>
+            </settings>
+        </field>
+
+        <field name="origem_componente_id" sortOrder="30" formElement="select">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Componente de origem</label>
+                <dataScope>origem_componente_id</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                </validation>
+            </settings>
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="Nuvem\AtelieAdmin\Model\Source\Rule\Components"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+
+        <field name="alvo_tipo" sortOrder="40" formElement="select">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="options" xsi:type="array">
+                        <item name="0" xsi:type="array">
+                            <item name="value" xsi:type="string">componente</item>
+                            <item name="label" xsi:type="string" translate="true">Componente</item>
+                        </item>
+                        <item name="1" xsi:type="array">
+                            <item name="value" xsi:type="string">acabamento</item>
+                            <item name="label" xsi:type="string" translate="true">Acabamento</item>
+                        </item>
+                        <item name="2" xsi:type="array">
+                            <item name="value" xsi:type="string">gravacao</item>
+                            <item name="label" xsi:type="string" translate="true">Gravação</item>
+                        </item>
+                    </item>
+                </item>
+            </argument>
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Tipo de alvo</label>
+                <dataScope>alvo_tipo</dataScope>
+                <notice translate="true">Para gravação, não é necessário escolher um alvo adicional.</notice>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                </validation>
+                <switcherConfig>
+                    <rules>
+                        <rule name="0">
+                            <value>componente</value>
+                            <actions>
+                                <action name="0">
+                                    <target>nuvem_atelie_rule_form.nuvem_atelie_rule_form.general.alvo_componente</target>
+                                    <callback>show</callback>
+                                </action>
+                                <action name="1">
+                                    <target>nuvem_atelie_rule_form.nuvem_atelie_rule_form.general.alvo_acabamento</target>
+                                    <callback>hide</callback>
+                                </action>
+                            </actions>
+                        </rule>
+                        <rule name="1">
+                            <value>acabamento</value>
+                            <actions>
+                                <action name="0">
+                                    <target>nuvem_atelie_rule_form.nuvem_atelie_rule_form.general.alvo_componente</target>
+                                    <callback>hide</callback>
+                                </action>
+                                <action name="1">
+                                    <target>nuvem_atelie_rule_form.nuvem_atelie_rule_form.general.alvo_acabamento</target>
+                                    <callback>show</callback>
+                                </action>
+                            </actions>
+                        </rule>
+                        <rule name="2">
+                            <value>gravacao</value>
+                            <actions>
+                                <action name="0">
+                                    <target>nuvem_atelie_rule_form.nuvem_atelie_rule_form.general.alvo_componente</target>
+                                    <callback>hide</callback>
+                                </action>
+                                <action name="1">
+                                    <target>nuvem_atelie_rule_form.nuvem_atelie_rule_form.general.alvo_acabamento</target>
+                                    <callback>hide</callback>
+                                </action>
+                            </actions>
+                        </rule>
+                    </rules>
+                    <enabled>true</enabled>
+                </switcherConfig>
+            </settings>
+        </field>
+
+        <field name="alvo_componente" sortOrder="50" formElement="select">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Componente alvo</label>
+                <dataScope>alvo_componente</dataScope>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                </validation>
+            </settings>
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="Nuvem\AtelieAdmin\Model\Source\Rule\ComponentCodes"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+
+        <field name="alvo_acabamento" sortOrder="60" formElement="select">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Acabamento alvo</label>
+                <dataScope>alvo_acabamento</dataScope>
+                <visible>false</visible>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                </validation>
+            </settings>
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="Nuvem\AtelieAdmin\Model\Source\Rule\Finishes"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+
+        <field name="mensagem" sortOrder="70" formElement="textarea">
+            <settings>
+                <dataType>text</dataType>
+                <label translate="true">Mensagem de recusa</label>
+                <dataScope>mensagem</dataScope>
+                <notice translate="true">Explique a restrição em texto simples, sem HTML.</notice>
+                <validation>
+                    <rule name="required-entry" xsi:type="boolean">true</rule>
+                    <rule name="max_text_length" xsi:type="number">255</rule>
+                </validation>
+            </settings>
+        </field>
+
+        <field name="ativo" sortOrder="80" formElement="select">
+            <settings>
+                <dataType>number</dataType>
+                <label translate="true">Ativa</label>
+                <dataScope>ativo</dataScope>
+            </settings>
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+    </fieldset>
+</form>
