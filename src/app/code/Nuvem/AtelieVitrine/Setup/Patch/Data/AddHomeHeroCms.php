@@ -51,12 +51,12 @@ class AddHomeHeroCms implements DataPatchInterface
      */
     public function apply(): self
     {
-        $this->upsertBlock(
+        $this->createBlockIfMissing(
             self::HERO_BLOCK_IDENTIFIER,
             (string) __('Nuvem — Hero da home'),
             $this->getHeroBlockContent()
         );
-        $this->upsertBlock(
+        $this->createBlockIfMissing(
             self::AVISO_BLOCK_IDENTIFIER,
             (string) __('Nuvem — Aviso do topo'),
             $this->getAvisoBlockContent()
@@ -83,17 +83,18 @@ class AddHomeHeroCms implements DataPatchInterface
     }
 
     /**
-     * Creates the block when missing or refreshes its content when it already exists.
+     * Create default content only when missing, preserving existing editorial settings.
      *
      * @param string $identifier
      * @param string $title
      * @param string $content
      * @return void
      */
-    private function upsertBlock(string $identifier, string $title, string $content): void
+    private function createBlockIfMissing(string $identifier, string $title, string $content): void
     {
         try {
-            $block = $this->getBlockByIdentifier->execute($identifier, Store::DEFAULT_STORE_ID);
+            $this->getBlockByIdentifier->execute($identifier, Store::DEFAULT_STORE_ID);
+            return;
         } catch (NoSuchEntityException) {
             $block = $this->blockFactory->create();
             $block->setIdentifier($identifier);
