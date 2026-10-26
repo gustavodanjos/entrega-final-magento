@@ -140,11 +140,26 @@
     <button type="button" data-bind="click: refreshCart">Atualizar resumo do carrinho</button>
     <!-- /ko -->
     <div class="atelie-studio__actions">
-        <button type="submit" form="product_addtocart_form" class="atelie-studio__submit"
-                data-bind="disable: saving() || !!editError">
-            <span data-bind="text: editing ? 'Salvar alterações' : 'Adicionar ao carrinho'"></span> ·
-            <span data-bind="text: formattedMirrorPrice"></span>
+        <button type="submit"
+                form="product_addtocart_form"
+                class="atelie-studio__submit"
+                data-bind="
+                    disable: isSubmitting() || saving() || !!editError,
+                    css: { 'is-loading': isSubmitting }">
+            <span class="atelie-studio__submit-default" data-bind="visible: !isSubmitting()">
+                <span data-bind="text: editing ? 'Salvar alterações' : 'Adicionar ao carrinho'"></span>
+                <span class="atelie-studio__submit-sep" aria-hidden="true">·</span>
+                <span data-bind="text: formattedMirrorPrice"></span>
+            </span>
+            <span class="atelie-studio__submit-loading" data-bind="visible: isSubmitting">Adicionando ao carrinho...</span>
         </button>
+
+        <!-- ko if: actionError -->
+        <div class="atelie-studio__error-message"
+             role="alert"
+             aria-live="assertive"
+             data-bind="text: actionError"></div>
+        <!-- /ko -->
     </div>
 
     <div class="atelie-studio__hidden" aria-hidden="true">
