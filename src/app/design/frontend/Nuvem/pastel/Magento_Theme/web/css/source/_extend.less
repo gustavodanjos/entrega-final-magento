@@ -11,4 +11,23 @@
             padding: 8px 16px;
         }
     }
+
+    .page-header .panel.wrapper .nuvem-bem-vindo {
+        font-weight: 700;
+    }
+}
+
+//  Desktop
+.media-width(@extremum, @break) when (@extremum = 'min') and (@break = @screen__m) {
+    .page-header {
+        margin-bottom: 0;
+
+        .logo {
+            width: 208px;
+
+            img {
+                width: 100%;
+            }
+        }
+    }
 }
