@@ -82,8 +82,31 @@ define([
             this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
             this.initComputed();
             this.autoResolveBlockedSelections();
+            this.initDocumentListeners();
 
             return this;
+        },
+
+        initDocumentListeners: function () {
+            var self = this;
+            if (typeof document === 'undefined') {
+                return;
+            }
+
+            // Garante fechar tooltips ao clicar fora das amostras ou com Escape
+            this._documentClickHandler = function (event) {
+                if (self.activeTooltip() && (!event.target.closest || !event.target.closest('.atelie-swatch-wrapper'))) {
+                    self.activeTooltip(null);
+                }
+            };
+            document.addEventListener('click', this._documentClickHandler);
+
+            this._documentKeyHandler = function (event) {
+                if (event.key === 'Escape' && self.activeTooltip()) {
+                    self.activeTooltip(null);
+                }
+            };
+            document.addEventListener('keydown', this._documentKeyHandler);
         },
 
         submitEdit: function (event) {
@@ -143,6 +166,12 @@ define([
         destroy: function () {
             if (this.editSubmitHandler) {
                 document.removeEventListener('submit', this.editSubmitHandler, true);
+            }
+            if (this._documentClickHandler) {
+                document.removeEventListener('click', this._documentClickHandler);
+            }
+            if (this._documentKeyHandler) {
+                document.removeEventListener('keydown', this._documentKeyHandler);
             }
             return this._super();
         },
@@ -219,13 +248,16 @@ define([
                 return a.ordem - b.ordem;
             });
 
+            var self = this;
             var regras = rawRegras.map(function (r) {
+                var tipo = String(r.tipo || '').toLowerCase().trim();
+                var alvoTipo = self.normalize(r.alvo_tipo || r.alvoTipo || '');
                 return {
                     codigo: String(r.codigo || ''),
-                    tipo: String(r.tipo || '').toLowerCase().trim(),
-                    origem: String(r.origem || ''),
-                    alvoTipo: String(r.alvo_tipo || r.alvoTipo || '').toLowerCase().trim(),
-                    alvo: String(r.alvo || ''),
+                    tipo: tipo,
+                    origem: String(r.origem || '').trim(),
+                    alvoTipo: alvoTipo,
+                    alvo: String(r.alvo || '').trim(),
                     mensagem: String(r.mensagem || 'Combinação indisponível para esta configuração.')
                 };
             });
@@ -285,12 +317,19 @@ define([
                     return c.codigo === codigoInicial;
                 });
 
+                var comps = grupo.componentes || [];
                 if (!encontrado && !self.editing) {
-                    var padrao = (grupo.componentes || []).find(function (c) { return c.padrao; });
+                    var padrao = null;
+                    for (var p = 0; p < comps.length; p++) {
+                        if (comps[p].padrao) {
+                            padrao = comps[p];
+                            break;
+                        }
+                    }
                     if (padrao) {
                         codigoInicial = padrao.codigo;
-                    } else if (grupo.componentes.length > 0) {
-                        codigoInicial = grupo.componentes[0].codigo;
+                    } else if (comps.length > 0) {
+                        codigoInicial = comps[0].codigo;
                     } else {
                         codigoInicial = '';
                     }
@@ -472,6 +511,9 @@ define([
                                 });
                             });
                         }
+                        if (isFinishSelected(alvo)) {
+                            blocked[origem] = msg;
+                        }
                     }
                 } else if (tipo === 'exige') {
                     if (alvoTipo === 'acabamento') {
@@ -480,6 +522,11 @@ define([
                         }
                     } else if (alvoTipo === 'componente') {
                         if (!isCodeSelected(alvo)) {
+                            blocked[origem] = msg;
+                        }
+                    } else if (alvoTipo === 'gravacao') {
+                        var hasEngraving = !!(self.laserText && self.laserText().trim() !== '');
+                        if (!hasEngraving) {
                             blocked[origem] = msg;
                         }
                     }
@@ -512,15 +559,26 @@ define([
                 var alvo = regra.alvo;
                 var msg = regra.mensagem;
 
-                if (tipo === 'bloqueia' && alvoTipo === 'componente') {
-                    if (isCodeSelected(origem) && isCodeSelected(alvo)) {
-                        invalid[alvo] = msg;
+                if (tipo === 'bloqueia') {
+                    if (alvoTipo === 'componente') {
+                        if (isCodeSelected(origem) && isCodeSelected(alvo)) {
+                            invalid[alvo] = msg;
+                        }
+                    } else if (alvoTipo === 'acabamento') {
+                        if (isCodeSelected(origem) && isFinishSelected(alvo)) {
+                            invalid[origem] = msg;
+                        }
                     }
                 } else if (tipo === 'exige') {
                     if (isCodeSelected(origem)) {
-                        var alvoOk = (alvoTipo === 'acabamento')
-                            ? isFinishSelected(alvo)
-                            : isCodeSelected(alvo);
+                        var alvoOk = false;
+                        if (alvoTipo === 'acabamento') {
+                            alvoOk = isFinishSelected(alvo);
+                        } else if (alvoTipo === 'componente') {
+                            alvoOk = isCodeSelected(alvo);
+                        } else if (alvoTipo === 'gravacao') {
+                            alvoOk = !!(self.laserText && self.laserText().trim() !== '');
+                        }
                         if (!alvoOk) {
                             invalid[origem] = msg;
                         }
@@ -539,7 +597,8 @@ define([
 
             var reason = '';
             self.catalog.regras.forEach(function (regra) {
-                if (regra.tipo === 'bloqueia' && regra.alvoTipo === 'gravacao') {
+                var alvoTipo = self.normalize(regra.alvoTipo);
+                if (regra.tipo === 'bloqueia' && alvoTipo === 'gravacao') {
                     var origemSelecionada = selectedList.some(function (opt) {
                         return self.normalize(opt.codigo) === self.normalize(regra.origem);
                     });
@@ -598,7 +657,7 @@ define([
             if (text === '') {
                 return true;
             }
-            return /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 \-]+$/u.test(text);
+            return /^[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF0-9 \-]+$/.test(text);
         },
 
         isBlocked: function (code) {
@@ -622,6 +681,26 @@ define([
             return !!(sel && sel() === code);
         },
 
+        isExigeRule: function (code) {
+            var self = this;
+            var normCode = self.normalize(code);
+            return self.catalog.regras.some(function (r) {
+                return r.tipo === 'exige' && self.normalize(r.origem) === normCode;
+            });
+        },
+
+        getOptionHint: function (code) {
+            var self = this;
+            var normCode = self.normalize(code);
+            for (var i = 0; i < self.catalog.regras.length; i++) {
+                var r = self.catalog.regras[i];
+                if (r.tipo === 'exige' && self.normalize(r.origem) === normCode) {
+                    return r.mensagem;
+                }
+            }
+            return '';
+        },
+
         selectOption: function (grupoCodigo, option) {
             if (!option) {
                 return;
@@ -632,7 +711,8 @@ define([
             }
 
             if (this.isBlocked(option.codigo)) {
-                this.activeTooltip(option.codigo);
+                var currentActive = this.activeTooltip();
+                this.activeTooltip(currentActive === option.codigo ? null : option.codigo);
                 return;
             }
 
@@ -649,23 +729,45 @@ define([
          */
         autoResolveBlockedSelections: function () {
             var self = this;
-            var blocked = self.blockedMap();
-            self.grupos().forEach(function (grupo) {
-                var currentCode = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
-                if (currentCode && blocked[currentCode]) {
-                    var fallback = (grupo.componentes || []).find(function (c) {
-                        return c.padrao && !blocked[c.codigo] && !self.isEsgotado(c.codigo);
-                    });
-                    if (!fallback) {
-                        fallback = (grupo.componentes || []).find(function (c) {
-                            return !blocked[c.codigo] && !self.isEsgotado(c.codigo);
-                        });
-                    }
-                    if (fallback) {
-                        self.selections[grupo.codigo](fallback.codigo);
+            var changed = true;
+            var iterations = 0;
+
+            // Itera até estabilizar as dependências (máximo de 3 passagens)
+            while (changed && iterations < 3) {
+                changed = false;
+                iterations++;
+                var blocked = self.blockedMap();
+
+                for (var i = 0; i < self.grupos().length; i++) {
+                    var grupo = self.grupos()[i];
+                    var currentCode = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
+
+                    if (currentCode && blocked[currentCode]) {
+                        var fallback = null;
+                        var compsList = grupo.componentes || [];
+                        for (var cIdx = 0; cIdx < compsList.length; cIdx++) {
+                            var candidate = compsList[cIdx];
+                            if (candidate.padrao && !blocked[candidate.codigo] && !self.isEsgotado(candidate.codigo)) {
+                                fallback = candidate;
+                                break;
+                            }
+                        }
+                        if (!fallback) {
+                            for (var cIdx2 = 0; cIdx2 < compsList.length; cIdx2++) {
+                                var candidate2 = compsList[cIdx2];
+                                if (!blocked[candidate2.codigo] && !self.isEsgotado(candidate2.codigo)) {
+                                    fallback = candidate2;
+                                    break;
+                                }
+                            }
+                        }
+                        if (fallback && fallback.codigo !== currentCode) {
+                            self.selections[grupo.codigo](fallback.codigo);
+                            changed = true;
+                        }
                     }
                 }
-            });
+            }
         },
 
         switchTab: function (grupoCodigo) {
@@ -817,7 +919,17 @@ define([
             if (s === null || s === undefined) {
                 return '';
             }
-            return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+            var str = String(s).toLowerCase();
+            if (typeof str.normalize === 'function') {
+                return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+            }
+            return str.replace(/[áàãâä]/g, 'a')
+                .replace(/[éèêë]/g, 'e')
+                .replace(/[íìîï]/g, 'i')
+                .replace(/[óòõôö]/g, 'o')
+                .replace(/[úùûü]/g, 'u')
+                .replace(/[ç]/g, 'c')
+                .trim();
         },
 
         getPostData: function () {
@@ -830,9 +942,12 @@ define([
                 }
             });
 
+            var canEngrave = this.permiteGravacao() && !this.engravingBlocked();
+            var gravacaoVal = (canEngrave && this.laserText().trim() !== '') ? this.laserText() : null;
+
             return {
                 tamanho: parseInt(this.selectedSize(), 10) || null,
-                gravacao: (this.permiteGravacao() && this.laserText().trim() !== '') ? this.laserText() : null,
+                gravacao: gravacaoVal,
                 selecoes: selecoes
             };
         },
