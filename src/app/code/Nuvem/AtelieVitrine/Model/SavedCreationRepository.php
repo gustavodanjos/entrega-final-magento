@@ -90,7 +90,45 @@ class SavedCreationRepository
         return array_values($collection->getItems());
     }
 
-    
+    /**
+     * Return published creations for CMS widgets.
+     *
+     * @param int $limit Maximum number of creations.
+     * @param string $order Sort order: recent, oldest or popular.
+     *
+     * @return SavedCreation[]
+     */
+    public function getPublicCreations(
+        int $limit = 6,
+        string $order = 'recent'
+    ): array {
+        $collection = $this->collectionFactory->create();
+
+        $collection->addFieldToFilter('publica', 1);
+
+        $limit = max(1, min(24, $limit));
+
+        switch ($order) {
+            case 'oldest':
+                $collection->setOrder('criacao_id', 'ASC');
+                break;
+
+            case 'popular':
+                $collection->setOrder('curtidas', 'DESC');
+                $collection->setOrder('criacao_id', 'DESC');
+                break;
+
+            default:
+                $collection->setOrder('criacao_id', 'DESC');
+                break;
+        }
+
+        $collection->setPageSize($limit);
+        $collection->setCurPage(1);
+
+        return array_values($collection->getItems());
+    }
+
     /**
      * Delete a saved creation.
      *
@@ -131,5 +169,4 @@ class SavedCreationRepository
 
         return $creation;
     }
-
 }
