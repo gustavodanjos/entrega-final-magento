@@ -13,6 +13,10 @@
                 type="Nuvem\Atelie\Model\Selection"/>
     <preference for="Nuvem\Atelie\Api\Data\ValidationResultInterface"
                 type="Nuvem\Atelie\Model\ValidationResult"/>
+    <preference for="Nuvem\Atelie\Api\CatalogImporterInterface"
+                type="Nuvem\Atelie\Model\Import\CatalogImporter"/>
+    <preference for="Nuvem\Atelie\Api\Data\CatalogImportResultInterface"
+                type="Nuvem\Atelie\Model\Import\CatalogImportResult"/>
 
     <!-- Repositories -->
     <preference for="Nuvem\Atelie\Api\GroupRepositoryInterface"
@@ -55,6 +59,14 @@
         <arguments>
             <argument name="cartItemProcessors" xsi:type="array">
                 <item name="atelie" xsi:type="object">\Nuvem\Atelie\Model\CartItemProcessor\Proxy</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Magento\Framework\Console\CommandList">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="nuvem_atelie_catalogo_importar" xsi:type="object">Nuvem\Atelie\Console\Command\ImportCatalogCommand</item>
             </argument>
         </arguments>
     </type>

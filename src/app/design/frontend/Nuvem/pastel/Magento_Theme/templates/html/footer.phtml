@@ -1,0 +1,29 @@
+<?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
+
+/**
+ * Footer with the brand manual structure: columns, links and copyright.
+ *
+ * @var \Magento\Theme\Block\Html\Footer $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+?>
+<div class="nuvem-footer">
+    <div class="nuvem-footer__colunas">
+        <div class="nuvem-footer__marca">
+            <p class="nuvem-footer__logo"><?= $escaper->escapeHtml(__('Ateliê Nuvem')) ?></p>
+            <p class="nuvem-footer__sobre">
+                <?= $escaper->escapeHtml(__('Tênis feitos à mão em Franca, com cores que parecem algodão-doce.')) ?>
+            </p>
+        </div>
+        <div class="nuvem-footer__ajuda">
+            <h3 class="nuvem-footer__titulo"><?= $escaper->escapeHtml(__('Ajuda')) ?></h3>
+            <?= $block->getChildHtml() ?>
+        </div>
+    </div>
+    <small class="nuvem-footer__copyright">
+        <span><?= $escaper->escapeHtml($block->getCopyright()) ?></span>
+    </small>
+</div>

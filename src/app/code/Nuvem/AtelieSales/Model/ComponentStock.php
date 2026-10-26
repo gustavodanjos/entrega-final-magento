@@ -16,6 +16,7 @@ use Nuvem\Atelie\Api\Data\ComponentInterface;
 use Nuvem\Atelie\Model\Config;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
 use Nuvem\AtelieSales\Api\QuoteComponentStockInterface;
+use Nuvem\AtelieSales\Api\ReturnComponentStockInterface;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 use Zend_Db_Expr;
 
@@ -30,7 +31,7 @@ use Zend_Db_Expr;
  * stock change, so the ledger always explains the stock. When a component
  * sells out its cache identities are invalidated for the storefront.
  */
-class ComponentStock implements ComponentStockInterface, QuoteComponentStockInterface
+class ComponentStock implements ComponentStockInterface, QuoteComponentStockInterface, ReturnComponentStockInterface
 {
     private const TABLE_COMPONENTE = 'nuvem_atelie_componente';
 
@@ -229,7 +230,13 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
     /**
      * @inheritDoc
      */
-    public function return(string $componentCode, int $qty, ?int $orderId = null, ?int $orderItemId = null): void
+    public function return(
+        string $componentCode,
+        int $qty,
+        ?int $orderId = null,
+        ?int $orderItemId = null,
+        ?string $note = null
+    ): void
     {
         $this->assertPositiveQuantity($qty);
         $component = $this->resolveComponent($componentCode);
@@ -246,7 +253,7 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
                 null,
                 $orderId,
                 $orderItemId,
-                null
+                $note
             );
             $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $currentQty + $qty);
             $connection->commit();

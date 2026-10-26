@@ -1,7 +1,12 @@
 <div class="atelie-studio">
     <header class="atelie-studio__header">
         <div class="atelie-studio__title-wrap">
+            <!-- ko ifnot: editing -->
             <h1 class="atelie-studio__title" data-bind="text: productName"></h1>
+            <!-- /ko -->
+            <!-- ko if: editing -->
+            <h2 class="atelie-studio__title" data-bind="text: productName"></h2>
+            <!-- /ko -->
             <p class="atelie-studio__subtitle">
                 a partir de <span data-bind="text: formattedBasePrice"></span>
                 <!-- ko if: prazoProducao() > 0 -->
@@ -121,10 +126,15 @@
         <!-- /ko -->
     </div>
 
+    <div class="message" role="status" aria-live="polite" data-bind="visible: saveMessage, text: saveMessage,
+         css: {error: saveFailed, warning: cartSyncFailed, success: !saveFailed() && !cartSyncFailed()}"></div>
+    <!-- ko if: editing && saveCompleted() && cartSyncFailed() -->
+    <button type="button" data-bind="click: refreshCart">Atualizar resumo do carrinho</button>
+    <!-- /ko -->
     <div class="atelie-studio__actions">
-        <button type="submit" form="product_addtocart_form" class="atelie-studio__submit">
-            <span>Adicionar ao carrinho</span>
-            <span class="atelie-studio__submit-sep" aria-hidden="true">·</span>
+        <button type="submit" form="product_addtocart_form" class="atelie-studio__submit"
+                data-bind="disable: saving() || !!editError">
+            <span data-bind="text: editing ? 'Salvar alterações' : 'Adicionar ao carrinho'"></span> ·
             <span data-bind="text: formattedMirrorPrice"></span>
         </button>
     </div>
