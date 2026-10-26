@@ -31,7 +31,7 @@ Availability callbacks coalesce the initial and final flags per component. Magen
 
 ## Running scenarios
 
-Run stock scenarios only on an isolated Magento database named `f23_validation_*`, with separate cache prefixes. Use `MAGENTO_DC__OVERRIDE` to select that database; child workers inherit it. Keep the main database and deployment files unchanged. Prepare the existing schema, then clean `config` and `compiled_config` so the new order placement plugin is loaded. This correction has no schema migration.
+Run stock scenarios only on an isolated Magento database named `f23_validation_*`, with separate cache prefixes. Set `F23_TEST_DATABASE` to the prepared `f23_validation_*` database to isolate the database, file cache, var and generated code through `IsolatedEnvironment.php`; child workers inherit it. The existing `MAGENTO_DC__OVERRIDE` selection remains supported. Keep the main database and deployment files unchanged. Prepare the existing schema, then clean `config` and `compiled_config` so the new order placement plugin is loaded. This correction has no schema migration.
 
 From the Magento root:
 
