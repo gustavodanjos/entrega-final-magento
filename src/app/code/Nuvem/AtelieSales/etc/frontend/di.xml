@@ -20,4 +20,7 @@
             </argument>
         </arguments>
     </type>
+    <type name="Magento\Quote\Model\Quote">
+        <plugin name="nuvem_atelie_update_item_in_place" type="Nuvem\AtelieSales\Plugin\Quote\UpdateItemInPlace"/>
+    </type>
 </config>
