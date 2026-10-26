@@ -8,6 +8,19 @@
             </arguments>
         </referenceBlock>
 
+        <referenceBlock name="catalog.topnav" remove="true"/>
+        <referenceBlock name="store.menu">
+            <block class="Magento\Framework\View\Element\Template"
+                   name="nuvem.topnav"
+                   template="Magento_Theme::html/topmenu.phtml">
+                <block class="Magento\Cms\Block\BlockByIdentifier" name="nuvem.navigation">
+                    <arguments>
+                        <argument name="identifier" xsi:type="string">nuvem-menu</argument>
+                    </arguments>
+                </block>
+            </block>
+        </referenceBlock>
+
         <referenceContainer name="page.wrapper">
             <container name="nuvem.lavanda.bar"
                        htmlTag="div"

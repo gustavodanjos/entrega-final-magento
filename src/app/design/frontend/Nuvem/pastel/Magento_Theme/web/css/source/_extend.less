@@ -16,6 +16,26 @@
         font-weight: 700;
     }
 
+    .nuvem-navigation {
+        .level0 > .level-top {
+            box-sizing: border-box;
+            min-height: 44px;
+
+            &,
+            span {
+                text-transform: none;
+            }
+        }
+
+        &__pending {
+            color: @nuvem-grafite-suave;
+            cursor: default;
+            display: block;
+            padding: 8px 40px 8px 15px;
+        }
+    }
+
+    .nuvem-navigation a:focus-visible,
     .nuvem-hero a:focus-visible,
     .nuvem-footer a:focus-visible {
         outline: 3px solid @nuvem-magenta;
@@ -85,6 +105,28 @@
             img {
                 width: 100%;
             }
+        }
+    }
+
+    .nav-sections {
+        background: @nuvem-fundo;
+        border-bottom: 1px solid @nuvem-bruma;
+        margin-bottom: 0;
+    }
+
+    .nuvem-navigation {
+        background: @nuvem-fundo;
+
+        .level0 > .level-top {
+            color: @nuvem-grafite;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 48px;
+            padding: 0 24px;
+        }
+
+        .level0 > [aria-disabled='true'] {
+            color: @nuvem-grafite-suave;
         }
     }
 
