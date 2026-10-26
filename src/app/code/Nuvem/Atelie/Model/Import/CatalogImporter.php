@@ -149,9 +149,23 @@ class CatalogImporter implements CatalogImporterInterface
                 $component->setCorHex((string) $data['cor_hex']);
                 $component->setAcabamento((string) $data['acabamento']);
                 $component->setPrecoAdicional((float) $data['preco_adicional']);
-                $component->setEstoque((int) $data['estoque']);
-                $component->setPadrao((int) $data['padrao']);
-                $component->setAtivo((int) $data['ativo']);
+                if ($data['estoque'] !== null) {
+                    $component->setEstoque((int) $data['estoque']);
+                } elseif (!$isUpdate) {
+                    $component->setEstoque(0);
+                }
+
+                if ($data['padrao'] !== null) {
+                    $component->setPadrao((int) $data['padrao']);
+                } elseif (!$isUpdate) {
+                    $component->setPadrao(0);
+                }
+
+                if ($data['ativo'] !== null) {
+                    $component->setAtivo((int) $data['ativo']);
+                } elseif (!$isUpdate) {
+                    $component->setAtivo(1);
+                }
 
                 if ($data['ordem'] !== null) {
                     $component->setOrdem((int) $data['ordem']);

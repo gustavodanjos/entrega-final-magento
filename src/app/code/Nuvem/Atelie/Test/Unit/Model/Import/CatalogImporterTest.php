@@ -200,6 +200,116 @@ class CatalogImporterTest extends TestCase
         $this->assertSame(0, $result->getRefusedCount());
     }
 
+    public function testUpdateWithMinimalCsvPreservesExistingStockAndFlags(): void
+    {
+        $filePath = '/dummy/minimal.csv';
+        // Minimal CSV: only 6 required columns, omitting estoque, padrao, ativo, ordem
+        $rows = [
+            [
+                '_line_number' => 2,
+                'codigo' => 'CAB-EXISTENTE',
+                'grupo' => 'cabedal',
+                'nome' => 'Cabedal Atualizado',
+                'cor_hex' => '#99AABB',
+                'acabamento' => 'tela',
+                'preco_adicional' => '49.90',
+            ],
+        ];
+
+        $this->csvReaderMock->expects($this->once())->method('read')->with($filePath)->willReturn($rows);
+
+        $selectMock = $this->createMock(Select::class);
+        $selectMock->method('from')->willReturnSelf();
+        $selectMock->method('where')->willReturnSelf();
+
+        $this->connectionMock->method('select')->willReturn($selectMock);
+        $this->connectionMock->method('fetchAll')->willReturn([
+            ['grupo_id' => 1, 'codigo' => 'cabedal', 'nome' => 'Cabedal'],
+        ]);
+        $this->connectionMock->method('fetchPairs')->willReturn([
+            'CAB-EXISTENTE' => 10,
+        ]);
+
+        $existingComponentMock = $this->createMock(Component::class);
+        $this->componentRepositoryMock->expects($this->once())
+            ->method('getByCodigo')
+            ->with('CAB-EXISTENTE')
+            ->willReturn($existingComponentMock);
+
+        // Required fields must be updated
+        $existingComponentMock->expects($this->once())->method('setNome')->with('Cabedal Atualizado');
+        $existingComponentMock->expects($this->once())->method('setCorHex')->with('#99AABB');
+        $existingComponentMock->expects($this->once())->method('setPrecoAdicional')->with(49.9);
+
+        // Omitted fields MUST NEVER be overwritten on update
+        $existingComponentMock->expects($this->never())->method('setEstoque');
+        $existingComponentMock->expects($this->never())->method('setPadrao');
+        $existingComponentMock->expects($this->never())->method('setAtivo');
+        $existingComponentMock->expects($this->never())->method('setOrdem');
+
+        $this->connectionMock->expects($this->once())->method('beginTransaction');
+        $this->componentRepositoryMock->expects($this->once())->method('save')->with($existingComponentMock);
+        $this->connectionMock->expects($this->once())->method('commit');
+
+        $result = $this->importer->import($filePath, false);
+
+        $this->assertTrue($result->isSuccessful());
+        $this->assertSame(0, $result->getCreatedCount());
+        $this->assertSame(1, $result->getUpdatedCount());
+        $this->assertSame(0, $result->getRefusedCount());
+    }
+
+    public function testUpdateWithExplicitZeroValuesAppliesThem(): void
+    {
+        $filePath = '/dummy/explicit_zeros.csv';
+        $rows = [
+            [
+                '_line_number' => 2,
+                'codigo' => 'CAB-EXISTENTE',
+                'grupo' => 'cabedal',
+                'nome' => 'Cabedal Zeros',
+                'cor_hex' => '#99AABB',
+                'acabamento' => 'tela',
+                'preco_adicional' => '0.00',
+                'estoque' => '0',
+                'padrao' => '0',
+                'ativo' => '0',
+            ],
+        ];
+
+        $this->csvReaderMock->expects($this->once())->method('read')->with($filePath)->willReturn($rows);
+
+        $selectMock = $this->createMock(Select::class);
+        $selectMock->method('from')->willReturnSelf();
+        $selectMock->method('where')->willReturnSelf();
+
+        $this->connectionMock->method('select')->willReturn($selectMock);
+        $this->connectionMock->method('fetchAll')->willReturn([
+            ['grupo_id' => 1, 'codigo' => 'cabedal', 'nome' => 'Cabedal'],
+        ]);
+        $this->connectionMock->method('fetchPairs')->willReturn([
+            'CAB-EXISTENTE' => 10,
+        ]);
+
+        $existingComponentMock = $this->createMock(Component::class);
+        $this->componentRepositoryMock->method('getByCodigo')->willReturn($existingComponentMock);
+
+        // Explicit zero values MUST be updated
+        $existingComponentMock->expects($this->once())->method('setEstoque')->with(0);
+        $existingComponentMock->expects($this->once())->method('setPadrao')->with(0);
+        $existingComponentMock->expects($this->once())->method('setAtivo')->with(0);
+
+        $this->connectionMock->expects($this->once())->method('beginTransaction');
+        $this->componentRepositoryMock->expects($this->once())->method('save')->with($existingComponentMock);
+        $this->connectionMock->expects($this->once())->method('commit');
+
+        $result = $this->importer->import($filePath, false);
+
+        $this->assertTrue($result->isSuccessful());
+        $this->assertSame(0, $result->getCreatedCount());
+        $this->assertSame(1, $result->getUpdatedCount());
+    }
+
     public function testImportRollsBackOnSaveException(): void
     {
         $filePath = '/dummy/path.csv';

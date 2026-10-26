@@ -52,6 +52,54 @@ class ComponentRowValidatorTest extends TestCase
         $this->assertSame(10, $result['data']['ordem']);
     }
 
+    public function testValidateRowWithOmittedOptionalFieldsReturnsNullForThoseFields(): void
+    {
+        $row = [
+            '_line_number' => 2,
+            'codigo' => 'CAB-TELA-MENTA',
+            'grupo' => 'cabedal',
+            'nome' => 'Tela Menta',
+            'cor_hex' => '#C6F0DC',
+            'acabamento' => 'tela',
+            'preco_adicional' => '39.90',
+        ];
+
+        $result = $this->validator->validate($row, $this->availableGroups, []);
+
+        $this->assertEmpty($result['errors']);
+        $this->assertNotNull($result['data']);
+        $this->assertNull($result['data']['estoque']);
+        $this->assertNull($result['data']['padrao']);
+        $this->assertNull($result['data']['ativo']);
+        $this->assertNull($result['data']['ordem']);
+    }
+
+    public function testValidateRowWithExplicitZeroValuesReturnsZeros(): void
+    {
+        $row = [
+            '_line_number' => 2,
+            'codigo' => 'CAB-TELA-MENTA',
+            'grupo' => 'cabedal',
+            'nome' => 'Tela Menta',
+            'cor_hex' => '#C6F0DC',
+            'acabamento' => 'tela',
+            'preco_adicional' => '0.00',
+            'estoque' => '0',
+            'padrao' => '0',
+            'ativo' => '0',
+            'ordem' => '0',
+        ];
+
+        $result = $this->validator->validate($row, $this->availableGroups, []);
+
+        $this->assertEmpty($result['errors']);
+        $this->assertNotNull($result['data']);
+        $this->assertSame(0, $result['data']['estoque']);
+        $this->assertSame(0, $result['data']['padrao']);
+        $this->assertSame(0, $result['data']['ativo']);
+        $this->assertSame(0, $result['data']['ordem']);
+    }
+
     public function testValidateInvalidColor(): void
     {
         $row = [

@@ -138,31 +138,42 @@ class ComponentRowValidator
             $price = (float) $priceNormalized;
         }
 
-        // 7. Estoque
-        $stockRaw = trim((string) ($row['estoque'] ?? '0'));
-        $stock = filter_var($stockRaw, FILTER_VALIDATE_INT, [
-            'options' => ['min_range' => 0, 'max_range' => 2147483647]
-        ]);
-        if ($stock === false) {
-            $errors[] = new CatalogImportRowError(
-                $lineNumber,
-                $code ?: null,
-                sprintf('O estoque "%s" é inválido. Informe um número inteiro entre 0 e 2147483647.', $stockRaw)
-            );
+        // 7. Estoque (opcional: null indica coluna omitida)
+        $stock = null;
+        if (array_key_exists('estoque', $row) && trim((string) $row['estoque']) !== '') {
+            $stockRaw = trim((string) $row['estoque']);
+            $validatedStock = filter_var($stockRaw, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 0, 'max_range' => 2147483647]
+            ]);
+            if ($validatedStock === false) {
+                $errors[] = new CatalogImportRowError(
+                    $lineNumber,
+                    $code ?: null,
+                    sprintf('O estoque "%s" é inválido. Informe um número inteiro entre 0 e 2147483647.', $stockRaw)
+                );
+            } else {
+                $stock = $validatedStock;
+            }
         }
 
-        // 8. Padrão
-        $padraoRaw = strtolower(trim((string) ($row['padrao'] ?? '0')));
-        $padrao = in_array($padraoRaw, ['1', 'true', 'sim', 'yes'], true) ? 1 : 0;
+        // 8. Padrão (opcional: null indica coluna omitida)
+        $padrao = null;
+        if (array_key_exists('padrao', $row) && trim((string) $row['padrao']) !== '') {
+            $padraoRaw = strtolower(trim((string) $row['padrao']));
+            $padrao = in_array($padraoRaw, ['1', 'true', 'sim', 'yes'], true) ? 1 : 0;
+        }
 
-        // 9. Ativo
-        $ativoRaw = strtolower(trim((string) ($row['ativo'] ?? '1')));
-        $ativo = in_array($ativoRaw, ['0', 'false', 'nao', 'não', 'no'], true) ? 0 : 1;
+        // 9. Ativo (opcional: null indica coluna omitida)
+        $ativo = null;
+        if (array_key_exists('ativo', $row) && trim((string) $row['ativo']) !== '') {
+            $ativoRaw = strtolower(trim((string) $row['ativo']));
+            $ativo = in_array($ativoRaw, ['0', 'false', 'nao', 'não', 'no'], true) ? 0 : 1;
+        }
 
-        // 10. Ordem
-        $ordemRaw = isset($row['ordem']) && trim((string) $row['ordem']) !== '' ? trim((string) $row['ordem']) : null;
+        // 10. Ordem (opcional: null indica coluna omitida)
         $ordem = null;
-        if ($ordemRaw !== null) {
+        if (array_key_exists('ordem', $row) && trim((string) $row['ordem']) !== '') {
+            $ordemRaw = trim((string) $row['ordem']);
             $validatedOrdem = filter_var($ordemRaw, FILTER_VALIDATE_INT, [
                 'options' => ['min_range' => -32768, 'max_range' => 32767]
             ]);
