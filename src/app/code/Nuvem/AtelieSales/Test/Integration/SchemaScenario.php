@@ -8,7 +8,13 @@ use Magento\Framework\Setup\Declaration\Schema\SchemaConfig;
 
 require dirname(__DIR__, 6) . '/app/bootstrap.php';
 
-$manager = Bootstrap::create(BP, $_SERVER)->getObjectManager();
+$testDatabase = getenv('F23_TEST_DATABASE');
+if (is_string($testDatabase) && $testDatabase !== '') {
+    require __DIR__ . '/IsolatedEnvironment.php';
+    $manager = \Nuvem\AtelieSales\Test\Integration\createIsolatedEnvironment($testDatabase);
+} else {
+    $manager = Bootstrap::create(BP, $_SERVER)->getObjectManager();
+}
 $resource = $manager->get(ResourceConnection::class);
 $connection = $resource->getConnection();
 if (!str_starts_with((string) $connection->fetchOne('SELECT DATABASE()'), 'f23_validation_')) {
