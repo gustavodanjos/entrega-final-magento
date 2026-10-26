@@ -57,14 +57,15 @@ form#product_addtocart_form,
 .atelie-studio__stage {
     background-color: @nuvem-nevoa;
     border-radius: @nuvem-raio-card;
-    padding: 32px 32px 28px;
+    padding: 24px 28px 24px;
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
+    justify-content: space-between;
+    align-items: stretch;
     min-height: 520px;
+    box-sizing: border-box;
 
     &::before, &::after {
         content: '';
@@ -77,8 +78,8 @@ form#product_addtocart_form,
         width: 380px;
         height: 380px;
         background: rgba(220, 207, 247, 0.45);
-        top: -40px;
-        left: -40px;
+        top: 60px;
+        left: -60px;
     }
     &::after {
         width: 340px;
@@ -86,6 +87,34 @@ form#product_addtocart_form,
         background: rgba(247, 198, 228, 0.4);
         bottom: -40px;
         right: -40px;
+    }
+
+    &-header,
+    &__header {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+        text-align: left;
+    }
+
+    &-title,
+    &__title {
+        font-family: @font-family-name__base;
+        font-size: 16px;
+        font-weight: 700;
+        color: @nuvem-grafite;
+        line-height: 1.25;
+    }
+
+    &-subtitle,
+    &__subtitle {
+        font-family: @font-family-name__base;
+        font-size: 13px;
+        color: @nuvem-grafite-suave;
+        line-height: 1.4;
     }
 
     .atelie-studio__svg {
@@ -106,6 +135,80 @@ form#product_addtocart_form,
 
         [data-pintar] {
             transition: fill 0.3s ease, stroke 0.3s ease;
+        }
+    }
+
+    // Ações na base do Palco (F3.9 / Match 100% Mockup de Referência)
+    &-actions,
+    &__actions {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .atelie-stage-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 22px;
+        min-height: 40px;
+        background: @nuvem-branco;
+        color: @nuvem-grafite;
+        border: 1.5px solid @nuvem-grafite;
+        border-radius: @nuvem-raio-pilula;
+        font-family: @font-family-name__base;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+        box-sizing: border-box;
+
+        &:hover:not(:disabled) {
+            background: @nuvem-grafite;
+            color: @nuvem-branco;
+        }
+
+        &:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        &:focus-visible {
+            outline: 3px solid @nuvem-magenta;
+            outline-offset: 2px;
+        }
+
+        &:disabled,
+        &[aria-disabled="true"] {
+            opacity: 0.45;
+            cursor: not-allowed;
+            border-color: @nuvem-grafite;
+            color: @nuvem-grafite;
+            background: @nuvem-branco;
+            transform: none;
+        }
+
+        &.atelie-btn-surprise {
+            background: linear-gradient(135deg, @nuvem-baunilha 0%, @nuvem-pessego 50%, @nuvem-rosa 100%);
+            border: 1.5px solid fade(@nuvem-magenta, 35%);
+            color: @nuvem-grafite;
+
+            &:hover:not(:disabled) {
+                background: linear-gradient(135deg, lighten(@nuvem-baunilha, 4%) 0%, lighten(@nuvem-pessego, 4%) 50%, lighten(@nuvem-rosa, 4%) 100%);
+                border-color: @nuvem-magenta;
+                box-shadow: 0 2px 8px fade(@nuvem-magenta, 15%);
+                color: @nuvem-grafite;
+            }
+
+            &:active:not(:disabled) {
+                transform: scale(0.97);
+            }
         }
     }
 }
@@ -469,8 +572,8 @@ form#product_addtocart_form,
 
     // Mensagem de erro posicionada imediatamente abaixo do botão (F3.5)
     &__error-message {
-        background-color: #FFF2F0;
-        border: 1px solid #FFCCC7;
+        background-color: fade(@nuvem-coral, 8%);
+        border: 1px solid fade(@nuvem-coral, 25%);
         border-left: 4px solid @nuvem-coral;
         color: @nuvem-coral;
         border-radius: @nuvem-raio-msg;
@@ -770,6 +873,21 @@ form#product_addtocart_form,
         padding-bottom: 96px;
     }
 
+    .atelie-studio__stage {
+        min-height: 380px;
+        padding: 20px 16px 18px;
+
+        &__actions {
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .atelie-stage-btn {
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+    }
+
     .atelie-studio {
         &__title {
             font-size: 26px;
@@ -841,9 +959,33 @@ form#product_addtocart_form,
     }
 
     .atelie-studio__stage {
-        min-height: 220px;
-        padding: 16px 12px;
+        min-height: 260px;
+        padding: 16px 14px 14px;
         border-radius: 16px;
+
+        &__header {
+            margin-bottom: 6px;
+        }
+
+        &__title {
+            font-size: 12px;
+        }
+
+        &__subtitle {
+            font-size: 11px;
+        }
+
+        &__actions {
+            justify-content: center;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .atelie-stage-btn {
+            padding: 6px 14px;
+            font-size: 12px;
+            min-height: 34px;
+        }
 
         &::before {
             width: 180px;
@@ -936,8 +1078,6 @@ form#product_addtocart_form,
         flex: 0 0 55%;
         max-width: 55%;
         min-height: 520px;
-        position: sticky;
-        top: 24px;
     }
 
     .atelie-studio {
