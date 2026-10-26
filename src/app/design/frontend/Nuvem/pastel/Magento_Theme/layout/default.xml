@@ -22,5 +22,14 @@
             </container>
         </referenceContainer>
 
+        <referenceContainer name="footer">
+            <block class="Magento\Theme\Block\Html\Footer"
+                   name="nuvem.footer"
+                   template="Magento_Theme::html/footer.phtml"
+                   before="-"/>
+        </referenceContainer>
+        <move element="footer_links" destination="nuvem.footer"/>
+        <referenceBlock name="store_switcher" remove="true"/>
+        <referenceBlock name="copyright" remove="true"/>
     </body>
 </page>

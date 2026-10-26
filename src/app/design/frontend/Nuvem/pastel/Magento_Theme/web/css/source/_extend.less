@@ -15,6 +15,62 @@
     .page-header .panel.wrapper .nuvem-bem-vindo {
         font-weight: 700;
     }
+
+    .nuvem-footer a:focus-visible {
+        outline: 3px solid @nuvem-magenta;
+        outline-offset: 4px;
+    }
+
+    .page-footer {
+        background-color: @nuvem-nevoa;
+    }
+
+    .nuvem-footer {
+        &__colunas {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        &__marca {
+            max-width: 380px;
+        }
+
+        &__logo {
+            color: @nuvem-grafite;
+            font-family: @heading__font-family__base;
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 30px;
+            margin: 0 0 8px;
+        }
+
+        &__sobre {
+            color: @nuvem-grafite-suave;
+            line-height: 24px;
+            margin: 0;
+        }
+
+        &__titulo {
+            color: @nuvem-grafite;
+            font-family: @heading__font-family__base;
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 30px;
+            margin: 0 0 16px;
+        }
+
+        &__copyright {
+            border-top: 1px solid @nuvem-bruma;
+            color: @nuvem-grafite-suave;
+            display: block;
+            .lib-font-size(13);
+            line-height: 20px;
+            margin-top: 32px;
+            padding-top: 16px;
+            text-align: center;
+        }
+    }
 }
 
 //  Desktop
@@ -28,6 +84,14 @@
             img {
                 width: 100%;
             }
+        }
+    }
+
+    .nuvem-footer {
+        &__colunas {
+            flex-direction: row;
+            gap: 64px;
+            justify-content: space-between;
         }
     }
 }
