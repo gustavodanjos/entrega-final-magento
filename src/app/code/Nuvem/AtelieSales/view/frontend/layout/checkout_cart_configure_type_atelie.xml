@@ -7,8 +7,18 @@
         <referenceBlock name="product.info.addtocart.additional" remove="true"/>
         <referenceBlock name="product.price.final" remove="true"/>
         <referenceContainer name="content">
-            <block class="Magento\Framework\View\Element\Template" name="atelie.cart.configure.private"
-                   cacheable="false"/>
+            <block class="Magento\Theme\Block\Html\Title" name="atelie.cart.edit.context"
+                   template="Magento_Theme::html/title.phtml"
+                   before="atelie.studio.container" cacheable="false">
+                <arguments>
+                    <argument name="id" xsi:type="string">atelie-cart-edit-title</argument>
+                </arguments>
+                <action method="setPageTitle">
+                    <argument name="pageTitle" xsi:type="string" translate="true">Editar tênis do carrinho</argument>
+                </action>
+                <block class="Magento\Framework\View\Element\Template" name="atelie.cart.edit.description"
+                       template="Nuvem_AtelieSales::cart/item/edit-context.phtml"/>
+            </block>
         </referenceContainer>
     </body>
 </page>

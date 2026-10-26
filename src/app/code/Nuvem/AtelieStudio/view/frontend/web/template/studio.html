@@ -1,7 +1,12 @@
 <div class="atelie-studio">
     <header class="atelie-studio__header">
         <div class="atelie-studio__title-wrap">
+            <!-- ko ifnot: editing -->
             <h1 class="atelie-studio__title" data-bind="text: productName"></h1>
+            <!-- /ko -->
+            <!-- ko if: editing -->
+            <h2 class="atelie-studio__title" data-bind="text: productName"></h2>
+            <!-- /ko -->
             <p class="atelie-studio__subtitle">
                 a partir de <span data-bind="text: formattedBasePrice"></span>
                 <!-- ko if: prazoProducao() > 0 -->
