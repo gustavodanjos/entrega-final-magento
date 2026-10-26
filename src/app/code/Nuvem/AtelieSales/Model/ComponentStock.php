@@ -10,6 +10,7 @@ use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
 use Magento\Framework\Model\AbstractModel;
+use Magento\Store\Model\ScopeInterface;
 use Nuvem\Atelie\Api\AtelieCatalogInterface;
 use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Api\Data\ComponentInterface;
@@ -324,7 +325,10 @@ class ComponentStock implements ComponentStockInterface, QuoteComponentStockInte
         }
 
         $stockByCode = $this->loadStockByCode($componentCodes);
-        $lastUnitsLimit = (int) $this->scopeConfig->getValue(Config::XML_PATH_STOCK_LAST_UNITS);
+        $lastUnitsLimit = (int) $this->scopeConfig->getValue(
+            Config::XML_PATH_STOCK_LAST_UNITS,
+            ScopeInterface::SCOPE_STORE
+        );
 
         $availability = [];
         foreach ($componentCodes as $componentCode) {

@@ -3,6 +3,8 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Nuvem\AtelieSales\Api\ComponentStockInterface"
                 type="Nuvem\AtelieSales\Model\ComponentStock"/>
+    <preference for="Nuvem\AtelieSales\Api\PublicAvailabilityInterface"
+                type="Nuvem\AtelieSales\Model\PublicAvailability"/>
     <preference for="Nuvem\AtelieSales\Api\ReturnComponentStockInterface"
                 type="Nuvem\AtelieSales\Model\ComponentStock"/>
     <preference for="Nuvem\AtelieSales\Api\QuoteComponentStockInterface"

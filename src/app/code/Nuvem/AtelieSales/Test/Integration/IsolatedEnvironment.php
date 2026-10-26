@@ -15,10 +15,10 @@ class IsolatedScenarioEnvironmentFactory extends \Magento\Framework\App\Environm
     }
 }
 
-function createIsolatedEnvironment(string $database): ObjectManagerInterface
+function createIsolatedBootstrap(string $database): Bootstrap
 {
-    if (preg_match('/^f2[34]_validation_[a-z0-9_]+$/D', $database) !== 1) {
-        throw new \InvalidArgumentException('Use an isolated f23_validation_* or f24_validation_* database.');
+    if (preg_match('/^f2[345]_validation_[a-z0-9_]+$/D', $database) !== 1) {
+        throw new \InvalidArgumentException('Use an isolated f23_validation_*, f24_validation_* or f25_validation_* database.');
     }
     $config = require BP . '/app/etc/env.php';
     $config['db']['connection']['default']['dbname'] = $database;
@@ -28,7 +28,7 @@ function createIsolatedEnvironment(string $database): ObjectManagerInterface
         'page_cache' => ['backend' => 'Magento\\Framework\\Cache\\Backend\\File', 'backend_options' => ['cache_dir' => $testDirectory . '/page_cache']],
     ]];
     putenv('MAGENTO_DC__OVERRIDE=' . json_encode($config, JSON_THROW_ON_ERROR));
-    $parameters = [Bootstrap::INIT_PARAM_FILESYSTEM_DIR_PATHS => [
+    $parameters = $_SERVER + [Bootstrap::INIT_PARAM_FILESYSTEM_DIR_PATHS => [
         DirectoryList::VAR_DIR => ['path' => $testDirectory],
         DirectoryList::CACHE => ['path' => $testDirectory . '/cache'],
         DirectoryList::GENERATED_CODE => ['path' => $testDirectory . '/generated/code'],
@@ -42,5 +42,10 @@ function createIsolatedEnvironment(string $database): ObjectManagerInterface
     ) extends \Magento\Framework\App\ObjectManagerFactory {
         protected $envFactoryClassName = IsolatedScenarioEnvironmentFactory::class;
     };
-    return Bootstrap::create(BP, $parameters, $factory)->getObjectManager();
+    return Bootstrap::create(BP, $parameters, $factory);
+}
+
+function createIsolatedEnvironment(string $database): ObjectManagerInterface
+{
+    return createIsolatedBootstrap($database)->getObjectManager();
 }
