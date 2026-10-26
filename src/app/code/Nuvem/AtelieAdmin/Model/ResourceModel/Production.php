@@ -12,6 +12,28 @@ class Production extends AbstractDb
         $this->_init('nuvem_atelie_ficha', 'ficha_id');
     }
 
+    public function findById(int $sheetId): ?array
+    {
+        $row = $this->getConnection()->fetchRow(
+            $this->getConnection()->select()
+                ->from($this->getMainTable())
+                ->where('ficha_id = ?', $sheetId)
+        );
+        return $row === false ? null : $row;
+    }
+
+    public function updateStatuses(array $sheetIds, string $status): int
+    {
+        if (!$sheetIds) {
+            return 0;
+        }
+        return $this->getConnection()->update(
+            $this->getMainTable(),
+            ['status' => $status],
+            ['ficha_id IN (?)' => $sheetIds]
+        );
+    }
+
     public function findByOrderItemId(int $orderItemId): ?array
     {
         $select = $this->getConnection()->select()
