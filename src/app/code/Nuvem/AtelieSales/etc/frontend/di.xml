@@ -27,4 +27,7 @@
         <plugin name="nuvem_atelie_update_options_response"
                 type="Nuvem\AtelieSales\Plugin\Checkout\Controller\Cart\UpdateOptionsResponse"/>
     </type>
+    <type name="Nuvem\AtelieStudio\ViewModel\Estudio">
+        <plugin name="nuvem_atelie_studio_edit_data" type="Nuvem\AtelieSales\Plugin\Checkout\StudioEditData"/>
+    </type>
 </config>
