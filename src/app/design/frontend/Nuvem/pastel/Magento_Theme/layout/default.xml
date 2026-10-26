@@ -7,5 +7,20 @@
                 <argument name="logo_file" xsi:type="string">images/logo-nuvem-atelie.svg</argument>
             </arguments>
         </referenceBlock>
+
+        <referenceContainer name="page.wrapper">
+            <container name="nuvem.lavanda.bar"
+                       htmlTag="div"
+                       htmlClass="nuvem-lavanda-bar"
+                       before="header.container"
+                       label="Faixa Lavanda Nuvem">
+                <block class="Magento\Cms\Block\BlockByIdentifier" name="nuvem.lavanda.bar.mensagem">
+                    <arguments>
+                        <argument name="identifier" xsi:type="string">nuvem-aviso-topo</argument>
+                    </arguments>
+                </block>
+            </container>
+        </referenceContainer>
+
     </body>
 </page>
