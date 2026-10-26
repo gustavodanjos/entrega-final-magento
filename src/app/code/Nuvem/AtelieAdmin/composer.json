@@ -19,7 +19,8 @@
         "magento/module-cron": "*",
         "nuvem/module-atelie-sales": "*",
         "magento/module-ui": "*",
-        "symfony/console": "*"
+        "symfony/console": "*",
+        "nuvem/module-atelie-studio": "*"
     },
     "autoload": {
         "files": [

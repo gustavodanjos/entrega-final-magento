@@ -1,6 +1,14 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <virtualType name="NuvemAtelieProductionGridCollection"
+                 type="Magento\Framework\View\Element\UiComponent\DataProvider\SearchResult">
+        <arguments>
+            <argument name="mainTable" xsi:type="string">nuvem_atelie_ficha</argument>
+            <argument name="resourceModel" xsi:type="string">Nuvem\AtelieAdmin\Model\ResourceModel\Production</argument>
+            <argument name="identifierName" xsi:type="string">ficha_id</argument>
+        </arguments>
+    </virtualType>
     <virtualType name="NuvemAtelieComponentGridCollection"
                  type="Magento\Framework\View\Element\UiComponent\DataProvider\SearchResult">
         <arguments>
@@ -12,6 +20,7 @@
     <type name="Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory">
         <arguments>
             <argument name="collections" xsi:type="array">
+                <item name="nuvem_atelie_production_listing_data_source" xsi:type="string">NuvemAtelieProductionGridCollection</item>
                 <item name="nuvem_atelie_component_listing_data_source" xsi:type="string">NuvemAtelieComponentGridCollection</item>
             </argument>
         </arguments>
