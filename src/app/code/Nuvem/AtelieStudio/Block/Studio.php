@@ -9,12 +9,12 @@ use Magento\Framework\Registry;
 use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
 use Nuvem\Atelie\Api\AtelieCatalogInterface;
+use Nuvem\Atelie\Model\Component;
 use Psr\Log\LoggerInterface;
 
 class Studio extends Template implements IdentityInterface
 {
     public const CATALOG_CACHE_TAG = 'atelie_catalogo';
-    public const COMPONENT_CACHE_TAG_PREFIX = 'atelie_comp_';
 
     public function __construct(
         Context $context,
@@ -45,7 +45,7 @@ class Studio extends Template implements IdentityInterface
                     foreach ($catalogData['grupos'] as$group) {
                         foreach ($group['componentes'] ?? [] as $component) {$sku = $component['codigo'] ?? $component['sku'] ?? null;
                             if (!empty($sku)) {
-                                $identities[] = self::COMPONENT_CACHE_TAG_PREFIX .$sku;
+                                $identities[] = Component::STOREFRONT_CACHE_TAG_PREFIX .$sku;
                             }
                         }
                     }

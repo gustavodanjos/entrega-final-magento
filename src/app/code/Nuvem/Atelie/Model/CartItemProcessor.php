@@ -92,6 +92,8 @@ class CartItemProcessor implements CartItemProcessorInterface
             return $cartItem;
         }
 
+        $this->saveConfigurationToCustomOption($cartItem, $configuration);
+
         $productOption = $cartItem->getProductOption() ?: $this->productOptionFactory->create();
         $extensionAttributes = $productOption->getExtensionAttributes()
             ?: $this->productOptionExtensionFactory->create();
@@ -106,12 +108,62 @@ class CartItemProcessor implements CartItemProcessorInterface
     }
 
     /**
+     * Save configuration as custom option on cart item and product.
+     *
+     * Persists configuration as quote item option so that Magento quote item rehydration,
+     * quote item repository, and the pricing model can resolve the configuration via
+     * getCustomOption(Atelie::CUSTOM_OPTION_CONFIGURACAO).
+     *
+     * @param CartItemInterface $cartItem
+     * @param ConfigurationInterface $configuration
+     * @return void
+     */
+    private function saveConfigurationToCustomOption(
+        CartItemInterface $cartItem,
+        ConfigurationInterface $configuration
+    ): void {
+        $serialized = $this->configurationSerializer->serialize($configuration);
+
+        if (method_exists($cartItem, 'addOption')) {
+            $productId = null;
+            if (method_exists($cartItem, 'getProduct') && $cartItem->getProduct()) {
+                $productId = $cartItem->getProduct()->getId();
+            }
+            $cartItem->addOption([
+                'product_id' => $productId,
+                'code' => Atelie::CUSTOM_OPTION_CONFIGURACAO,
+                'value' => $serialized,
+            ]);
+        }
+
+        if (method_exists($cartItem, 'getProduct')) {
+            $product = $cartItem->getProduct();
+            if ($product && method_exists($product, 'addCustomOption')) {
+                $product->addCustomOption(Atelie::CUSTOM_OPTION_CONFIGURACAO, $serialized);
+            }
+        }
+    }
+
+    /**
      * Resolve configuration instance from quote item options or buyRequest.
      *
      * @param CartItemInterface $cartItem
      * @return ConfigurationInterface|null
      */
     private function resolveConfiguration(CartItemInterface $cartItem): ?ConfigurationInterface
+    {
+        return $this->resolveFromExtensionAttributes($cartItem)
+            ?? $this->resolveFromQuoteOption($cartItem)
+            ?? $this->resolveFromBuyRequest($cartItem);
+    }
+
+    /**
+     * Resolve configuration from product option extension attributes.
+     *
+     * @param CartItemInterface $cartItem
+     * @return ConfigurationInterface|null
+     */
+    private function resolveFromExtensionAttributes(CartItemInterface $cartItem): ?ConfigurationInterface
     {
         $productOption = $cartItem->getProductOption();
         if ($productOption instanceof ProductOptionInterface) {
@@ -124,6 +176,17 @@ class CartItemProcessor implements CartItemProcessorInterface
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Resolve configuration from quote item custom option.
+     *
+     * @param CartItemInterface $cartItem
+     * @return ConfigurationInterface|null
+     */
+    private function resolveFromQuoteOption(CartItemInterface $cartItem): ?ConfigurationInterface
+    {
         if (method_exists($cartItem, 'getOptionByCode')) {
             $option = $cartItem->getOptionByCode(Atelie::CUSTOM_OPTION_CONFIGURACAO);
             if ($option && $option->getValue()) {
@@ -152,6 +215,17 @@ class CartItemProcessor implements CartItemProcessorInterface
             }
         }
 
+        return null;
+    }
+
+    /**
+     * Resolve configuration from buyRequest DataObject.
+     *
+     * @param CartItemInterface $cartItem
+     * @return ConfigurationInterface|null
+     */
+    private function resolveFromBuyRequest(CartItemInterface $cartItem): ?ConfigurationInterface
+    {
         if (method_exists($cartItem, 'getBuyRequest')) {
             $buyRequest = $cartItem->getBuyRequest();
             if ($buyRequest instanceof DataObject) {
