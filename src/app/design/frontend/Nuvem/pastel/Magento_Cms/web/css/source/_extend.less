@@ -1,0 +1,265 @@
+& when (@media-common = true) {
+    .cms-index-index .page-main {
+        padding-top: 24px;
+    }
+
+    .nuvem-hero {
+        background: @nuvem-ceu;
+        border-radius: @nuvem-raio-card;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        isolation: isolate;
+        margin-bottom: 40px;
+        overflow: hidden;
+        padding: 24px;
+        position: relative;
+
+        &::before,
+        &::after {
+            border-radius: 50%;
+            content: '';
+            position: absolute;
+            z-index: -1;
+        }
+
+        &::before {
+            background: fade(@nuvem-rosa, 56%);
+            height: 224px;
+            right: -40px;
+            top: -88px;
+            width: 224px;
+        }
+
+        &::after {
+            background: fade(@nuvem-menta, 64%);
+            bottom: -72px;
+            height: 160px;
+            right: 24%;
+            width: 160px;
+        }
+
+        &__texto {
+            min-width: 0;
+        }
+
+        &__cloud {
+            background: @nuvem-branco;
+            border-radius: @nuvem-raio-pilula;
+            display: block;
+            height: 20px;
+            margin: 16px 0 24px 16px;
+            position: relative;
+            width: 56px;
+
+            &::before,
+            &::after {
+                background: inherit;
+                border-radius: 50%;
+                content: '';
+                position: absolute;
+            }
+
+            &::before {
+                height: 28px;
+                left: 8px;
+                top: -12px;
+                width: 28px;
+            }
+
+            &::after {
+                height: 24px;
+                right: 4px;
+                top: -8px;
+                width: 24px;
+            }
+        }
+
+        &__titulo {
+            color: @nuvem-grafite;
+            font-size: 40px;
+            font-weight: 700;
+            line-height: 48px;
+            margin: 0 0 16px;
+
+            span {
+                color: @nuvem-magenta;
+            }
+        }
+
+        &__resumo {
+            color: @nuvem-grafite;
+            font-size: 16px;
+            line-height: 24px;
+            margin: 0 0 24px;
+        }
+
+        &__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        &__cta,
+        &__cta.action.primary {
+            align-items: center;
+            border-radius: @nuvem-raio-pilula;
+            box-sizing: border-box;
+            display: inline-flex;
+            font-family: @font-family__base;
+            font-size: 16px;
+            font-weight: 700;
+            justify-content: center;
+            line-height: 24px;
+            min-height: 56px;
+            min-width: 184px;
+            padding: 12px 24px;
+            text-align: center;
+            width: 100%;
+        }
+
+        &__secondary {
+            border: 1.5px solid @nuvem-grafite;
+            color: @nuvem-grafite;
+
+            &:visited {
+                color: @nuvem-grafite;
+            }
+
+            &:hover {
+                background: fade(@nuvem-branco, 32%);
+                color: @nuvem-grafite;
+                text-decoration: none;
+            }
+        }
+
+        &__imagem {
+            align-self: center;
+            display: block;
+            height: auto;
+            max-width: 100%;
+            min-width: 0;
+        }
+    }
+
+    .nuvem-showcase {
+        margin-bottom: 48px;
+        scroll-margin-top: 24px;
+
+        &__heading {
+            margin-bottom: 16px;
+
+            h2 {
+                font-size: 30px;
+                line-height: 38px;
+                margin: 0 0 8px;
+            }
+
+            p {
+                color: @nuvem-grafite-suave;
+                font-size: 13px;
+                line-height: 20px;
+                margin: 0;
+            }
+        }
+
+        &__grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: minmax(0, 1fr);
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+    }
+
+    .nuvem-creation {
+        background: @nuvem-branco;
+        border: 1.5px solid @nuvem-bruma;
+        border-radius: @nuvem-raio-card;
+        margin: 0;
+        min-width: 0;
+        padding: 8px;
+
+        &__image {
+            align-items: center;
+            border-radius: @nuvem-raio-msg;
+            display: flex;
+            min-height: 128px;
+            padding: 8px;
+
+            &--rose {
+                background: @nuvem-nevoa;
+            }
+
+            &--mint {
+                background: @nuvem-menta;
+            }
+
+            &--lavender {
+                background: @nuvem-lavanda;
+            }
+
+            &--vanilla {
+                background: @nuvem-baunilha;
+            }
+
+            img {
+                display: block;
+                height: auto;
+                width: 100%;
+            }
+        }
+
+        h3 {
+            font-family: @font-family__base;
+            font-size: 16px;
+            line-height: 24px;
+            margin: 16px 8px 4px;
+        }
+
+        p {
+            color: @nuvem-grafite-suave;
+            font-size: 13px;
+            line-height: 20px;
+            margin: 0 8px 8px;
+        }
+    }
+}
+
+.media-width(@extremum, @break) when (@extremum = 'min') and (@break = @screen__m) {
+    .nuvem-hero {
+        align-items: center;
+        flex-direction: row;
+        gap: 16px;
+        min-height: 320px;
+        padding: 32px 40px;
+
+        &__texto {
+            flex: 1 1 50%;
+        }
+
+        &__imagem {
+            align-self: flex-end;
+            flex: 1 1 50%;
+            width: 48%;
+        }
+
+        &__cta,
+        &__cta.action.primary {
+            width: auto;
+        }
+    }
+
+    .nuvem-showcase {
+        &__grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        @media (min-width: @screen__l) {
+            &__grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+    }
+}

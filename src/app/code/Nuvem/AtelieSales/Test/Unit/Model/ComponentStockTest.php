@@ -323,6 +323,31 @@ class ComponentStockTest extends TestCase
         $this->componentStock->return('SOL-LUA-HOLO', 2, 11, 12);
     }
 
+    public function testReturnRecordsDocumentIdentityThroughComplementaryContract(): void
+    {
+        $this->connectionMock->expects($this->once())->method('beginTransaction');
+        $this->connectionMock->expects($this->once())->method('commit');
+        $this->connectionMock
+            ->expects($this->once())
+            ->method('insert')
+            ->with(
+                'nuvem_atelie_movimentacao',
+                [
+                    'componente_id' => 7,
+                    'tipo' => 'devolucao',
+                    'quantidade' => 2,
+                    'quote_id' => null,
+                    'order_id' => 11,
+                    'order_item_id' => 12,
+                    'observacao' => 'creditmemo:301',
+                ]
+            );
+
+        $stock = $this->componentStock;
+        self::assertInstanceOf(\Nuvem\AtelieSales\Api\ReturnComponentStockInterface::class, $stock);
+        $stock->return('SOL-LUA-HOLO', 2, 11, 12, 'creditmemo:301');
+    }
+
     public function testAdjustSetsAbsoluteStockAndRecordsDelta(): void
     {
         $this->connectionMock->method('fetchOne')->willReturn('10');

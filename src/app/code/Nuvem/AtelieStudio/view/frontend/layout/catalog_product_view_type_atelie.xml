@@ -2,8 +2,14 @@
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
+        <!-- Remove blocos nativos que não se aplicam ao estúdio -->
         <referenceBlock name="product.info.media" remove="true" />
         <referenceBlock name="product.info.options.wrapper" remove="true" />
+        <referenceBlock name="product.info.details" remove="true" />
+        <referenceBlock name="product.info.attributes" remove="true" />
+        <referenceBlock name="product.info.stock.sku" remove="true" />
+        <referenceBlock name="product.info.review" remove="true" />
+        <referenceBlock name="page.main.title" remove="true" />
 
         <referenceContainer name="content">
             <block class="Nuvem\AtelieStudio\Block\Studio"

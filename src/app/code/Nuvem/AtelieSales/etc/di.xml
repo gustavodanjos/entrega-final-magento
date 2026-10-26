@@ -5,6 +5,8 @@
                 type="Nuvem\AtelieSales\Model\ComponentStock"/>
     <preference for="Nuvem\AtelieSales\Api\PublicAvailabilityInterface"
                 type="Nuvem\AtelieSales\Model\PublicAvailability"/>
+    <preference for="Nuvem\AtelieSales\Api\ReturnComponentStockInterface"
+                type="Nuvem\AtelieSales\Model\ComponentStock"/>
     <preference for="Nuvem\AtelieSales\Api\QuoteComponentStockInterface"
                 type="Nuvem\AtelieSales\Model\ComponentStock"/>
     <preference for="Nuvem\AtelieSales\Api\AvailabilityManagementInterface"
