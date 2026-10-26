@@ -71,8 +71,57 @@ define([
             this.autoResolveBlockedSelections();
             this.initDocumentListeners();
             this.initAvailabilityPolling();
+            this.initA11ySanitization();
 
             return this;
+        },
+
+        initA11ySanitization: function () {
+            if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') {
+                return;
+            }
+
+            var sanitize = function () {
+                var selector = '.nav-sections, .nav-sections-items, .nav-sections-item-title, .nav-sections-item-content, .navigation, .navigation ul, .navigation li, .navigation a';
+                var badRoles = ['menu', 'menubar', 'menuitem', 'presentation', 'tablist', 'tab', 'tabpanel'];
+                var elements = document.querySelectorAll(selector);
+                for (var i = 0; i < elements.length; i++) {
+                    var el = elements[i];
+                    var role = el.getAttribute('role');
+                    if (role && badRoles.indexOf(role) !== -1) {
+                        el.removeAttribute('role');
+                    }
+                    if (el.hasAttribute('aria-selected')) {
+                        el.removeAttribute('aria-selected');
+                    }
+                }
+                var searchInput = document.getElementById('search');
+                if (searchInput && searchInput.getAttribute('aria-haspopup') === 'false') {
+                    searchInput.removeAttribute('aria-haspopup');
+                }
+            };
+
+            sanitize();
+            setTimeout(sanitize, 300);
+            setTimeout(sanitize, 1000);
+
+            if (typeof window !== 'undefined' && typeof window.MutationObserver !== 'undefined') {
+                var isRunning = false;
+                var observer = new MutationObserver(function () {
+                    if (isRunning) return;
+                    isRunning = true;
+                    sanitize();
+                    isRunning = false;
+                });
+                var navContainer = document.querySelector('.nav-sections') || document.body;
+                if (navContainer) {
+                    observer.observe(navContainer, {
+                        attributes: true,
+                        attributeFilter: ['role'],
+                        subtree: true
+                    });
+                }
+            }
         },
 
         initDocumentListeners: function () {
@@ -209,6 +258,7 @@ define([
             this.activeTooltip = ko.observable(null);
             this.isSubmitting = ko.observable(false);
             this.actionError = ko.observable('');
+            this.isLaserFocused = ko.observable(false);
         },
 
         initSelectionObservables: function (catalog, cfgInicial) {
@@ -717,6 +767,161 @@ define([
         switchTab: function (grupoCodigo) {
             this.activeTab(grupoCodigo);
             this.activeTooltip(null);
+        },
+
+        onLaserFocus: function () {
+            this.isLaserFocused(true);
+        },
+
+        onLaserBlur: function () {
+            this.isLaserFocused(false);
+        },
+
+        /**
+         * F3.8: Retorna o tabindex para roving tabindex no radiogroup de amostras.
+         * Garante que apenas a opção selecionada (ou a primeira válida) seja parada de Tab.
+         *
+         * @param {Object} option
+         * @return {Number} 0 se for o tab-stop ativo, -1 caso contrário.
+         */
+        getSwatchTabIndex: function (option) {
+            if (!option) {
+                return -1;
+            }
+            var currentTab = this.activeTab();
+            var selectedCode = this.selections[currentTab] ? this.selections[currentTab]() : null;
+            var options = this.currentOptions();
+
+            // 1. Se a opção for a atualmente selecionada e estiver disponível
+            if (selectedCode && option.codigo === selectedCode && !this.isBlocked(option.codigo) && !this.isEsgotado(option.codigo)) {
+                return 0;
+            }
+
+            // 2. Se a opção selecionada for bloqueada/esgotada ou inexistente, busca a primeira opção disponível
+            var firstAvailable = null;
+            for (var i = 0; i < options.length; i++) {
+                var candidate = options[i];
+                if (!this.isBlocked(candidate.codigo) && !this.isEsgotado(candidate.codigo)) {
+                    firstAvailable = candidate;
+                    break;
+                }
+            }
+
+            if (firstAvailable && firstAvailable.codigo === option.codigo) {
+                if (!selectedCode || this.isBlocked(selectedCode) || this.isEsgotado(selectedCode)) {
+                    return 0;
+                }
+            }
+
+            // 3. Fallback: se nenhuma opção estiver disponível, a primeira opção do grupo recebe tabindex=0
+            if (!firstAvailable && options.length > 0 && options[0].codigo === option.codigo) {
+                return 0;
+            }
+
+            return -1;
+        },
+
+        /**
+         * F3.8: Navegação completa por teclado nas amostras do radiogroup.
+         * Suporta setas direcionais (ArrowLeft/Right/Up/Down), Home, End, Espaço e Enter.
+         *
+         * @param {KeyboardEvent} event
+         * @param {Object} option
+         * @return {Boolean}
+         */
+        handleSwatchKeydown: function (event, option) {
+            var key = event.key || event.keyCode;
+            var options = this.currentOptions();
+            if (!options || options.length === 0) {
+                return true;
+            }
+
+            var currentIndex = -1;
+            for (var i = 0; i < options.length; i++) {
+                if (options[i].codigo === option.codigo) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+            if (currentIndex === -1) {
+                return true;
+            }
+
+            // A. Espaço ou Enter: Seleciona o componente focado ou exibe tooltip se bloqueado
+            if (key === ' ' || key === 'Space' || key === 'Spacebar' || key === 'Enter' || key === 32 || key === 13) {
+                event.preventDefault();
+                this.selectOption(this.activeTab(), option);
+                return false;
+            }
+
+            // B. Setas Direcionais, Home e End
+            var newIndex = currentIndex;
+            var cols = 3;
+            var handled = false;
+
+            switch (key) {
+                case 'ArrowRight':
+                case 39:
+                    newIndex = (currentIndex + 1) % options.length;
+                    handled = true;
+                    break;
+                case 'ArrowLeft':
+                case 37:
+                    newIndex = (currentIndex - 1 + options.length) % options.length;
+                    handled = true;
+                    break;
+                case 'ArrowDown':
+                case 40:
+                    if (currentIndex + cols < options.length) {
+                        newIndex = currentIndex + cols;
+                    } else {
+                        newIndex = (currentIndex + cols) % options.length;
+                    }
+                    handled = true;
+                    break;
+                case 'ArrowUp':
+                case 38:
+                    if (currentIndex - cols >= 0) {
+                        newIndex = currentIndex - cols;
+                    } else {
+                        var totalRows = Math.ceil(options.length / cols);
+                        newIndex = currentIndex + (totalRows - 1) * cols;
+                        while (newIndex >= options.length) {
+                            newIndex -= cols;
+                        }
+                    }
+                    handled = true;
+                    break;
+                case 'Home':
+                case 36:
+                    newIndex = 0;
+                    handled = true;
+                    break;
+                case 'End':
+                case 35:
+                    newIndex = options.length - 1;
+                    handled = true;
+                    break;
+                default:
+                    return true;
+            }
+
+            if (handled) {
+                event.preventDefault();
+                var targetOption = options[newIndex];
+                if (targetOption && event.target) {
+                    var container = event.target.closest ? event.target.closest('[role="radiogroup"]') : null;
+                    if (container) {
+                        var buttons = container.querySelectorAll('[role="radio"]');
+                        if (buttons && buttons[newIndex]) {
+                            buttons[newIndex].focus();
+                        }
+                    }
+                }
+                return false;
+            }
+
+            return true;
         },
 
         handleTabKeydown: function (event, grupoCodigo) {
