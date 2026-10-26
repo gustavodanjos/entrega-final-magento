@@ -1,0 +1,262 @@
+& when (@media-common = true) {
+    .atelie-showcase {
+        margin: 48px 0 72px;
+
+        &__container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        &__header {
+            margin-bottom: 24px;
+        }
+
+        &__title {
+            margin: 0 0 8px;
+            color: @nuvem-grafite;
+            font-size: 4.2rem;
+            line-height: 1.12;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        &__subtitle {
+            margin: 0;
+            color: @nuvem-grafite-suave;
+            font-size: 1.4rem;
+            line-height: 1.6;
+        }
+
+        &__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 24px;
+        }
+
+        &__card {
+            display: flex;
+            flex-direction: column;
+            min-height: 320px;
+            overflow: hidden;
+            background: @nuvem-branco;
+            border: 1px solid @nuvem-bruma;
+            border-radius: 22px;
+            box-shadow: 0 8px 24px fade(@nuvem-grafite, 5%);
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+
+        &__card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px fade(@nuvem-grafite, 10%);
+        }
+
+        &__visual {
+            position: relative;
+            min-height: 150px;
+            padding: 18px;
+            overflow: hidden;
+            border-bottom: 1px solid @nuvem-bruma;
+        }
+
+        &__badge {
+            position: relative;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 6px 14px;
+            background: fade(@nuvem-branco, 82%);
+            border: 1px solid fade(@nuvem-grafite, 8%);
+            border-radius: 999px;
+            color: @nuvem-grafite-suave;
+            font-size: 1.2rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        &__cloud {
+            position: absolute;
+            left: 28px;
+            bottom: 28px;
+            width: 88px;
+            height: 32px;
+            background: @nuvem-baunilha;
+            border-radius: 999px;
+            box-shadow:
+                22px -10px 0 0 @nuvem-baunilha,
+                44px 0 0 0 @nuvem-baunilha;
+        }
+
+        &__circle {
+            position: absolute;
+            top: -18px;
+            right: -12px;
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            opacity: .5;
+        }
+
+        &__content {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            gap: 12px;
+            padding: 20px 22px 24px;
+        }
+
+        &__card-title {
+            overflow-wrap: anywhere;
+            margin: 0;
+            color: @nuvem-grafite;
+            font-size: 2.2rem;
+            line-height: 1.2;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+
+        &__card-subtitle {
+            margin: 0;
+            color: @nuvem-grafite-suave;
+            font-size: 1.3rem;
+            line-height: 1.5;
+        }
+
+        &__action {
+            box-sizing: border-box;
+            max-width: 100%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            align-self: flex-start;
+            min-height: 44px;
+            margin-top: auto;
+            padding: 0 22px;
+            background: @nuvem-magenta;
+            border: 1px solid @nuvem-magenta;
+            border-radius: 999px;
+            color: @nuvem-branco;
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: background .2s ease, border-color .2s ease, color .2s ease;
+        }
+
+        &__action:visited {
+            color: @nuvem-branco;
+        }
+
+        &__action:hover,
+        &__action:focus {
+            background: darken(@nuvem-magenta, 7%);
+            border-color: darken(@nuvem-magenta, 7%);
+            color: @nuvem-branco;
+            text-decoration: none;
+        }
+
+        &__card--1 {
+            .atelie-showcase__visual {
+                background: @nuvem-ceu;
+            }
+
+            .atelie-showcase__circle {
+                background: darken(@nuvem-lavanda, 4%);
+            }
+        }
+
+        &__card--2 {
+            .atelie-showcase__visual {
+                background: @nuvem-menta;
+            }
+
+            .atelie-showcase__circle {
+                background: darken(@nuvem-menta, 7%);
+            }
+        }
+
+        &__card--3 {
+            .atelie-showcase__visual {
+                background: @nuvem-lavanda;
+            }
+
+            .atelie-showcase__circle {
+                background: darken(@nuvem-lavanda, 8%);
+            }
+        }
+
+        &__card--4 {
+            .atelie-showcase__visual {
+                background: @nuvem-baunilha;
+            }
+
+            .atelie-showcase__circle {
+                background: darken(@nuvem-baunilha, 8%);
+            }
+        }
+    }
+}
+
+.media-width(@extremum, @break) when (@extremum = 'max') and (@break = @screen__l) {
+    .atelie-showcase {
+        &__container {
+            padding: 0 32px;
+        }
+
+        &__grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+}
+
+.media-width(@extremum, @break) when (@extremum = 'max') and (@break = @screen__m) {
+    .atelie-showcase {
+        margin: 32px 0 48px;
+
+        &__container {
+            padding: 0 16px;
+        }
+
+        &__title {
+            font-size: 3.2rem;
+        }
+
+        &__grid {
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+
+        &__card {
+            min-height: auto;
+        }
+
+        &__visual {
+            min-height: 132px;
+        }
+
+        &__card-title {
+            font-size: 2rem;
+        }
+
+        &__action {
+            width: 100%;
+        }
+    }
+}
+
+// F5.4 - Estados dos botoes de remix
+& when (@media-common = true) {
+    .atelie-showcase {
+        a.atelie-showcase__action,
+        a.atelie-showcase__action:link,
+        a.atelie-showcase__action:visited,
+        a.atelie-showcase__action:hover,
+        a.atelie-showcase__action:focus {
+            color: @nuvem-branco !important;
+        }
+
+        a.atelie-showcase__action:active {
+            color: @nuvem-ceu !important;
+        }
+    }
+}

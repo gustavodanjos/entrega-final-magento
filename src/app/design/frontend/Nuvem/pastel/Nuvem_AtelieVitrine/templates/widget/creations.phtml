@@ -1,0 +1,77 @@
+<?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
+
+declare(strict_types=1);
+
+/** @var \Nuvem\AtelieVitrine\Block\Widget\Creations $block */
+$creations = $block->getCreations();
+$title = trim((string) $block->getShowcaseTitle());
+?>
+
+<?php if (!empty($creations)) : ?>
+<section class="atelie-showcase" data-role="atelie-showcase">
+    <div class="atelie-showcase__container">
+        <header class="atelie-showcase__header">
+            <h2 class="atelie-showcase__title">
+                <?= $block->escapeHtml($title ?: __('Criações da semana')) ?>
+            </h2>
+
+            <p class="atelie-showcase__subtitle">
+                <?= $block->escapeHtml(__('Cores para inspirar o seu próximo par.')) ?>
+            </p>
+        </header>
+
+        <div class="atelie-showcase__grid">
+            <?php foreach ($creations as $index => $creation) : ?>
+                <?php
+                $name = (string) (
+                    $creation->getData('nome')
+                    ?: $creation->getData('title')
+                    ?: $creation->getData('name')
+                    ?: ''
+                );
+
+                $productLabel = (string) (
+                    $creation->getData('produto')
+                    ?: $creation->getData('produto_nome')
+                    ?: $creation->getData('product_name')
+                    ?: __('Inspiração Nuvem')
+                );
+
+                $variant = ((int) $index % 4) + 1;
+                ?>
+
+                <article class="atelie-showcase__card atelie-showcase__card--<?= $block->escapeHtmlAttr((string) $variant) ?>">
+                    <div class="atelie-showcase__visual">
+                        <span class="atelie-showcase__badge">
+                            <?= $block->escapeHtml(__('Criação pública')) ?>
+                        </span>
+
+                        <span class="atelie-showcase__cloud" aria-hidden="true"></span>
+                        <span class="atelie-showcase__circle" aria-hidden="true"></span>
+                    </div>
+
+                    <div class="atelie-showcase__content">
+                        <h3 class="atelie-showcase__card-title">
+                            <?= $block->escapeHtml($name ?: __('Criação sem nome')) ?>
+                        </h3>
+
+                        <p class="atelie-showcase__card-subtitle">
+                            <?= $block->escapeHtml($productLabel) ?>
+                        </p>
+
+                        <a
+                            class="atelie-showcase__action"
+                            href="<?= $block->escapeUrl($block->getCreationUrl($creation)) ?>"
+                        >
+                            <?= $block->escapeHtml(__('Abrir e remixar')) ?>
+                        </a>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
