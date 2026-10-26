@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">nuvem_atelie_rule_listing.rule_listing_data_source</item>
+        </item>
+    </argument>
+
+    <settings>
+        <buttons>
+            <button name="add">
+                <url path="nuvem_atelieadmin/rule/edit"/>
+                <class>primary</class>
+                <label translate="true">Nova regra</label>
+            </button>
+        </buttons>
+        <spinner>rule_columns</spinner>
+        <deps>
+            <dep>nuvem_atelie_rule_listing.rule_listing_data_source</dep>
+        </deps>
+    </settings>
+
+    <dataSource name="rule_listing_data_source"
+                component="Magento_Ui/js/grid/provider">
+        <settings>
+            <storageConfig>
+                <param name="indexField" xsi:type="string">regra_id</param>
+            </storageConfig>
+            <updateUrl path="mui/index/render"/>
+        </settings>
+        <aclResource>Nuvem_AtelieAdmin::rules</aclResource>
+        <dataProvider
+            class="Nuvem\AtelieAdmin\Ui\DataProvider\Rule\ListingDataProvider"
+            name="rule_listing_data_source">
+            <settings>
+                <requestFieldName>regra_id</requestFieldName>
+                <primaryFieldName>regra_id</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+
+    <listingToolbar name="listing_top">
+        <bookmark name="bookmarks"/>
+        <columnsControls name="columns_controls"/>
+        <filters name="listing_filters"/>
+        <paging name="listing_paging"/>
+    </listingToolbar>
+
+    <columns name="rule_columns">
+        <column name="regra_id" sortOrder="10">
+            <settings>
+                <filter>textRange</filter>
+                <sorting>desc</sorting>
+                <label translate="true">ID</label>
+            </settings>
+        </column>
+
+        <column name="codigo" sortOrder="20">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Código</label>
+            </settings>
+        </column>
+
+        <column name="tipo" sortOrder="30">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Tipo</label>
+            </settings>
+        </column>
+
+        <column name="origem_componente_id"
+                component="Magento_Ui/js/grid/columns/select"
+                sortOrder="40">
+            <settings>
+                <options class="Nuvem\AtelieAdmin\Model\Source\Rule\Components"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Componente de origem</label>
+            </settings>
+        </column>
+
+        <column name="alvo_tipo" sortOrder="50">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Tipo de alvo</label>
+            </settings>
+        </column>
+
+        <column name="alvo" sortOrder="60">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Alvo</label>
+            </settings>
+        </column>
+
+        <column name="mensagem" sortOrder="70">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Mensagem</label>
+            </settings>
+        </column>
+
+        <column name="ativo"
+                component="Magento_Ui/js/grid/columns/select"
+                sortOrder="80">
+            <settings>
+                <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Ativa</label>
+            </settings>
+        </column>
+
+        <actionsColumn name="actions"
+                       class="Nuvem\AtelieAdmin\Ui\Component\Listing\Column\RuleActions"
+                       sortOrder="90">
+            <settings>
+                <indexField>regra_id</indexField>
+                <label translate="true">Ações</label>
+            </settings>
+        </actionsColumn>
+    </columns>
+</listing>

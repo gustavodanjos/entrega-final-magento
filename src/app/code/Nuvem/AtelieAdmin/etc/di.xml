@@ -5,6 +5,11 @@
         <plugin name="nuvem_atelieadmin_component_invalidate_cache"
                 type="Nuvem\AtelieAdmin\Plugin\Component\InvalidateCache"/>
     </type>
+
+    <type name="Nuvem\Atelie\Model\RuleRepository">
+        <plugin name="nuvem_atelieadmin_rule_invalidate_cache"
+                type="Nuvem\AtelieAdmin\Plugin\Rule\InvalidateCache"/>
+    </type>
     <type name="Magento\Framework\Console\CommandList">
         <arguments>
             <argument name="commands" xsi:type="array">

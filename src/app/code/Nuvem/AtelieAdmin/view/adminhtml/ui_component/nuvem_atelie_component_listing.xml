@@ -1,0 +1,177 @@
+<?xml version="1.0"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd"
+         class="Nuvem\AtelieAdmin\Ui\Component\Listing\ComponentListing">
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">nuvem_atelie_component_listing.nuvem_atelie_component_listing_data_source</item>
+        </item>
+    </argument>
+    <settings>
+        <buttons>
+            <button name="add" class="Nuvem\AtelieAdmin\Block\Adminhtml\Component\NewButton"/>
+        </buttons>
+        <spinner>component_columns</spinner>
+        <deps>
+            <dep>nuvem_atelie_component_listing.nuvem_atelie_component_listing_data_source</dep>
+        </deps>
+    </settings>
+    <dataSource name="nuvem_atelie_component_listing_data_source" component="Magento_Ui/js/grid/provider">
+        <settings>
+            <storageConfig>
+                <param name="indexField" xsi:type="string">componente_id</param>
+            </storageConfig>
+            <updateUrl path="mui/index/render"/>
+        </settings>
+        <aclResource>Nuvem_AtelieAdmin::components_view</aclResource>
+        <dataProvider class="Magento\Framework\View\Element\UiComponent\DataProvider\DataProvider"
+                      name="nuvem_atelie_component_listing_data_source">
+            <settings>
+                <requestFieldName>componente_id</requestFieldName>
+                <primaryFieldName>componente_id</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+    <listingToolbar name="listing_top">
+        <settings><sticky>true</sticky></settings>
+        <bookmark name="bookmarks"/>
+        <columnsControls name="columns_controls"/>
+        <filters name="listing_filters"/>
+        <massaction name="listing_massaction">
+            <action name="activate">
+                <settings>
+                    <url path="nuvem_atelieadmin/component/massStatus">
+                        <param name="ativo">1</param>
+                    </url>
+                    <type>activate</type>
+                    <label translate="true">Ativar</label>
+                    <confirm>
+                        <title translate="true">Ativar componentes</title>
+                        <message translate="true">Ativar os componentes selecionados?</message>
+                    </confirm>
+                </settings>
+            </action>
+            <action name="deactivate">
+                <settings>
+                    <url path="nuvem_atelieadmin/component/massStatus">
+                        <param name="ativo">0</param>
+                    </url>
+                    <type>deactivate</type>
+                    <label translate="true">Desativar</label>
+                    <confirm>
+                        <title translate="true">Desativar componentes</title>
+                        <message translate="true">Desativar os componentes selecionados?</message>
+                    </confirm>
+                </settings>
+            </action>
+        </massaction>
+        <exportButton name="export_button">
+            <settings>
+                <selectProvider>nuvem_atelie_component_listing.nuvem_atelie_component_listing.component_columns.ids</selectProvider>
+            </settings>
+        </exportButton>
+        <paging name="listing_paging"/>
+    </listingToolbar>
+    <columns name="component_columns">
+        <settings>
+            <editorConfig>
+                <param name="clientConfig" xsi:type="array">
+                    <item name="saveUrl" xsi:type="url" path="nuvem_atelieadmin/component/inlineEdit"/>
+                    <item name="validateBeforeSave" xsi:type="boolean">false</item>
+                </param>
+                <param name="indexField" xsi:type="string">componente_id</param>
+                <param name="enabled" xsi:type="boolean">true</param>
+                <param name="selectProvider" xsi:type="string">nuvem_atelie_component_listing.nuvem_atelie_component_listing.component_columns.ids</param>
+            </editorConfig>
+            <childDefaults>
+                <param name="fieldAction" xsi:type="array">
+                    <item name="provider" xsi:type="string">nuvem_atelie_component_listing.nuvem_atelie_component_listing.component_columns_editor</item>
+                    <item name="target" xsi:type="string">startEdit</item>
+                    <item name="params" xsi:type="array">
+                        <item name="0" xsi:type="string">${ $.$data.rowIndex }</item>
+                        <item name="1" xsi:type="boolean">true</item>
+                    </item>
+                </param>
+            </childDefaults>
+        </settings>
+        <selectionsColumn name="ids">
+            <settings><indexField>componente_id</indexField></settings>
+        </selectionsColumn>
+        <column name="componente_id">
+            <settings>
+                <filter>textRange</filter>
+                <sorting>asc</sorting>
+                <label translate="true">ID</label>
+            </settings>
+        </column>
+        <column name="codigo">
+            <settings><filter>text</filter><label translate="true">Código</label></settings>
+        </column>
+        <column name="nome">
+            <settings><filter>text</filter><label translate="true">Nome</label></settings>
+        </column>
+        <column name="grupo_id" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Nuvem\AtelieAdmin\Model\Source\Groups"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Grupo</label>
+            </settings>
+        </column>
+        <column name="cor_hex" component="Nuvem_AtelieAdmin/js/grid/columns/color">
+            <settings><filter>text</filter><label translate="true">Cor</label></settings>
+        </column>
+        <column name="acabamento" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Nuvem\AtelieAdmin\Model\Source\Finishes"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Acabamento</label>
+            </settings>
+        </column>
+        <column name="estoque">
+            <settings>
+                <filter>textRange</filter>
+                <dataType>number</dataType>
+                <label translate="true">Estoque</label>
+                <editor>
+                    <editorType>text</editorType>
+                    <validation>
+                        <rule name="required-entry" xsi:type="boolean">true</rule>
+                        <rule name="validate-digits" xsi:type="boolean">true</rule>
+                    </validation>
+                </editor>
+            </settings>
+        </column>
+        <column name="preco_adicional">
+            <settings>
+                <filter>textRange</filter>
+                <dataType>number</dataType>
+                <label translate="true">Preço adicional</label>
+                <editor>
+                    <editorType>text</editorType>
+                    <validation>
+                        <rule name="required-entry" xsi:type="boolean">true</rule>
+                        <rule name="validate-number" xsi:type="boolean">true</rule>
+                        <rule name="validate-zero-or-greater" xsi:type="boolean">true</rule>
+                    </validation>
+                </editor>
+            </settings>
+        </column>
+        <column name="ativo" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                <filter>select</filter>
+                <dataType>select</dataType>
+                <label translate="true">Ativo</label>
+                <editor><editorType>select</editorType></editor>
+            </settings>
+        </column>
+        <actionsColumn name="actions" class="Nuvem\AtelieAdmin\Ui\Component\Listing\Column\ComponentActions">
+            <settings>
+                <indexField>componente_id</indexField>
+                <label translate="true">Ações</label>
+            </settings>
+        </actionsColumn>
+    </columns>
+</listing>
