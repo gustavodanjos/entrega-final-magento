@@ -5,6 +5,7 @@ namespace Nuvem\AtelieSales\Observer;
 
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Magento\Sales\Model\Order;
 use Nuvem\AtelieSales\Model\QuoteStockReservation;
 
 class CompensateStockOnQuoteSubmitFailure implements ObserverInterface
@@ -17,15 +18,23 @@ class CompensateStockOnQuoteSubmitFailure implements ObserverInterface
     }
 
     /**
+     * Compensate only the invocation that received the core failure event.
+     *
      * @param Observer $observer
      * @return void
      */
     public function execute(Observer $observer): void
     {
         $quote = $observer->getEvent()->getQuote();
-        if ($quote === null || !$quote->getId() || !$this->reservation->hasReservation($quote)) {
+        $order = $observer->getEvent()->getOrder();
+        if ($quote === null || !$quote->getId() || !$order instanceof Order
+            || (int) $order->getQuoteId() !== (int) $quote->getId()
+        ) {
             return;
         }
-        $this->reservation->compensate($quote);
+        $attemptId = $order->getData(QuoteStockReservation::ORDER_ATTEMPT_ID);
+        if (is_string($attemptId) && $attemptId !== '') {
+            $this->reservation->handleFailure($quote, $attemptId, $observer->getEvent()->getException());
+        }
     }
 }

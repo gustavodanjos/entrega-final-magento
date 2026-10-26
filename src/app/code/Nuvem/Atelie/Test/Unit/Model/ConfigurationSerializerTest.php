@@ -1,9 +1,14 @@
 <?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
 declare(strict_types=1);
 
 namespace Nuvem\Atelie\Test\Unit\Model;
 
 use InvalidArgumentException;
+use Nuvem\Atelie\Api\Data\ConfigurationInterface;
+use Nuvem\Atelie\Api\Data\SelectionInterface;
 use Nuvem\Atelie\Model\Configuration;
 use Nuvem\Atelie\Model\ConfigurationSerializer;
 use Nuvem\Atelie\Model\Selection;
@@ -11,6 +16,42 @@ use PHPUnit\Framework\TestCase;
 
 class ConfigurationSerializerTest extends TestCase
 {
+    public function testSerializeAcceptsRestAliases(): void
+    {
+        $selection = $this->createMock(SelectionInterface::class);
+        $selection->method('getGrupo')->willReturn('cabedal');
+        $selection->method('getComponente')->willReturn('CAB-TRICO-LAVANDA');
+        $configuration = $this->createMock(ConfigurationInterface::class);
+        $configuration->method('getTamanho')->willReturn(38);
+        $configuration->method('getGravacao')->willReturn(' LUIZ ');
+        $configuration->method('getSelections')->willReturn([$selection]);
+
+        $this->assertSame(
+            (new ConfigurationSerializer())->serialize(new Configuration(38, 'LUIZ', [
+                new Selection('cabedal', 'CAB-TRICO-LAVANDA'),
+            ])),
+            (new ConfigurationSerializer())->serialize($configuration)
+        );
+    }
+
+    public function testSerializeFallsBackToEnglishAccessors(): void
+    {
+        $selection = $this->createMock(SelectionInterface::class);
+        $selection->method('getGroup')->willReturn('cabedal');
+        $selection->method('getComponent')->willReturn('CAB-TRICO-LAVANDA');
+        $configuration = $this->createMock(ConfigurationInterface::class);
+        $configuration->method('getSize')->willReturn(40);
+        $configuration->method('getEngraving')->willReturn(' NUVEM ');
+        $configuration->method('getSelections')->willReturn([$selection]);
+
+        $this->assertSame(
+            (new ConfigurationSerializer())->serialize(new Configuration(40, 'NUVEM', [
+                new Selection('cabedal', 'CAB-TRICO-LAVANDA'),
+            ])),
+            (new ConfigurationSerializer())->serialize($configuration)
+        );
+    }
+
     public function testDifferentOrderProducesSameString(): void
     {
         $a = new Configuration(38, 'LUIZ', [
@@ -124,10 +165,15 @@ class ConfigurationSerializerTest extends TestCase
         );
 
         $this->assertSame(38, $unserialized->getSize());
+        $this->assertSame(38, $unserialized->getTamanho());
         $this->assertSame('LUIZ', $unserialized->getEngraving());
+        $this->assertSame('LUIZ', $unserialized->getGravacao());
         $this->assertCount(1, $unserialized->getSelections());
+        $this->assertCount(1, $unserialized->getSelecoes());
         $this->assertSame('cabedal', $unserialized->getSelections()[0]->getGroup());
+        $this->assertSame('cabedal', $unserialized->getSelections()[0]->getGrupo());
         $this->assertSame('CAB-TRICO-LAVANDA', $unserialized->getSelections()[0]->getComponent());
+        $this->assertSame('CAB-TRICO-LAVANDA', $unserialized->getSelections()[0]->getComponente());
     }
 
     public function testUnserializeTreatsNullEngravingAsAbsent(): void

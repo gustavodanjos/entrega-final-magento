@@ -10,7 +10,7 @@ use Magento\Sales\Api\Data\OrderItemInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\Creditmemo\Item as CreditmemoItem;
-use Nuvem\AtelieSales\Api\ComponentStockInterface;
+use Nuvem\AtelieSales\Api\ReturnComponentStockInterface;
 use Nuvem\AtelieSales\Model\OrderItemConfigurationReader;
 use Nuvem\AtelieSales\Model\OrderItemStockReturner;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 
 class OrderItemStockReturnerTest extends TestCase
 {
-    private ComponentStockInterface&MockObject $componentStock;
+    private ReturnComponentStockInterface&MockObject $componentStock;
     private Movimentacao&MockObject $stockLedger;
     private OrderItemConfigurationReader&MockObject $configurationReader;
     private AdapterInterface&MockObject $connection;
@@ -29,7 +29,7 @@ class OrderItemStockReturnerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->componentStock = $this->createMock(ComponentStockInterface::class);
+        $this->componentStock = $this->createMock(ReturnComponentStockInterface::class);
         $this->stockLedger = $this->createMock(Movimentacao::class);
         $this->configurationReader = $this->createMock(OrderItemConfigurationReader::class);
         $resource = $this->createMock(ResourceConnection::class);

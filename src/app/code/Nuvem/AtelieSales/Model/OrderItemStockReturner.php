@@ -9,19 +9,19 @@ use Magento\Sales\Api\Data\OrderItemInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Creditmemo;
 use Nuvem\Atelie\Model\Product\Type\Atelie;
-use Nuvem\AtelieSales\Api\ComponentStockInterface;
+use Nuvem\AtelieSales\Api\ReturnComponentStockInterface;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 
 class OrderItemStockReturner
 {
     /**
-     * @param ComponentStockInterface $componentStock
+     * @param ReturnComponentStockInterface $componentStock
      * @param Movimentacao $stockLedger
      * @param OrderItemConfigurationReader $configurationReader
      * @param ResourceConnection $resourceConnection
      */
     public function __construct(
-        private readonly ComponentStockInterface $componentStock,
+        private readonly ReturnComponentStockInterface $componentStock,
         private readonly Movimentacao $stockLedger,
         private readonly OrderItemConfigurationReader $configurationReader,
         private readonly ResourceConnection $resourceConnection

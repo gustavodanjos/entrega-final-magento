@@ -4,9 +4,7 @@ declare(strict_types=1);
 namespace Nuvem\AtelieSales\Test\Integration;
 
 use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Framework\App\Bootstrap;
 use Magento\Framework\App\DeploymentConfig;
-use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\App\State;
 use Magento\Framework\Event\Config\Data as EventConfig;
@@ -27,14 +25,6 @@ use Nuvem\AtelieSales\Model\OrderItemStockReturner;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 
 require dirname(__DIR__, 6) . '/app/bootstrap.php';
-
-class ReturnScenarioEnvironmentFactory extends \Magento\Framework\App\EnvironmentFactory
-{
-    public function createEnvironment(): \Magento\Framework\App\EnvironmentInterface
-    {
-        return new \Magento\Framework\App\ObjectManager\Environment\Developer($this);
-    }
-}
 
 class FailingReturnPersistenceObserver implements ObserverInterface
 {
@@ -105,29 +95,8 @@ function savedCreditmemo(ObjectManagerInterface $objects, Order $order, int $qua
 $database = getenv('F24_TEST_DATABASE');
 verifyReturn(is_string($database) && preg_match('/^f24_validation_[a-z0-9_]+$/D', $database) === 1,
     'Set F24_TEST_DATABASE to an isolated, disposable f24_validation_* database.');
-$config = require BP . '/app/etc/env.php';
-$config['db']['connection']['default']['dbname'] = $database;
-$testDirectory = '/tmp/' . $database;
-$config['cache'] = ['frontend' => [
-    'default' => ['backend' => 'Magento\\Framework\\Cache\\Backend\\File', 'backend_options' => ['cache_dir' => $testDirectory . '/cache']],
-    'page_cache' => ['backend' => 'Magento\\Framework\\Cache\\Backend\\File', 'backend_options' => ['cache_dir' => $testDirectory . '/page_cache']],
-]];
-putenv('MAGENTO_DC__OVERRIDE=' . json_encode($config, JSON_THROW_ON_ERROR));
-$parameters = [Bootstrap::INIT_PARAM_FILESYSTEM_DIR_PATHS => [
-    DirectoryList::VAR_DIR => ['path' => $testDirectory],
-    DirectoryList::CACHE => ['path' => $testDirectory . '/cache'],
-    DirectoryList::GENERATED_CODE => ['path' => $testDirectory . '/generated/code'],
-    DirectoryList::GENERATED_METADATA => ['path' => $testDirectory . '/generated/metadata'],
-]];
-// Compiled metadata uses BP directly, ignoring the isolated metadata directory.
-$factory = new class(
-    Bootstrap::createFilesystemDirectoryList(BP, $parameters),
-    new \Magento\Framework\Filesystem\DriverPool(),
-    new \Magento\Framework\Config\File\ConfigFilePool()
-) extends \Magento\Framework\App\ObjectManagerFactory {
-    protected $envFactoryClassName = ReturnScenarioEnvironmentFactory::class;
-};
-$objects = Bootstrap::create(BP, $parameters, $factory)->getObjectManager();
+require __DIR__ . '/IsolatedEnvironment.php';
+$objects = createIsolatedEnvironment($database);
 verifyReturn($objects->get(DeploymentConfig::class)->get('db/connection/default/dbname') === $database,
     'Deployment configuration did not select the isolated database.');
 $objects->get(State::class)->setAreaCode('frontend');
@@ -173,6 +142,8 @@ if ($command === 'scenarios') {
     savedCreditmemo($objects, $order, 1, false);
     verifyReturn($stockQuantity() === $before + 2, 'Refund ignored back_to_stock flag.');
     echo "PASS: partial refunds, repeated saves and back_to_stock selection\n";
+
+    require __DIR__ . '/CheckoutReturnScenarios.php';
 
     $events = $objects->get(EventConfig::class);
     $events->get('sales_order_save_after');

@@ -15,6 +15,8 @@ use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Api\Data\ComponentInterface;
 use Nuvem\Atelie\Model\Config;
 use Nuvem\AtelieSales\Api\ComponentStockInterface;
+use Nuvem\AtelieSales\Api\QuoteComponentStockInterface;
+use Nuvem\AtelieSales\Api\ReturnComponentStockInterface;
 use Nuvem\AtelieSales\Model\ResourceModel\Movimentacao;
 use Zend_Db_Expr;
 
@@ -29,9 +31,12 @@ use Zend_Db_Expr;
  * stock change, so the ledger always explains the stock. When a component
  * sells out its cache identities are invalidated for the storefront.
  */
-class ComponentStock implements ComponentStockInterface
+class ComponentStock implements ComponentStockInterface, QuoteComponentStockInterface, ReturnComponentStockInterface
 {
     private const TABLE_COMPONENTE = 'nuvem_atelie_componente';
+
+    /** @var array<int, \WeakReference<\stdClass>> */
+    private array $availabilityChanges = [];
 
     /**
      * @var ComponentRepositoryInterface
@@ -90,12 +95,35 @@ class ComponentStock implements ComponentStockInterface
     /**
      * @inheritDoc
      */
-    public function reserve(
+    public function reserve(string $componentCode, int $qty, ?int $orderId = null, ?int $orderItemId = null): bool
+    {
+        return $this->reserveStock($componentCode, $qty, $orderId, $orderItemId, null);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function reserveForQuote(string $componentCode, int $qty, int $quoteId): bool
+    {
+        return $this->reserveStock($componentCode, $qty, null, null, $quoteId);
+    }
+
+    /**
+     * Reserve stock for a quote.
+     *
+     * @param string $componentCode
+     * @param int $qty
+     * @param int|null $orderId
+     * @param int|null $orderItemId
+     * @param int|null $quoteId
+     * @return bool
+     */
+    private function reserveStock(
         string $componentCode,
         int $qty,
-        ?int $orderId = null,
-        ?int $orderItemId = null,
-        ?int $quoteId = null
+        ?int $orderId,
+        ?int $orderItemId,
+        ?int $quoteId
     ): bool {
         $this->assertPositiveQuantity($qty);
         $component = $this->resolveComponent($componentCode);
@@ -106,6 +134,7 @@ class ComponentStock implements ComponentStockInterface
             if ($quoteId !== null) {
                 $this->movimentacaoResource->lockQuote($quoteId);
             }
+            $currentQty = $this->getCurrentStockForUpdate($component);
             $affectedRows = $connection->update(
                 $this->resourceConnection->getTableName(self::TABLE_COMPONENTE),
                 ['estoque' => new Zend_Db_Expr('estoque - ' . $qty)],
@@ -133,7 +162,7 @@ class ComponentStock implements ComponentStockInterface
                 $orderItemId,
                 null
             );
-            $this->scheduleCacheInvalidation($component);
+            $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $currentQty - $qty);
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
@@ -146,7 +175,29 @@ class ComponentStock implements ComponentStockInterface
     /**
      * @inheritDoc
      */
-    public function compensate(string $componentCode, int $qty, ?int $orderId = null, ?int $quoteId = null): void
+    public function compensate(string $componentCode, int $qty, ?int $orderId = null): void
+    {
+        $this->compensateStock($componentCode, $qty, $orderId, null);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function compensateForQuote(string $componentCode, int $qty, int $quoteId): void
+    {
+        $this->compensateStock($componentCode, $qty, null, $quoteId);
+    }
+
+    /**
+     * Compensate a quote reservation.
+     *
+     * @param string $componentCode
+     * @param int $qty
+     * @param int|null $orderId
+     * @param int|null $quoteId
+     * @return void
+     */
+    private function compensateStock(string $componentCode, int $qty, ?int $orderId, ?int $quoteId): void
     {
         $this->assertPositiveQuantity($qty);
         $component = $this->resolveComponent($componentCode);
@@ -165,9 +216,10 @@ class ComponentStock implements ComponentStockInterface
                 $connection->commit();
                 return;
             }
+            $currentQty = $this->getCurrentStockForUpdate($component);
             $this->increaseStock($component, $qty);
             $this->recordMovement($component, Movimentacao::TIPO_COMPENSACAO, $qty, $quoteId, $orderId, null, null);
-            $this->scheduleCacheInvalidation($component);
+            $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $currentQty + $qty);
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
@@ -192,6 +244,7 @@ class ComponentStock implements ComponentStockInterface
 
         $connection->beginTransaction();
         try {
+            $currentQty = $this->getCurrentStockForUpdate($component);
             $this->increaseStock($component, $qty);
             $this->recordMovement(
                 $component,
@@ -202,7 +255,7 @@ class ComponentStock implements ComponentStockInterface
                 $orderItemId,
                 $note
             );
-            $this->scheduleCacheInvalidation($component);
+            $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $currentQty + $qty);
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
@@ -224,12 +277,7 @@ class ComponentStock implements ComponentStockInterface
 
         $connection->beginTransaction();
         try {
-            $currentQty = (int) $connection->fetchOne(
-                $connection->select()
-                    ->from($this->resourceConnection->getTableName(self::TABLE_COMPONENTE), 'estoque')
-                    ->where('componente_id = ?', (int) $component->getComponenteId())
-                    ->forUpdate(true)
-            );
+            $currentQty = $this->getCurrentStockForUpdate($component);
             $connection->update(
                 $this->resourceConnection->getTableName(self::TABLE_COMPONENTE),
                 ['estoque' => $newQty],
@@ -247,7 +295,7 @@ class ComponentStock implements ComponentStockInterface
                     $note !== '' ? $note : null
                 );
             }
-            $this->scheduleCacheInvalidation($component);
+            $this->scheduleCacheInvalidationIfAvailabilityChanges($component, $currentQty, $newQty);
             $connection->commit();
         } catch (\Throwable $exception) {
             $connection->rollBack();
@@ -308,6 +356,22 @@ class ComponentStock implements ComponentStockInterface
     }
 
     /**
+     * Read stock under the row lock; the guarded reservation UPDATE remains authoritative.
+     *
+     * @param ComponentInterface $component
+     * @return int
+     */
+    private function getCurrentStockForUpdate(ComponentInterface $component): int
+    {
+        return (int) $this->connection()->fetchOne(
+            $this->connection()->select()
+                ->from($this->resourceConnection->getTableName(self::TABLE_COMPONENTE), 'estoque')
+                ->where('componente_id = ?', (int) $component->getComponenteId())
+                ->forUpdate(true)
+        );
+    }
+
+    /**
      * Append a ledger row describing one stock movement.
      *
      * @param ComponentInterface $component
@@ -360,14 +424,40 @@ class ComponentStock implements ComponentStockInterface
 
     /**
      * Cache readers must see committed stock, including replenishments.
+     *
      * Magento discards these callbacks when an enclosing transaction rolls back.
      *
      * @param ComponentInterface $component
+     * @param int $beforeQty
+     * @param int $afterQty
      * @return void
      */
-    private function scheduleCacheInvalidation(ComponentInterface $component): void
-    {
-        $this->movimentacaoResource->addCommitCallback(fn () => $this->invalidateComponentCache($component));
+    private function scheduleCacheInvalidationIfAvailabilityChanges(
+        ComponentInterface $component,
+        int $beforeQty,
+        int $afterQty
+    ): void {
+        $lastUnitsLimit = (int) $this->scopeConfig->getValue(Config::XML_PATH_STOCK_LAST_UNITS);
+        $before = [$beforeQty > 0, $beforeQty > 0 && $beforeQty <= $lastUnitsLimit];
+        $after = [$afterQty > 0, $afterQty > 0 && $afterQty <= $lastUnitsLimit];
+        if ($before === $after) {
+            return;
+        }
+        $componentId = (int) $component->getComponenteId();
+        $change = ($this->availabilityChanges[$componentId] ?? null)?->get();
+        if ($change !== null) {
+            $change->after = $after;
+            return;
+        }
+        $change = (object) ['before' => $before, 'after' => $after];
+        // The callback pool owns this snapshot; a rollback discards it with its callback.
+        $this->availabilityChanges[$componentId] = \WeakReference::create($change);
+        $this->movimentacaoResource->addCommitCallback(function () use ($component, $componentId, $change): void {
+            unset($this->availabilityChanges[$componentId]);
+            if ($change->before !== $change->after) {
+                $this->invalidateComponentCache($component);
+            }
+        });
     }
 
     /**
@@ -388,6 +478,8 @@ class ComponentStock implements ComponentStockInterface
     }
 
     /**
+     * Resolve a component by its code.
+     *
      * @param string $componentCode
      * @return ComponentInterface
      * @throws LocalizedException when the component does not exist
@@ -402,6 +494,8 @@ class ComponentStock implements ComponentStockInterface
     }
 
     /**
+     * Require a positive stock movement quantity.
+     *
      * @param int $qty
      * @return void
      * @throws LocalizedException when the quantity is not positive
@@ -414,6 +508,8 @@ class ComponentStock implements ComponentStockInterface
     }
 
     /**
+     * Return the active database connection.
+     *
      * @return AdapterInterface
      */
     private function connection(): AdapterInterface
