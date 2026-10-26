@@ -370,19 +370,37 @@ form#product_addtocart_form,
         font-size: 16px;
         font-weight: 700;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background-color 0.2s ease, opacity 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: center;
+        gap: 8px;
 
         &:hover {
             background: darken(@nuvem-magenta, 6%);
+        }
+
+        &:disabled,
+        &.is-disabled {
+            background: @nuvem-magenta;
+            color: @nuvem-branco;
+            opacity: 0.55;
+            cursor: not-allowed;
         }
 
         &:focus-visible {
             outline: 3px solid @nuvem-grafite;
             outline-offset: 2px;
         }
+    }
+
+    &__submit-sep {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+        opacity: 0.85;
     }
 }
 
@@ -421,6 +439,11 @@ form#product_addtocart_form,
         outline-offset: 2px;
     }
 
+    &.is-blocked:focus-visible .atelie-swatch__color {
+        outline: 2px solid @nuvem-grafite;
+        outline-offset: 2px;
+    }
+
     &__circle-wrap {
         position: relative;
         width: 64px;
@@ -439,6 +462,7 @@ form#product_addtocart_form,
         top: 0;
         left: 0;
         box-sizing: border-box;
+        overflow: hidden;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
@@ -472,18 +496,33 @@ form#product_addtocart_form,
     }
 
     // 2. Estado Bloqueado: Traço diagonal cortando o círculo
-    &.is-blocked &__color {
-        cursor: pointer;
+    &.is-blocked {
+        &.is-selected &__color,
+        &__color {
+            box-shadow: none !important;
+            border-color: @nuvem-grafite;
+        }
 
-        &::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: -2px;
-            right: -2px;
-            height: 1.6px;
-            background: @nuvem-grafite;
-            transform: rotate(-45deg);
+        .atelie-swatch__check {
+            display: none !important;
+        }
+
+        .atelie-swatch__color {
+            cursor: pointer;
+
+            &::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: -10%;
+                width: 120%;
+                height: 1.6px;
+                margin-top: -0.8px;
+                background: @nuvem-grafite;
+                transform: rotate(-45deg);
+                transform-origin: center center;
+                pointer-events: none;
+            }
         }
     }
 
@@ -589,8 +628,6 @@ form#product_addtocart_form,
     .atelie-studio__stage {
         flex: 0 0 55%;
         max-width: 55%;
-        position: sticky;
-        top: 20px;
     }
 
     .atelie-studio {
@@ -624,4 +661,11 @@ form#product_addtocart_form,
 // Salvaguarda: garantir visibilidade do cabeçalho
 .page-header {
     display: block !important;
+}
+
+// F3.3 — smooth color transition on SVG painted layers
+.atelie-camada [data-pintar],
+.atelie-studio__svg [data-pintar],
+[data-pintar] {
+    transition: fill 0.3s ease, stroke 0.3s ease;
 }

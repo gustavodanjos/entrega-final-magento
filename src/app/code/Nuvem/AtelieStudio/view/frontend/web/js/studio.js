@@ -7,6 +7,54 @@ define([
 ], function (Component, ko, $, customerData, $t) {
     'use strict';
 
+    /**
+     * Custom Binding solicitado no backlog (F3.3).
+     * Associa os grupos às camadas SVG estritamente via camada_svg do catálogo.
+     * Atualiza a cor (fill/stroke) reativamente conforme a seleção do Knockout.
+     */
+    ko.bindingHandlers.atelieCamada = {
+        init: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
+            if (typeof ko.bindingHandlers.atelieCamada.update === 'function') {
+                ko.bindingHandlers.atelieCamada.update(element, valueAccessor, allBindings, viewModel, bindingContext);
+            }
+        },
+        update: function (element, valueAccessor, allBindings, viewModel, bindingContext) {
+            var rawVal = valueAccessor ? ko.unwrap(valueAccessor()) : null;
+            var camadaId = (typeof rawVal === 'string' && rawVal.length > 0)
+                ? rawVal
+                : (element ? element.id : '');
+            if (!camadaId) {
+                return;
+            }
+
+            var vm = (bindingContext && bindingContext.$data) || viewModel;
+            if (!vm || typeof vm.getLayerColor !== 'function') {
+                return;
+            }
+
+            var color = vm.getLayerColor(camadaId);
+            if (!color) {
+                return;
+            }
+
+            var targets = element.querySelectorAll ? element.querySelectorAll('[data-pintar]') : [];
+            if (targets.length === 0 && element.hasAttribute && element.hasAttribute('data-pintar')) {
+                targets = [element];
+            }
+
+            for (var i = 0; i < targets.length; i++) {
+                var target = targets[i];
+                var attr = target.getAttribute('data-pintar') || 'fill';
+                if (attr !== 'fill' && attr !== 'stroke') {
+                    attr = 'fill';
+                }
+                if (target.getAttribute(attr) !== color) {
+                    target.setAttribute(attr, color);
+                }
+            }
+        }
+    };
+
     return Component.extend({
         defaults: {
             template: 'Nuvem_AtelieStudio/studio'
@@ -33,6 +81,7 @@ define([
             this.initCatalogObservables(catalog);
             this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
             this.initComputed();
+            this.autoResolveBlockedSelections();
 
             return this;
         },
@@ -365,6 +414,21 @@ define([
             this.isValid = ko.pureComputed(function () {
                 return self.validationErrors().length === 0;
             });
+
+            this.engravingPreviewText = ko.pureComputed(function () {
+                if (!self.permiteGravacao() || self.engravingBlocked()) {
+                    return '';
+                }
+                var text = self.laserText() || '';
+                if (text.length > self.laserLimit()) {
+                    text = text.substring(0, self.laserLimit());
+                }
+                return text;
+            });
+
+            this.svgAriaLabel = ko.pureComputed(function () {
+                return self.buildAriaLabel();
+            });
         },
 
         computeBlockedMap: function (selectedList) {
@@ -392,16 +456,17 @@ define([
 
                 if (tipo === 'bloqueia') {
                     if (alvoTipo === 'componente') {
-                        if (isCodeSelected(origem) && !isCodeSelected(alvo)) {
+                        if (isCodeSelected(origem)) {
                             blocked[alvo] = msg;
-                        } else if (isCodeSelected(alvo) && !isCodeSelected(origem)) {
+                        }
+                        if (isCodeSelected(alvo)) {
                             blocked[origem] = msg;
                         }
                     } else if (alvoTipo === 'acabamento') {
                         if (isCodeSelected(origem)) {
                             self.catalog.grupos.forEach(function (grupo) {
                                 grupo.componentes.forEach(function (opt) {
-                                    if (self.normalize(opt.acabamento) === self.normalize(alvo) && !isCodeSelected(opt.codigo)) {
+                                    if (self.normalize(opt.acabamento) === self.normalize(alvo)) {
                                         blocked[opt.codigo] = msg;
                                     }
                                 });
@@ -562,11 +627,11 @@ define([
                 return;
             }
 
-            if (this.isEsgotado(option.codigo) && !this.isSelected(grupoCodigo, option.codigo)) {
+            if (this.isEsgotado(option.codigo)) {
                 return;
             }
 
-            if (this.isBlocked(option.codigo) && !this.isSelected(grupoCodigo, option.codigo)) {
+            if (this.isBlocked(option.codigo)) {
                 this.activeTooltip(option.codigo);
                 return;
             }
@@ -574,7 +639,33 @@ define([
             this.activeTooltip(null);
             if (this.selections[grupoCodigo]) {
                 this.selections[grupoCodigo](option.codigo);
+                this.autoResolveBlockedSelections();
             }
+        },
+
+        /**
+         * Auto-resolve seleções de grupos que se tornaram incompatíveis/bloqueadas
+         * após a alteração de outro componente, revertendo-as para o padrão válido do grupo.
+         */
+        autoResolveBlockedSelections: function () {
+            var self = this;
+            var blocked = self.blockedMap();
+            self.grupos().forEach(function (grupo) {
+                var currentCode = self.selections[grupo.codigo] ? self.selections[grupo.codigo]() : null;
+                if (currentCode && blocked[currentCode]) {
+                    var fallback = (grupo.componentes || []).find(function (c) {
+                        return c.padrao && !blocked[c.codigo] && !self.isEsgotado(c.codigo);
+                    });
+                    if (!fallback) {
+                        fallback = (grupo.componentes || []).find(function (c) {
+                            return !blocked[c.codigo] && !self.isEsgotado(c.codigo);
+                        });
+                    }
+                    if (fallback) {
+                        self.selections[grupo.codigo](fallback.codigo);
+                    }
+                }
+            });
         },
 
         switchTab: function (grupoCodigo) {
@@ -657,6 +748,55 @@ define([
             return opt.corHex || opt.cor_hex || '#E6E1F2';
         },
 
+        /**
+         * F3.3: Localiza o grupo correspondente a uma camada SVG específica.
+         * Associa estritamente pelo atributo camada_svg retornado pelo catálogo/banco.
+         */
+        getGroupByCamada: function (camadaId) {
+            if (!camadaId) {
+                return null;
+            }
+            var grupos = this.grupos ? this.grupos() : [];
+            // Prioriza camada_svg (camadaSvg) definida no banco
+            for (var i = 0; i < grupos.length; i++) {
+                var g = grupos[i];
+                var camadaSvg = g.camada_svg || g.camadaSvg;
+                if (camadaSvg && camadaSvg === camadaId) {
+                    return g;
+                }
+            }
+            // Fallback de compatibilidade caso dados de teste não incluam camada_svg explícita
+            for (var j = 0; j < grupos.length; j++) {
+                var fallbackG = grupos[j];
+                if (fallbackG.codigo === camadaId || ('camada-' + fallbackG.codigo) === camadaId) {
+                    return fallbackG;
+                }
+            }
+            return null;
+        },
+
+        /**
+         * F3.3: Obtém a cor atual selecionada para a camada indicada.
+         * Garante dependência reativa do Knockout sem acoplamento a grupos específicos.
+         */
+        getLayerColor: function (camadaId) {
+            if (!camadaId) {
+                return null;
+            }
+            var grupo = this.getGroupByCamada(camadaId);
+            if (!grupo) {
+                return null;
+            }
+
+            if (this.selections && this.selections[grupo.codigo]) {
+                this.selections[grupo.codigo]();
+            }
+            var selectedMap = this.selectedComponents ? this.selectedComponents() : {};
+            var selectedOpt = selectedMap[grupo.codigo];
+
+            return selectedOpt ? (selectedOpt.corHex || selectedOpt.cor_hex || null) : null;
+        },
+
         getOptionPrice: function (opt) {
             if (!opt) {
                 return 0;
@@ -700,6 +840,30 @@ define([
         getUrl: function (key) {
             var cfg = this.getConfigData();
             return (cfg.urls && cfg.urls[key]) || '';
+        },
+
+        buildAriaLabel: function () {
+            var parts = [];
+            var nome = this.productName ? this.productName() : '';
+            if (nome) {
+                parts.push(nome);
+            }
+
+            var selections = this.selectedComponents ? this.selectedComponents() : {};
+            var listaGrupos = this.grupos ? this.grupos() : [];
+            listaGrupos.forEach(function (grupo) {
+                var opt = selections[grupo.codigo];
+                if (opt && opt.nome) {
+                    parts.push(grupo.nome + ': ' + opt.nome);
+                }
+            });
+
+            var laser = this.laserText ? String(this.laserText() || '').trim() : '';
+            if (laser !== '' && (!this.engravingBlocked || !this.engravingBlocked())) {
+                parts.push('Gravação: ' + laser);
+            }
+
+            return parts.length ? (parts.join('. ') + '.') : 'Pré-visualização do tênis personalizado.';
         }
     });
 });

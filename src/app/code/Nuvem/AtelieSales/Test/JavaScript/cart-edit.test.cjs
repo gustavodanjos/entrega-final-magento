@@ -49,7 +49,7 @@ function studio(response, syncOutcomes = [true]) {
         }
     };
     const methods = load('AtelieStudio/view/frontend/web/js/studio.js', [
-        {extend: value => value}, {observable}, $, customerData, value => value
+        {extend: value => value}, {observable, bindingHandlers: {}}, $, customerData, value => value
     ]);
     const instance = {
         ...methods, saving: observable(false), saveCompleted: observable(false),
