@@ -1,0 +1,27 @@
+<?php
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
+/** @var \Magento\Framework\Escaper $escaper */
+?>
+<?php $_item = $block->getItem() ?>
+<tr>
+    <td class="item-info<?= ($block->getItemOptions() ? ' has-extra' : '') ?>">
+        <p class="product-name"><?= $escaper->escapeHtml($_item->getName()) ?></p>
+        <p class="sku"><?= $escaper->escapeHtml(__('SKU')) ?>: <?= $escaper->escapeHtml($block->getSku($_item)) ?></p>
+        <?php $addInfoBlock = $block->getProductAdditionalInformationBlock(); ?>
+        <?php if ($addInfoBlock): ?>
+            <?= $addInfoBlock->setItem($_item->getOrderItem())->toHtml() ?>
+        <?php endif; ?>
+        <?= $escaper->escapeHtml($_item->getDescription()) ?>
+    </td>
+    <td class="item-qty"><?= (float) $_item->getQty() ?></td>
+    <td class="item-price">
+        <?= /* @noEscape */ $block->getItemPrice($_item->getOrderItem()) ?>
+    </td>
+</tr>
+<tr>
+    <td colspan="3" class="item-info">
+        <?= /* @noEscape */ $block->getChildBlock('atelie_ficha')->setData('item', $_item)->toHtml() ?>
+    </td>
+</tr>

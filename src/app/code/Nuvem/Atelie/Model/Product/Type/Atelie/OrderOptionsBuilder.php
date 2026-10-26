@@ -18,6 +18,8 @@ use Psr\Log\LoggerInterface;
  */
 class OrderOptionsBuilder
 {
+    public const SNAPSHOT_KEY = 'atelie_ficha';
+
     /**
      * @var array<string, string>
      */
@@ -27,6 +29,11 @@ class OrderOptionsBuilder
      * @var array<string, string>
      */
     private array $componentLabels = [];
+
+    /**
+     * @var array<string, string|null>
+     */
+    private array $componentColors = [];
 
     /**
      * @param GroupRepositoryInterface $groupRepository
@@ -59,10 +66,15 @@ class OrderOptionsBuilder
         $options[Atelie::CUSTOM_OPTION_CONFIGURACAO] = $configData;
         $options['configuracao'] = $configData;
 
-        $readable = $this->buildReadableOptions($configData);
+        $snapshot = $this->buildSnapshot($configData);
+        $readable = array_map(
+            static fn (array $row): array => ['label' => $row['label'], 'value' => $row['value']],
+            $snapshot
+        );
         if (!empty($readable)) {
             $options['attributes_info'] = $readable;
             $options['additional_options'] = $readable;
+            $options[self::SNAPSHOT_KEY] = $snapshot;
         }
 
         return $options;
@@ -107,12 +119,12 @@ class OrderOptionsBuilder
     }
 
     /**
-     * Build readable label/value pairs from configuration.
+     * Build display data at purchase time, including the original component colors.
      *
      * @param array $configData
-     * @return array<int, array{label: string, value: string}>
+     * @return array<int, array{label: string, value: string, grupo?: string, componente?: string, cor_hex?: ?string}>
      */
-    private function buildReadableOptions(array $configData): array
+    private function buildSnapshot(array $configData): array
     {
         $readable = [];
 
@@ -120,7 +132,7 @@ class OrderOptionsBuilder
             $readable[] = ['label' => (string) __('Tamanho'), 'value' => (string) $configData['tamanho']];
         }
 
-        if (!empty($configData['gravacao'])) {
+        if (isset($configData['gravacao']) && trim((string) $configData['gravacao']) !== '') {
             $readable[] = ['label' => (string) __('Gravação'), 'value' => (string) $configData['gravacao']];
         }
 
@@ -133,6 +145,9 @@ class OrderOptionsBuilder
                     $readable[] = [
                         'label' => $this->getGroupLabel($grp),
                         'value' => $this->getComponentLabel($cmp),
+                        'grupo' => $grp,
+                        'componente' => $cmp,
+                        'cor_hex' => $this->componentColors[$cmp] ?? null,
                     ];
                 }
             }
@@ -179,6 +194,7 @@ class OrderOptionsBuilder
 
         try {
             $comp = $this->componentRepository->getByCodigo($compCode);
+            $this->componentColors[$compCode] = $comp->getCorHex();
             if ($comp->getNome()) {
                 return $this->componentLabels[$compCode] = (string) $comp->getNome();
             }
