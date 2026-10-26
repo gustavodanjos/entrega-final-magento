@@ -33,6 +33,8 @@ interface ComponentStockInterface
      * On error nothing changes: stock is only released for real components with
      * a positive quantity.
      *
+     * The caller is responsible for preventing duplicate compensation.
+     *
      * @param string $componentCode component code (e.g. "SOL-LUA-HOLO")
      * @param int $qty units to release, must be positive
      * @param int|null $orderId
