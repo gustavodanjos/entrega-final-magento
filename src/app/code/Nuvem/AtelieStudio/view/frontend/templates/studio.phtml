@@ -129,6 +129,14 @@ $jsLayout = $viewModel
                     aria-label="<?= $escaper->escapeHtmlAttr(__('Surpreenda-me: sortear combinação válida')) ?>">
                 <span><?= $escaper->escapeHtml(__('Surpreenda-me')) ?></span>
             </button>
+            <button type="button"
+                    class="atelie-stage-btn atelie-btn-share"
+                    data-bind="click: shareCreation, css: { 'is-copied': isCopied }"
+                    title="<?= $escaper->escapeHtmlAttr(__('Copiar link desta personalização')) ?>"
+                    aria-label="<?= $escaper->escapeHtmlAttr(__('Compartilhar criação e copiar link')) ?>">
+                <span data-bind="visible: !isCopied()"><?= $escaper->escapeHtml(__('Compartilhar criação')) ?></span>
+                <span data-bind="visible: isCopied" class="atelie-btn-share__copied" aria-live="polite">✓ <?= $escaper->escapeHtml(__('Link copiado!')) ?></span>
+            </button>
         </div>
     </div>
 
