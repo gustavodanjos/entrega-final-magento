@@ -190,7 +190,9 @@ class Estudio implements ArgumentInterface
             'grupos' => $gruposEnriquecidos,
             'regras' => $catalog['regras'] ?? [],
             'urls' => [
-                'disponibilidade' => $this->urlBuilder->getUrl('atelie/estoque/disponibilidade'),
+                'disponibilidade' => $this->urlBuilder->getUrl(
+                    'rest/default/V1/atelie/disponibilidade/' . ($catalog['sku'] ?? $product->getSku())
+                ),
                 'validar' => $this->urlBuilder->getUrl('atelie/configuracao/validar'),
                 'preview' => $this->urlBuilder->getUrl('atelie/preview/render'),
                 'adicionar_carrinho' => $this->urlBuilder->getUrl('checkout/cart/add'),

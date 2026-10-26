@@ -591,12 +591,25 @@ form#product_addtocart_form,
         }
     }
 
-    // 3. Estado Esgotado
-    &.is-esgotado &__color {
-        background-color: @nuvem-nevoa !important;
-        border-style: dashed;
-        border-color: @nuvem-grafite-suave;
-        opacity: 0.6;
+    // 3. Estado Esgotado / Sold Out / Disabled
+    &.is-esgotado,
+    &.is-sold-out {
+        cursor: not-allowed;
+
+        .atelie-swatch__color {
+            background-color: @nuvem-nevoa !important;
+            border-style: dashed;
+            border-color: @nuvem-grafite-suave;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .atelie-swatch__check {
+            display: none !important;
+        }
+    }
+
+    &.is-disabled {
         cursor: not-allowed;
     }
 
@@ -614,7 +627,8 @@ form#product_addtocart_form,
         z-index: 2;
     }
 
-    &.is-esgotado &__esgotado-text {
+    &.is-esgotado &__esgotado-text,
+    &.is-sold-out &__esgotado-text {
         display: block;
     }
 

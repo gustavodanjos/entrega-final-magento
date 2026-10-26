@@ -78,11 +78,13 @@ define([
                 document.addEventListener('submit', this.editSubmitHandler, true);
             }
             this.catalog = catalog;
+            this.disponibilidadeVersion = ko.observable(0);
             this.initCatalogObservables(catalog);
             this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
             this.initComputed();
             this.autoResolveBlockedSelections();
             this.initDocumentListeners();
+            this.initAvailabilityPolling();
 
             return this;
         },
@@ -391,6 +393,7 @@ define([
             });
 
             this.esgotadoMap = ko.pureComputed(function () {
+                self.disponibilidadeVersion();
                 var map = {};
                 self.grupos().forEach(function (grupo) {
                     (grupo.componentes || []).forEach(function (opt) {
@@ -400,6 +403,18 @@ define([
                     });
                 });
                 return map;
+            });
+
+            this.hasSoldOutSelection = ko.pureComputed(function () {
+                self.disponibilidadeVersion();
+                var selList = self.selectedComponentsList();
+                return selList.some(function (opt) {
+                    return self.isEsgotado(opt.codigo);
+                });
+            });
+
+            this.isAddToCartDisabled = ko.pureComputed(function () {
+                return self.isSubmitting() || self.hasSoldOutSelection() || !self.isValid();
             });
 
             this.engravingBlockedReason = ko.pureComputed(function () {
@@ -711,15 +726,11 @@ define([
         },
 
         selectOption: function (grupoCodigo, option) {
-            if (!option) {
+            if (!option || this.isEsgotado(option.codigo)) {
                 return;
             }
 
             this.actionError('');
-
-            if (this.isEsgotado(option.codigo)) {
-                return;
-            }
 
             if (this.isBlocked(option.codigo)) {
                 var currentActive = this.activeTooltip();
@@ -1036,6 +1047,227 @@ define([
             }
 
             return parts.length ? (parts.join('. ') + '.') : 'Pré-visualização do tênis personalizado.';
+        },
+
+        pollingIntervalMs: 20000,
+
+        /**
+         * F3.7: Inicializa o polling periódico de disponibilidade integrado à Page Visibility API.
+         */
+        initAvailabilityPolling: function () {
+            var self = this;
+            if (typeof window === 'undefined' || typeof document === 'undefined') {
+                return;
+            }
+
+            this._isFetchingAvailability = false;
+            this._lastPollTimestamp = Date.now();
+
+            this._visibilityHandler = function () {
+                self.handleVisibilityChange();
+            };
+            document.addEventListener('visibilitychange', this._visibilityHandler);
+
+            this.startPolling();
+        },
+
+        /**
+         * F3.7: Pausa e retoma o polling conforme a visibilidade da aba do navegador.
+         */
+        handleVisibilityChange: function () {
+            if (typeof document === 'undefined') {
+                return;
+            }
+
+            if (document.visibilityState === 'hidden') {
+                this.stopPolling();
+            } else if (document.visibilityState === 'visible') {
+                var now = Date.now();
+                if (!this._lastPollTimestamp || (now - this._lastPollTimestamp) >= this.pollingIntervalMs) {
+                    this.fetchAvailability();
+                }
+                this.startPolling();
+            }
+        },
+
+        /**
+         * F3.7: Inicia o timer de 20s para atualização da disponibilidade.
+         */
+        startPolling: function () {
+            var self = this;
+            this.stopPolling();
+
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                return;
+            }
+
+            this._pollingTimer = setInterval(function () {
+                if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                    self.stopPolling();
+                    return;
+                }
+                self.fetchAvailability();
+            }, this.pollingIntervalMs);
+        },
+
+        /**
+         * F3.7: Pausa imediatamente o timer de polling.
+         */
+        stopPolling: function () {
+            if (this._pollingTimer) {
+                clearInterval(this._pollingTimer);
+                this._pollingTimer = null;
+            }
+        },
+
+        /**
+         * F3.7: Resolve a URL REST de disponibilidade do SKU.
+         */
+        getAvailabilityUrl: function () {
+            var url = this.getUrl('disponibilidade');
+            var sku = (this.catalog && this.catalog.product && this.catalog.product.sku) || '';
+            if (!url || url.indexOf('atelie/estoque/disponibilidade') !== -1) {
+                url = '/rest/default/V1/atelie/disponibilidade/' + encodeURIComponent(sku);
+            }
+            return url;
+        },
+
+        /**
+         * F3.7: Dispara a requisição HTTP GET para a rota de disponibilidade.
+         * Respeita o servidor e utiliza APIs padronizadas sem dependência do jQuery.
+         */
+        fetchAvailability: function () {
+            var self = this;
+            if (this._isFetchingAvailability) {
+                return;
+            }
+
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                return;
+            }
+
+            var url = this.getAvailabilityUrl();
+            if (!url) {
+                return;
+            }
+
+            this._isFetchingAvailability = true;
+            this._lastPollTimestamp = Date.now();
+
+            if (typeof fetch === 'function') {
+                fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    self.applyAvailability(data);
+                })
+                .catch(function () {
+                    // Silencioso para manter a navegação resiliente
+                })
+                .finally(function () {
+                    self._isFetchingAvailability = false;
+                });
+            } else if (typeof XMLHttpRequest !== 'undefined') {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.setRequestHeader('Accept', 'application/json');
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        self._isFetchingAvailability = false;
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                self.applyAvailability(data);
+                            } catch (e) {}
+                        }
+                    }
+                };
+                xhr.send();
+            } else {
+                this._isFetchingAvailability = false;
+            }
+        },
+
+        /**
+         * F3.7: Aplica os dados de disponibilidade aos componentes no Knockout.
+         * Atualiza comp.disponivel, notifica o Knockout e emite role="alert" se a seleção atual esgotou.
+         */
+        applyAvailability: function (items) {
+            if (!Array.isArray(items) || !this.catalog) {
+                return;
+            }
+
+            var self = this;
+            var soldOutSelected = [];
+
+            items.forEach(function (item) {
+                if (!item) {
+                    return;
+                }
+                var code = item.componente || item.component || item.codigo;
+                if (!code) {
+                    return;
+                }
+                var isDisponivel = (item.disponivel !== false && item.available !== false);
+
+                var comp = self.catalog.componentMap[code];
+                if (comp) {
+                    comp.disponivel = isDisponivel;
+
+                    var grupoCodigo = comp.grupoCodigo;
+                    var isSelected = self.selections[grupoCodigo] && self.selections[grupoCodigo]() === code;
+                    if (isSelected && !isDisponivel) {
+                        soldOutSelected.push(comp);
+                    }
+                }
+            });
+
+            this.disponibilidadeVersion(this.disponibilidadeVersion() + 1);
+            if (this.grupos && typeof this.grupos.valueHasMutated === 'function') {
+                this.grupos.valueHasMutated();
+            }
+
+            if (soldOutSelected.length > 0) {
+                var nomes = soldOutSelected.map(function (c) {
+                    return '"' + (c.nome || c.codigo) + '"';
+                }).join(', ');
+                var msg = (soldOutSelected.length === 1)
+                    ? 'O componente ' + nomes + ' acabou de esgotar no estoque. Escolha outra opção para continuar.'
+                    : 'Os componentes ' + nomes + ' acabaram de esgotar no estoque. Escolha outras opções para continuar.';
+                this.actionError(msg);
+            }
+        },
+
+        /**
+         * Destrói timers e remove event listeners ao desmontar o componente.
+         */
+        destroy: function () {
+            this.stopPolling();
+            if (typeof document !== 'undefined') {
+                if (this._visibilityHandler) {
+                    document.removeEventListener('visibilitychange', this._visibilityHandler);
+                }
+                if (this._documentClickHandler) {
+                    document.removeEventListener('click', this._documentClickHandler);
+                }
+                if (this._documentKeyHandler) {
+                    document.removeEventListener('keydown', this._documentKeyHandler);
+                }
+            }
+            if (this._super) {
+                this._super();
+            }
         }
     });
 });
