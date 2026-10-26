@@ -23,4 +23,8 @@
     <type name="Magento\Quote\Model\Quote">
         <plugin name="nuvem_atelie_update_item_in_place" type="Nuvem\AtelieSales\Plugin\Quote\UpdateItemInPlace"/>
     </type>
+    <type name="Magento\Checkout\Controller\Cart\UpdateItemOptions">
+        <plugin name="nuvem_atelie_update_options_response"
+                type="Nuvem\AtelieSales\Plugin\Checkout\Controller\Cart\UpdateOptionsResponse"/>
+    </type>
 </config>
