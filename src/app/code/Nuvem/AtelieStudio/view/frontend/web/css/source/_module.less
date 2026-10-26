@@ -770,3 +770,29 @@ form#product_addtocart_form,
 [data-pintar] {
     transition: fill 0.3s ease, stroke 0.3s ease;
 }
+
+// F3.6 — Preview SVG thumbnail in cart table (prevent absolute positioning collision with options list)
+.cart.table {
+    .product-item-photo {
+        display: table-cell;
+        vertical-align: top;
+        min-width: 130px;
+        max-width: 165px;
+        width: 165px;
+        padding-right: 15px;
+
+        .product-image-photo {
+            position: static !important;
+            display: block;
+            width: 100% !important;
+            max-width: 165px !important;
+            height: auto !important;
+        }
+    }
+
+    .product-item-details {
+        display: table-cell;
+        vertical-align: top;
+    }
+}
+
