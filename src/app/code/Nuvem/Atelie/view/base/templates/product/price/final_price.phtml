@@ -14,12 +14,15 @@ $priceModel = $block->getPriceType('regular_price');
 $finalPriceModel = $block->getPriceType('final_price');
 $idSuffix = $block->getIdSuffix() ? $block->getIdSuffix() : '';
 $schema = ($block->getZone() === 'item_view');
-$displayLabel = $block->showStartingAt() ? $block->getStartingAtLabel() : '';
 ?>
+<?php if ($block->showStartingAt()): ?>
+    <span class="price-label"><?= $escaper->escapeHtml($block->getStartingAtLabel()) ?></span>
+<?php endif; ?>
+
 <?php if ($block->hasSpecialPrice()): ?>
     <span class="special-price">
         <?= /* @noEscape */ $block->renderAmount($finalPriceModel->getAmount(), [
-            'display_label'     => $displayLabel,
+            'display_label'     => '',
             'price_id'          => $block->getPriceId('product-price-' . $idSuffix),
             'price_type'        => 'finalPrice',
             'include_container' => true,
@@ -37,7 +40,7 @@ $displayLabel = $block->showStartingAt() ? $block->getStartingAtLabel() : '';
     </span>
 <?php else: ?>
     <?= /* @noEscape */ $block->renderAmount($finalPriceModel->getAmount(), [
-        'display_label'     => $displayLabel,
+        'display_label'     => '',
         'price_id'          => $block->getPriceId('product-price-' . $idSuffix),
         'price_type'        => 'finalPrice',
         'include_container' => true,
