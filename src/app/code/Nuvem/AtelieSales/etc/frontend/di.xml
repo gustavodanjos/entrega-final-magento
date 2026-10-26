@@ -32,6 +32,7 @@
     </type>
     <type name="Magento\Quote\Model\Quote">
         <plugin name="nuvem_atelie_update_item_in_place" type="Nuvem\AtelieSales\Plugin\Quote\UpdateItemInPlace"/>
+    </type>
     <type name="Magento\Sales\Block\Order\Item\Renderer\DefaultRenderer">
         <plugin name="nuvem_atelie_sales_historical_item_options"
                 type="Nuvem\AtelieSales\Plugin\Sales\ItemOptions"/>
