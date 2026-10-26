@@ -59,7 +59,13 @@ function assertStockScenario(bool $condition, string $message): void
     }
 }
 
-$objectManager = Bootstrap::create(BP, $_SERVER)->getObjectManager();
+$testDatabase = getenv('F23_TEST_DATABASE');
+if (is_string($testDatabase) && $testDatabase !== '') {
+    require __DIR__ . '/IsolatedEnvironment.php';
+    $objectManager = \Nuvem\AtelieSales\Test\Integration\createIsolatedEnvironment($testDatabase);
+} else {
+    $objectManager = Bootstrap::create(BP, $_SERVER)->getObjectManager();
+}
 $resource = $objectManager->get(ResourceConnection::class);
 $connection = $resource->getConnection();
 $database = (string) $connection->fetchOne('SELECT DATABASE()');

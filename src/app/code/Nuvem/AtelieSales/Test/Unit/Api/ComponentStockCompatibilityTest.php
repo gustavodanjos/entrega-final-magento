@@ -52,5 +52,7 @@ class ComponentStockCompatibilityTest extends TestCase
         $this->assertSame(8, $stock->quantity);
         $stock->compensate('SOL-LUA-HOLO', 2, 11);
         $this->assertSame(10, $stock->quantity);
+        $stock->return('SOL-LUA-HOLO', 1, 11, 12);
+        $this->assertSame(11, $stock->quantity);
     }
 }

@@ -1,7 +1,10 @@
 define([
     'uiComponent',
-    'ko'
-], function (Component, ko) {
+    'ko',
+    'jquery',
+    'Magento_Customer/js/customer-data',
+    'mage/translate'
+], function (Component, ko, $, customerData, $t) {
     'use strict';
 
     /**
@@ -63,6 +66,17 @@ define([
             var rawConfig = this.getConfigData();
             var catalog = this.normalizeCatalog(rawConfig);
 
+            this.editing = !!rawConfig.editing;
+            this.editError = rawConfig.edit_error || '';
+            this.saving = ko.observable(false);
+            this.saveMessage = ko.observable(this.editError);
+            this.saveFailed = ko.observable(!!this.editError);
+            this.saveCompleted = ko.observable(false);
+            this.cartSyncFailed = ko.observable(false);
+            if (this.editing) {
+                this.editSubmitHandler = this.submitEdit.bind(this);
+                document.addEventListener('submit', this.editSubmitHandler, true);
+            }
             this.catalog = catalog;
             this.initCatalogObservables(catalog);
             this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
@@ -93,6 +107,73 @@ define([
                 }
             };
             document.addEventListener('keydown', this._documentKeyHandler);
+        },
+
+        submitEdit: function (event) {
+            if (event.target.id !== 'product_addtocart_form') {
+                return;
+            }
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            if (this.saving() || this.editError) {
+                return;
+            }
+            var self = this,
+                config = this.getConfigData(),
+                fields = $(event.target).serializeArray().filter(function (field) {
+                    return ['id', 'qty', 'isAjax'].indexOf(field.name) === -1;
+                });
+
+            fields.push({name: 'id', value: config.item_id});
+            fields.push({name: 'qty', value: config.qty});
+            fields.push({name: 'isAjax', value: 1});
+            this.saving(true);
+            this.saveCompleted(false);
+            this.cartSyncFailed(false);
+            this.saveMessage('');
+            $.ajax({url: config.urls.update_item, type: 'POST', dataType: 'json', data: fields})
+                .done(function (response) {
+                    self.saveFailed(!response.success);
+                    self.saveMessage((response.messages || []).join(' ') || $t('Unable to save changes.'));
+                    if (response.success) {
+                        self.saveCompleted(true);
+                        self.refreshCart();
+                    }
+                }).fail(function () {
+                    self.saveFailed(true);
+                    self.saveMessage($t('Unable to confirm the update. Refresh the cart before trying again.'));
+                }).always(function () {
+                    self.saving(false);
+                });
+        },
+
+        refreshCart: function () {
+            var self = this,
+                retrying = this.cartSyncFailed();
+
+            this.cartSyncFailed(false);
+            customerData.invalidate(['cart']);
+            return customerData.reload(['cart'], true).done(function () {
+                if (retrying) {
+                    self.saveMessage($t('Alterações salvas. O resumo do carrinho foi atualizado.'));
+                }
+            }).fail(function () {
+                self.cartSyncFailed(true);
+                self.saveMessage($t('Suas alterações foram salvas, mas o resumo do carrinho não foi atualizado. Tente atualizar o resumo novamente.'));
+            });
+        },
+
+        destroy: function () {
+            if (this.editSubmitHandler) {
+                document.removeEventListener('submit', this.editSubmitHandler, true);
+            }
+            if (this._documentClickHandler) {
+                document.removeEventListener('click', this._documentClickHandler);
+            }
+            if (this._documentKeyHandler) {
+                document.removeEventListener('keydown', this._documentKeyHandler);
+            }
+            return this._super();
         },
 
         getConfigData: function () {
@@ -222,7 +303,7 @@ define([
 
             var tamanhoInicial = parseInt(cfgInicial.tamanho, 10);
             var gradeArr = this.gradeTamanhos();
-            if (isNaN(tamanhoInicial) || gradeArr.indexOf(tamanhoInicial) === -1) {
+            if (!this.editing && (isNaN(tamanhoInicial) || gradeArr.indexOf(tamanhoInicial) === -1)) {
                 tamanhoInicial = gradeArr.indexOf(38) !== -1 ? 38 : (gradeArr[0] || 38);
             }
             this.selectedSize = ko.observable(tamanhoInicial);
@@ -241,9 +322,9 @@ define([
                     return c.codigo === codigoInicial;
                 });
 
-                if (!encontrado) {
+                var comps = grupo.componentes || [];
+                if (!encontrado && !self.editing) {
                     var padrao = null;
-                    var comps = grupo.componentes || [];
                     for (var p = 0; p < comps.length; p++) {
                         if (comps[p].padrao) {
                             padrao = comps[p];

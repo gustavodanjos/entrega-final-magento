@@ -1,0 +1,27 @@
+<?php
+/** @var \Magento\Framework\View\Element\Template $block */
+/** @var \Magento\Framework\Escaper $escaper */
+/** @var \Nuvem\AtelieSales\ViewModel\Order\ItemOptions $viewModel */
+$viewModel = $block->getData('view_model');
+$rows = $viewModel->getRows($block->getData('item'));
+?>
+<?php if ($rows): ?>
+<table class="atelie-ficha" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <?php foreach ($rows as $row): ?>
+    <tr>
+        <th scope="row" align="left"><?= $escaper->escapeHtml($row['label']) ?></th>
+        <td class="atelie-ficha-color">
+            <?php if ($row['cor_hex'] !== null): ?>
+            <table class="atelie-color-swatch" role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                    <td class="atelie-color-dot" width="16" height="16"
+                        style="background-color: <?= $escaper->escapeHtmlAttr($row['cor_hex']) ?>;">&nbsp;</td>
+                </tr>
+            </table>
+            <?php endif; ?>
+        </td>
+        <td><?= $escaper->escapeHtml($row['value']) ?></td>
+    </tr>
+    <?php endforeach; ?>
+</table>
+<?php endif; ?>
