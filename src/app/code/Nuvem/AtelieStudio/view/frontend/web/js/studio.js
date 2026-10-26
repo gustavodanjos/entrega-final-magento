@@ -66,13 +66,18 @@ define([
             this.catalog = catalog;
             this.disponibilidadeVersion = ko.observable(0);
             this.initCatalogObservables(catalog);
-            this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
+
+            var initialConfig = this.resolveInitialConfiguration(catalog, rawConfig.configuracao_inicial || {});
+            this.initSelectionObservables(catalog, initialConfig);
             this.initComputed();
             this.autoResolveBlockedSelections();
             this.initHistory();
             this.initDocumentListeners();
             this.initAvailabilityPolling();
             this.initA11ySanitization();
+
+            this.shareCreation = this.shareCreation.bind(this);
+            this.dismissSharedNotice = this.dismissSharedNotice.bind(this);
 
             return this;
         },
@@ -293,6 +298,8 @@ define([
             this.isSubmitting = ko.observable(false);
             this.actionError = ko.observable('');
             this.isLaserFocused = ko.observable(false);
+            this.isCopied = ko.observable(false);
+            this.sharedNotice = ko.observable('');
         },
 
         initSelectionObservables: function (catalog, cfgInicial) {
@@ -1804,6 +1811,354 @@ define([
         },
 
         /**
+         * F3.10: Codifica string UTF-8 para Base64 de forma compatível com Browser e Node.js.
+         *
+         * @param {String} str
+         * @return {String}
+         */
+        base64EncodeUtf8: function (str) {
+            if (typeof Buffer !== 'undefined') {
+                return Buffer.from(str, 'utf-8').toString('base64');
+            }
+            if (typeof btoa === 'function') {
+                return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (match, p1) {
+                    return String.fromCharCode('0x' + p1);
+                }));
+            }
+            return '';
+        },
+
+        /**
+         * F3.10: Decodifica string Base64 para UTF-8 de forma compatível com Browser e Node.js.
+         *
+         * @param {String} base64Str
+         * @return {String}
+         */
+        base64DecodeUtf8: function (base64Str) {
+            if (typeof Buffer !== 'undefined') {
+                return Buffer.from(base64Str, 'base64').toString('utf-8');
+            }
+            if (typeof atob === 'function') {
+                var binary = atob(base64Str);
+                var bytes = Array.prototype.map.call(binary, function (ch) {
+                    return '%' + ('00' + ch.charCodeAt(0).toString(16)).slice(-2);
+                }).join('');
+                return decodeURIComponent(bytes);
+            }
+            return '';
+        },
+
+        /**
+         * F3.10: Serializa snapshot de personalização em string URL-Safe Base64 com prefixo atelie=.
+         *
+         * @param {Object} [snapshot]
+         * @return {String}
+         */
+        serializeShareHash: function (snapshot) {
+            var snap = snapshot || this.createSnapshot();
+            var payload = {
+                t: snap.tamanho,
+                s: snap.selecoes || {},
+                g: (snap.laserText !== undefined && snap.laserText !== null) ? String(snap.laserText) : ''
+            };
+            var json = JSON.stringify(payload);
+            var base64 = this.base64EncodeUtf8(json)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+            return 'atelie=' + base64;
+        },
+
+        /**
+         * F3.10: Decodifica fragmento de hash com tolerância a falhas.
+         * Suporta Base64URL, Base64 padrão e JSON codificado na URL.
+         *
+         * @param {String} rawHash
+         * @return {Object|null}
+         */
+        parseShareHash: function (rawHash) {
+            if (!rawHash || typeof rawHash !== 'string') {
+                return null;
+            }
+
+            var clean = rawHash.trim();
+            if (clean.charAt(0) === '#') {
+                clean = clean.substring(1);
+            }
+
+            // Suporta prefixos 'atelie=' ou 'c='
+            if (clean.indexOf('atelie=') === 0) {
+                clean = clean.substring(7);
+            } else if (clean.indexOf('c=') === 0) {
+                clean = clean.substring(2);
+            }
+
+            if (!clean) {
+                return null;
+            }
+
+            // Tenta decodificar se for JSON direto ou URL-encoded
+            if (clean.charAt(0) === '{' || clean.indexOf('%7B') === 0) {
+                try {
+                    return JSON.parse(decodeURIComponent(clean));
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            // Converte Base64URL para Base64 padrão com padding
+            var b64 = clean.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4 !== 0) {
+                b64 += '=';
+            }
+
+            try {
+                var jsonStr = this.base64DecodeUtf8(b64);
+                if (!jsonStr) {
+                    return null;
+                }
+                return JSON.parse(jsonStr);
+            } catch (err) {
+                return null;
+            }
+        },
+
+        /**
+         * F3.10: Valida rigorosamente se a configuração compartilhada decodificada
+         * é 100% autêntica, pertence à grade oficial do produto e respeita as regras de negócio.
+         *
+         * @param {Object} rawParsed
+         * @param {Object} catalog
+         * @return {Object|null}
+         */
+        validateSharedConfig: function (rawParsed, catalog) {
+            if (!rawParsed || typeof rawParsed !== 'object' || !catalog || !catalog.product) {
+                return null;
+            }
+
+            // 1. Validação do tamanho
+            var tamanho = parseInt(rawParsed.t !== undefined ? rawParsed.t : rawParsed.tamanho, 10);
+            var grade = Array.isArray(catalog.product.gradeTamanhos) ? catalog.product.gradeTamanhos : [];
+            if (isNaN(tamanho) || grade.indexOf(tamanho) === -1) {
+                return null;
+            }
+
+            // 2. Normalização do mapa de seleções
+            var rawSelecoes = rawParsed.s || rawParsed.selecoes;
+            var selecaoPorGrupo = {};
+            if (Array.isArray(rawSelecoes)) {
+                rawSelecoes.forEach(function (item) {
+                    if (item && item.grupo && item.componente) {
+                        selecaoPorGrupo[item.grupo] = String(item.componente);
+                    }
+                });
+            } else if (rawSelecoes && typeof rawSelecoes === 'object') {
+                Object.keys(rawSelecoes).forEach(function (k) {
+                    selecaoPorGrupo[k] = String(rawSelecoes[k]);
+                });
+            } else {
+                return null;
+            }
+
+            // 3. Validação de cada grupo obrigatório do catálogo
+            var grupos = catalog.grupos || [];
+            if (grupos.length === 0) {
+                return null;
+            }
+
+            var chosenComponents = [];
+            for (var i = 0; i < grupos.length; i++) {
+                var grupo = grupos[i];
+                var compCode = selecaoPorGrupo[grupo.codigo];
+                if (!compCode) {
+                    return null;
+                }
+
+                var comp = catalog.componentMap ? catalog.componentMap[compCode] : null;
+                if (!comp) {
+                    return null;
+                }
+
+                if (comp.grupoCodigo !== grupo.codigo) {
+                    return null;
+                }
+
+                chosenComponents.push(comp);
+            }
+
+            // 4. Validação estrita das regras de compatibilidade (R01 a R06)
+            var invalidMap = this.computeInvalidSelections(chosenComponents);
+            if (invalidMap && Object.keys(invalidMap).length > 0) {
+                return null;
+            }
+
+            // 5. Validação de Gravação a Laser
+            var rawGravacao = rawParsed.g !== undefined ? rawParsed.g : (rawParsed.gravacao || rawParsed.laserText || '');
+            var gravacaoStr = String(rawGravacao || '').trim();
+
+            if (gravacaoStr.length > 0) {
+                var gravacaoConfig = catalog.product.gravacao || {};
+                if (!gravacaoConfig.permitida) {
+                    return null;
+                }
+                var maxChars = gravacaoConfig.limiteCaracteres || 12;
+                if (gravacaoStr.length > maxChars) {
+                    return null;
+                }
+
+                // Verifica se há regra bloqueando gravação (ex: R04 Sola Reciclada)
+                var blockReason = this.computeEngravingBlockReason(chosenComponents);
+                if (blockReason) {
+                    return null;
+                }
+            }
+
+            return {
+                tamanho: tamanho,
+                gravacao: gravacaoStr,
+                selecoes: grupos.map(function (g) {
+                    return { grupo: g.codigo, componente: selecaoPorGrupo[g.codigo] };
+                })
+            };
+        },
+
+        /**
+         * F3.10: Extrai fragmento de hash da URL atual no navegador.
+         *
+         * @return {String}
+         */
+        getSharedHashFromUrl: function () {
+            if (typeof window === 'undefined' || !window.location) {
+                return '';
+            }
+            var hash = window.location.hash || '';
+            if (hash.charAt(0) === '#') {
+                hash = hash.substring(1);
+            }
+            return hash;
+        },
+
+        /**
+         * F3.10: Limpa hash corrompido ou inválido da URL sem recarregar a página.
+         */
+        clearInvalidHashFromUrl: function () {
+            if (typeof window === 'undefined' || !window.location || !window.history || !window.history.replaceState) {
+                return;
+            }
+            var cleanUrl = window.location.pathname + window.location.search;
+            window.history.replaceState(null, (typeof document !== 'undefined' ? document.title : ''), cleanUrl);
+        },
+
+        /**
+         * F3.10: Resolve a configuração inicial inspecionando o hash da URL (#hash).
+         * Se válido, retorna a configuração decodificada.
+         * Se inválido ou corrompido, emite aviso amigável e retorna a sugestão inicial padrão.
+         *
+         * @param {Object} catalog
+         * @param {Object} defaultCfg
+         * @return {Object}
+         */
+        resolveInitialConfiguration: function (catalog, defaultCfg) {
+            var rawHash = this.getSharedHashFromUrl();
+            if (!rawHash) {
+                return defaultCfg;
+            }
+
+            // Ignora âncoras comuns que não são do estúdio
+            if (rawHash.indexOf('atelie=') === -1 && rawHash.indexOf('c=') === -1 && rawHash.charAt(0) !== '{') {
+                return defaultCfg;
+            }
+
+            var parsed = this.parseShareHash(rawHash);
+            if (!parsed) {
+                this.sharedNotice('Configuração compartilhada inválida. Carregamos a sugestão original.');
+                this.clearInvalidHashFromUrl();
+                return defaultCfg;
+            }
+
+            var validated = this.validateSharedConfig(parsed, catalog);
+            if (!validated) {
+                this.sharedNotice('Configuração compartilhada inválida. Carregamos a sugestão original.');
+                this.clearInvalidHashFromUrl();
+                return defaultCfg;
+            }
+
+            return validated;
+        },
+
+        /**
+         * F3.10: Fecha o aviso de configuração compartilhada inválida.
+         */
+        dismissSharedNotice: function () {
+            this.sharedNotice('');
+        },
+
+        /**
+         * F3.10: Gera o link de compartilhamento com hash e copia para a área de transferência.
+         * Atualiza a barra de endereços com history.replaceState e exibe feedback acessível temporário.
+         */
+        shareCreation: function () {
+            var snapshot = this.createSnapshot();
+            var hash = this.serializeShareHash(snapshot);
+            var url = '';
+
+            if (typeof window !== 'undefined' && window.location) {
+                var base = window.location.origin + window.location.pathname + window.location.search;
+                url = base + '#' + hash;
+
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState(null, (typeof document !== 'undefined' ? document.title : ''), url);
+                } else {
+                    window.location.hash = hash;
+                }
+            }
+
+            var self = this;
+            var onSuccess = function () {
+                self.isCopied(true);
+                if (self._shareCopyTimer) {
+                    clearTimeout(self._shareCopyTimer);
+                }
+                self._shareCopyTimer = setTimeout(function () {
+                    self.isCopied(false);
+                }, 3000);
+            };
+
+            var fallbackCopy = function () {
+                try {
+                    if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+                        var textArea = document.createElement('textarea');
+                        textArea.value = url;
+                        textArea.style.position = 'fixed';
+                        textArea.style.top = '-9999px';
+                        textArea.style.left = '-9999px';
+                        textArea.setAttribute('aria-hidden', 'true');
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        var successful = false;
+                        if (typeof document.execCommand === 'function') {
+                            successful = document.execCommand('copy');
+                        }
+                        document.body.removeChild(textArea);
+                        if (successful) {
+                            onSuccess();
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    // Silencioso em caso de restrição estrita
+                }
+            };
+
+            if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                navigator.clipboard.writeText(url).then(onSuccess).catch(fallbackCopy);
+            } else {
+                fallbackCopy();
+            }
+        },
+
+        /**
          * Destrói timers e remove event listeners ao desmontar o componente.
          */
         destroy: function () {
@@ -1811,6 +2166,10 @@ define([
             if (this._laserDebounceTimer) {
                 clearTimeout(this._laserDebounceTimer);
                 this._laserDebounceTimer = null;
+            }
+            if (this._shareCopyTimer) {
+                clearTimeout(this._shareCopyTimer);
+                this._shareCopyTimer = null;
             }
             if (typeof document !== 'undefined') {
                 if (this._visibilityHandler) {
