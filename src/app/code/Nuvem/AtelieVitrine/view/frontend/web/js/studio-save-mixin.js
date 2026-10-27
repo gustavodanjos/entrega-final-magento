@@ -1,8 +1,7 @@
 define([
     'ko',
-    'jquery',
     'mage/url'
-], function (ko, $, urlBuilder) {
+], function (ko, urlBuilder) {
     'use strict';
 
     var storageKey = 'atelie_pending_creation';
@@ -14,9 +13,9 @@ define([
 
                 var self = this;
                 var pending = null;
-                var product = (this.studioData || {}).produto || {};
+                var product = this.getConfigData().produto || {};
 
-                this.creationLoadError = ko.observable('');
+                this.creationLoadError = this.sharedNotice;
 
                 try {
                     pending = JSON.parse(
@@ -27,7 +26,9 @@ define([
                 }
 
                 if (
+                    !window.location.hash &&
                     pending &&
+                    typeof pending.returnUrl === 'string' &&
                     pending.sku === product.sku &&
                     pending.returnUrl.split('#')[0] === window.location.href.split('#')[0] &&
                     pending.configuration
@@ -69,49 +70,59 @@ define([
                 return this;
             },
 
-            applyCreationConfiguration: function (configuration) {
-                var self = this;
-
-                if (
-                    !configuration ||
-                    !Number.isInteger(configuration.tamanho) ||
-                    !Array.isArray(configuration.selecoes)
-                ) {
-                    return;
+            resolveInitialConfiguration: function (catalog, defaultConfiguration) {
+                if (/^#c=[a-f0-9]{32}$/.test(window.location.hash)) {
+                    return defaultConfiguration;
                 }
-
-                this.selectedSize(configuration.tamanho);
-                this.laserText(configuration.gravacao || '');
-
-                configuration.selecoes.forEach(function (selection) {
-                    if (self.selections[selection.grupo]) {
-                        self.selections[selection.grupo](
-                            selection.componente
-                        );
-                    }
-                });
+                return this._super(catalog, defaultConfiguration);
             },
 
+            applyCreationConfiguration: function (configuration) {
+                var validated = this.validateSharedConfig(configuration, this.catalog);
+                if (!validated) {
+                    this.creationLoadError('Esta criação usa opções que não estão mais disponíveis.');
+                    return false;
+                }
+                var selections = {};
+                validated.selecoes.forEach(function (selection) {
+                    selections[selection.grupo] = selection.componente;
+                });
+                this.restoreSnapshot({
+                    tamanho: validated.tamanho,
+                    laserText: validated.gravacao || '',
+                    selecoes: selections
+                });
+                this.history([this.createSnapshot()]);
+                this.historyIndex(0);
+                this.creationLoadError('');
+                return true;
+            },
 
             loadCreationFromHash: function () {
                 var self = this;
                 var match = window.location.hash.match(/^#c=([a-f0-9]{32})$/);
-                var product = (this.studioData || {}).produto || {};
+                var product = this.getConfigData().produto || {};
 
                 if (!match) {
                     return;
                 }
 
-                $.ajax({
-                    url: urlBuilder.build('atelie/creation/get'),
-                    type: 'GET',
-                    dataType: 'json',
-                    data: {
-                        hash: match[1]
+                var endpoint = new URL(
+                    urlBuilder.build('atelie/creation/get'),
+                    window.BASE_URL || window.location.origin + '/'
+                );
+                endpoint.searchParams.set('hash', match[1]);
+                this.creationLoadError('Carregando a criação para você remixar...');
+                fetch(endpoint.toString(), {
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    headers: { 'Accept': 'application/json' }
+                }).then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Creation unavailable');
                     }
-                }).done(function (response) {
-                    var pending = null;
-
+                    return response.json();
+                }).then(function (response) {
                     if (
                         !response.success ||
                         response.sku !== product.sku ||
@@ -123,29 +134,8 @@ define([
                         return;
                     }
 
-                    try {
-                        pending = JSON.parse(
-                            window.sessionStorage.getItem(storageKey) || 'null'
-                        );
-                    } catch (error) {
-                        pending = null;
-                    }
-
-                    if (
-                        pending &&
-                        pending.sku === product.sku &&
-                        pending.returnUrl.split('#')[0] === window.location.href.split('#')[0] &&
-                        pending.configuration
-                    ) {
-                        // Keep the changes made before login.
-                        self.applyCreationConfiguration(pending.configuration);
-                    } else {
-                        // Load the original saved creation.
-                        self.applyCreationConfiguration(response.configuration);
-                    }
-
-                    self.creationLoadError('');
-                }).fail(function () {
+                    self.applyCreationConfiguration(response.configuration);
+                }).catch(function () {
                     self.creationLoadError(
                         'Esta criação não está disponível ou você não tem permissão para acessá-la.'
                     );
