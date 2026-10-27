@@ -1,0 +1,172 @@
+//
+// Nuvem Ateliê - My Creations
+// _____________________________________________
+
+.atelie-my-creations {
+    color: @nuvem-grafite;
+
+    > p {
+        margin-bottom: 24px;
+        color: @nuvem-grafite-suave;
+        font-size: 15px;
+    }
+
+    // Creation grid
+    .atelie-creations-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+    }
+
+    // Creation card
+    .atelie-creation-card {
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        background: @nuvem-branco;
+        border: 1px solid @nuvem-bruma;
+        border-top: 4px solid @nuvem-lavanda;
+        border-radius: @nuvem-raio-card;
+        box-shadow: 0 6px 20px fade(@nuvem-grafite, 6%);
+        transition: box-shadow 0.2s ease;
+
+        &:hover {
+            box-shadow: 0 10px 28px fade(@nuvem-grafite, 10%);
+        }
+
+        h3 {
+            margin: 0 0 16px;
+            color: @nuvem-grafite;
+            font-family: 'Quicksand', @font-family__sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        p {
+            margin: 0 0 10px;
+            color: @nuvem-grafite-suave;
+            font-size: 14px;
+
+            strong {
+                color: @nuvem-grafite;
+            }
+        }
+    }
+
+    // Creation actions
+    .atelie-creation-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 22px;
+        padding-top: 20px;
+
+        form {
+            display: inline-flex;
+            margin: 0;
+        }
+
+        .action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+            margin: 0;
+            padding: 9px 16px;
+            border-radius: @nuvem-raio-pilula;
+            font-family: 'Nunito', @font-family__sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 20px;
+            text-decoration: none;
+            box-shadow: none;
+            transition: background 0.2s ease;
+        }
+
+        // Open in studio
+        a.action.primary {
+            background: @nuvem-magenta;
+            border: 1px solid @nuvem-magenta;
+            color: @nuvem-branco;
+
+            &:hover,
+            &:focus {
+                background: darken(@nuvem-magenta, 7%);
+                border-color: darken(@nuvem-magenta, 7%);
+                color: @nuvem-branco;
+            }
+        }
+
+        // Publish and unpublish
+        button.action.secondary {
+            background: @nuvem-nevoa;
+            border: 1px solid @nuvem-bruma;
+            color: @nuvem-ceu-profundo;
+
+            &:hover,
+            &:focus {
+                background: @nuvem-ceu;
+                border-color: @nuvem-ceu;
+                color: @nuvem-ceu-profundo;
+            }
+        }
+
+        // Delete
+        form:last-child button.action.secondary {
+            background: @nuvem-branco;
+            border-color: fade(@nuvem-coral, 35%);
+            color: @nuvem-coral;
+
+            &:hover,
+            &:focus {
+                background: fade(@nuvem-coral, 8%);
+                border-color: @nuvem-coral;
+            }
+        }
+    }
+}
+
+//
+// Header creation counter
+// _____________________________________________
+
+.atelie-creation-counter {
+    display: inline-block;
+
+    a {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 16px;
+        background: fade(@nuvem-branco, 12%);
+        border: 1px solid fade(@nuvem-branco, 35%);
+        border-radius: @nuvem-raio-pilula;
+        color: @nuvem-branco;
+        font-family: 'Nunito', sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+
+        &:hover,
+        &:focus {
+            background: fade(@nuvem-rosa, 25%);
+            color: @nuvem-branco;
+            text-decoration: none;
+        }
+    }
+}
+
+
+// Mobile
+@media (max-width: 600px) {
+    .atelie-my-creations {
+        .atelie-creations-list {
+            grid-template-columns: 1fr;
+        }
+
+        .atelie-creation-card {
+            padding: 20px;
+        }
+    }
+}

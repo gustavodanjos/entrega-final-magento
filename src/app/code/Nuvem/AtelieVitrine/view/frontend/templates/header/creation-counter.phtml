@@ -1,0 +1,23 @@
+<div class="atelie-creation-counter"
+     data-bind="scope: 'atelieCreationCounter'">
+    <!-- ko if: customer().fullname -->
+    <a href="<?= $escaper->escapeUrl($block->getUrl('atelie/creation/index')) ?>">
+        Minhas Criações
+        (<span data-bind="text: creations().count || 0"></span>)
+    </a>
+    <!-- /ko -->
+</div>
+
+<script type="text/x-magento-init">
+{
+    "*": {
+        "Magento_Ui/js/core/app": {
+            "components": {
+                "atelieCreationCounter": {
+                    "component": "Nuvem_AtelieVitrine/js/creation-counter"
+                }
+            }
+        }
+    }
+}
+</script>

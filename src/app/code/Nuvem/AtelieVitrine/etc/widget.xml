@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<widgets xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Widget:etc/widget.xsd">
+
+    <widget id="nuvem_creations_showcase"
+            class="Nuvem\AtelieVitrine\Block\Widget\Creations">
+
+        <label translate="true">Vitrine de Criações Nuvem</label>
+        <description translate="true">Exibe criações públicas do Ateliê Nuvem.</description>
+
+        <parameters>
+            <parameter name="title" xsi:type="text"
+                       required="false" visible="true" sort_order="10">
+                <label translate="true">Título da vitrine</label>
+            </parameter>
+
+            <parameter name="limit" xsi:type="text"
+                       required="true" visible="true" sort_order="20">
+                <label translate="true">Quantidade de criações</label>
+                <value>6</value>
+            </parameter>
+
+            <parameter name="order" xsi:type="select"
+                       required="true" visible="true" sort_order="30">
+                <label translate="true">Ordenação</label>
+                <options>
+                    <option name="recent" value="recent" selected="true">
+                        <label translate="true">Mais recentes</label>
+                    </option>
+                    <option name="oldest" value="oldest">
+                        <label translate="true">Mais antigas</label>
+                    </option>
+                    <option name="popular" value="popular">
+                        <label translate="true">Mais curtidas</label>
+                    </option>
+                </options>
+            </parameter>
+        </parameters>
+    </widget>
+</widgets>
