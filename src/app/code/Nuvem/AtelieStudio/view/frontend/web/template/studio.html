@@ -204,7 +204,9 @@
         <input type="hidden" form="product_addtocart_form" name="atelie[gravacao]"
                data-bind="attr: { value: (permiteGravacao() && !engravingBlocked()) ? laserText() : '' }">
     </div>
+    <!-- F5.1: Saved creation actions -->
     <!-- ko foreach: getRegion('creationActions') -->
         <!-- ko template: getTemplate() --><!-- /ko -->
     <!-- /ko -->
+
 </div>

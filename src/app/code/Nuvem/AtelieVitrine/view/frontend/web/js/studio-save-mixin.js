@@ -8,6 +8,16 @@ define([
 
     return function (Studio) {
         return Studio.extend({
+            // F5.3: hashes de criacoes salvas pertencem ao modulo AtelieVitrine.
+            // Nao devem ser interpretados como Base64 da F3.10.
+            resolveInitialConfiguration: function (catalog, defaultCfg) {
+                if (/^#c=[a-f0-9]{32}$/i.test(window.location.hash)) {
+                    return defaultCfg;
+                }
+
+                return this._super(catalog, defaultCfg);
+            },
+
             initObservable: function () {
                 this._super();
 
@@ -68,13 +78,6 @@ define([
                 this.loadCreationFromHash();
 
                 return this;
-            },
-
-            resolveInitialConfiguration: function (catalog, defaultConfiguration) {
-                if (/^#c=[a-f0-9]{32}$/.test(window.location.hash)) {
-                    return defaultConfiguration;
-                }
-                return this._super(catalog, defaultConfiguration);
             },
 
             applyCreationConfiguration: function (configuration) {
