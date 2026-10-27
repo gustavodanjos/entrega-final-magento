@@ -39,4 +39,25 @@
             <column name="created_at"/>
         </index>
     </table>
+    <table name="nuvem_atelie_criacao_curtida" resource="default" engine="innodb" comment="Account and visitor creation likes">
+        <column xsi:type="int" name="like_id" unsigned="true" nullable="false" identity="true" comment="Like ID"/>
+        <column xsi:type="int" name="criacao_id" unsigned="true" nullable="false" comment="Creation ID"/>
+        <column xsi:type="int" name="customer_id" unsigned="true" nullable="true" comment="Customer ID"/>
+        <column xsi:type="varchar" name="visitor_token" length="64" nullable="true" comment="Anonymous session token"/>
+        <constraint xsi:type="primary" referenceId="PRIMARY"><column name="like_id"/></constraint>
+        <constraint xsi:type="unique" referenceId="NUVEM_ATELIE_CRIACAO_CURTIDA_CRIACAO_ID_CUSTOMER_ID">
+            <column name="criacao_id"/><column name="customer_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="NUVEM_ATELIE_CRIACAO_CURTIDA_CRIACAO_ID_VISITOR_TOKEN">
+            <column name="criacao_id"/><column name="visitor_token"/>
+        </constraint>
+        <constraint xsi:type="foreign" referenceId="FK_7B4B2ED63822AA63AC7BCD4360F28423"
+                    table="nuvem_atelie_criacao_curtida" column="criacao_id"
+                    referenceTable="nuvem_atelie_criacao" referenceColumn="criacao_id" onDelete="CASCADE"/>
+        <constraint xsi:type="foreign" referenceId="NUVEM_ATELIE_CRIACAO_CURTIDA_CSTR_ID_CSTR_ENTT_ENTT_ID"
+                    table="nuvem_atelie_criacao_curtida" column="customer_id"
+                    referenceTable="customer_entity" referenceColumn="entity_id" onDelete="CASCADE"/>
+        <index referenceId="NUVEM_ATELIE_CRIACAO_CURTIDA_CUSTOMER_ID" indexType="btree"><column name="customer_id"/></index>
+        <index referenceId="NUVEM_ATELIE_CRIACAO_CURTIDA_VISITOR_TOKEN" indexType="btree"><column name="visitor_token"/></index>
+    </table>
 </schema>
