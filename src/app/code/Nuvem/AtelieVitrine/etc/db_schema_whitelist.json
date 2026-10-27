@@ -20,5 +20,24 @@
             "NUVEM_ATELIE_CRIACAO_HASH": true,
             "NUVEM_ATELIE_CRIACAO_CUSTOMER_ID_CUSTOMER_ENTITY_ENTITY_ID": true
         }
+    },
+    "nuvem_atelie_criacao_curtida": {
+        "column": {
+            "criacao_id": true,
+            "customer_id": true,
+            "like_id": true,
+            "visitor_token": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "NUVEM_ATELIE_CRIACAO_CURTIDA_CRIACAO_ID_CUSTOMER_ID": true,
+            "NUVEM_ATELIE_CRIACAO_CURTIDA_CRIACAO_ID_VISITOR_TOKEN": true,
+            "FK_7B4B2ED63822AA63AC7BCD4360F28423": true,
+            "NUVEM_ATELIE_CRIACAO_CURTIDA_CSTR_ID_CSTR_ENTT_ENTT_ID": true
+        },
+        "index": {
+            "NUVEM_ATELIE_CRIACAO_CURTIDA_CUSTOMER_ID": true,
+            "NUVEM_ATELIE_CRIACAO_CURTIDA_VISITOR_TOKEN": true
+        }
     }
 }
