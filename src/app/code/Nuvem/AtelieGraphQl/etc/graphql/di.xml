@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <type name="Magento\CatalogGraphQl\Model\ProductInterfaceTypeResolverComposite">
+        <arguments>
+            <argument name="productTypeNameResolvers" xsi:type="array">
+                <item name="atelie_product_type" xsi:type="object">Nuvem\AtelieGraphQl\Model\Resolver\AtelieProductTypeResolver</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Magento\QuoteGraphQl\Model\Resolver\CartItemTypeResolver">
+        <arguments>
+            <argument name="supportedTypes" xsi:type="array">
+                <item name="atelie" xsi:type="string">AtelieCartItem</item>
+            </argument>
+        </arguments>
+    </type>
+
+
+    <type name="Magento\QuoteGraphQl\Model\CartItem\GetItemsData">
+        <plugin name="nuvem_atelie_cart_item_data"
+                type="Nuvem\AtelieGraphQl\Plugin\CartItem\AtelieCartItemData"
+                sortOrder="10"/>
+    </type>
+
+</config>

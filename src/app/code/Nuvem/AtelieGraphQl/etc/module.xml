@@ -4,10 +4,12 @@
  * Copyright © Nuvem Calçados. All rights reserved.
  */
 -->
-<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
     <module name="Nuvem_AtelieGraphQl">
         <sequence>
             <module name="Nuvem_Atelie"/>
+            <module name="Nuvem_AtelieStudio"/>
             <module name="Magento_QuoteGraphQl"/>
             <module name="Magento_CatalogGraphQl"/>
         </sequence>
