@@ -26,7 +26,7 @@ class SavedCreation extends AbstractModel implements IdentityInterface
      */
     public function getIdentities(): array
     {
-        return [self::CACHE_TAG];
+        return [self::CACHE_TAG, self::CACHE_TAG . '_' . $this->getId()];
     }
 
     /**

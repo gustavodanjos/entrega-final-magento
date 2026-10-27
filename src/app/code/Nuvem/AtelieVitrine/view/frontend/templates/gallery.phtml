@@ -1,0 +1,57 @@
+<?php
+/** @var \Nuvem\AtelieVitrine\Block\Gallery $block */
+/** @var \Magento\Framework\Escaper $escaper */
+$creations = $block->getCreations();
+$likeConfig = [
+    'Nuvem_AtelieVitrine/js/gallery-likes' => [
+        'likedOnly' => false,
+        'stateUrl' => $block->getUrl('galeria/like/state', ['_nosid' => true]),
+        'saveUrl' => $block->getUrl('galeria/like/save', ['_nosid' => true])
+    ]
+];
+?>
+<section data-mage-init="<?= $escaper->escapeHtmlAttr(json_encode($likeConfig)) ?>"
+         class="nuvem-gallery" aria-label="<?= $escaper->escapeHtmlAttr(__('Criações da comunidade')) ?>">
+    <p class="nuvem-gallery__intro">Cores, ideias e pares com personalidade. Encontre uma criação e dê o seu toque.</p>
+    <nav class="nuvem-gallery__sort" aria-label="<?= $escaper->escapeHtmlAttr(__('Ordenar criações')) ?>">
+        <?php foreach (['recent' => 'Mais recentes', 'popular' => 'Mais curtidas'] as $order => $label): ?>
+            <a href="<?= $escaper->escapeUrl($block->getOrderUrl($order)) ?>"
+               <?= $block->getOrder() === $order ? 'aria-current="true"' : '' ?>>
+                <?= $escaper->escapeHtml($label) ?>
+            </a>
+        <?php endforeach; ?>
+    </nav>
+    <p class="nuvem-gallery__message" data-like-message role="status" aria-live="polite"></p>
+    <?php if ($creations->getSize()): ?>
+        <ul class="nuvem-gallery__grid">
+            <?php foreach ($creations as $creation): ?>
+                <?php $likeLabel = __('Curtir %1', $creation->getData('nome')); ?>
+                <li class="nuvem-gallery__card">
+                    <img src="<?= $escaper->escapeUrl($block->getPreviewUrl($creation)) ?>"
+                         alt="<?= $escaper->escapeHtmlAttr(__('Tênis %1', $creation->getData('nome'))) ?>"
+                         width="620" height="290" loading="lazy">
+                    <h2><?= $escaper->escapeHtml($creation->getData('nome')) ?></h2>
+                    <div class="nuvem-gallery__details">
+                        <button type="button" class="nuvem-gallery__like" aria-pressed="false" disabled
+                                data-like-hash="<?= $escaper->escapeHtmlAttr($creation->getData('hash')) ?>"
+                                data-creation-name="<?= $escaper->escapeHtmlAttr($creation->getData('nome')) ?>"
+                                aria-label="<?= $escaper->escapeHtmlAttr($likeLabel) ?>">
+                            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M12 21S3 15.5 3 8.5a4.5 4.5 0 0 1 9-1 4.5 4.5 0 0 1 9 1C21 15.5 12 21 12 21Z"/>
+                            </svg>
+                            <span data-like-count><?= (int) $creation->getData('curtidas') ?></span>
+                        </button>
+                        <a class="nuvem-gallery__remix"
+                           href="<?= $escaper->escapeUrl($block->getRemixUrl($creation)) ?>">
+                            <?= $escaper->escapeHtml(__('Remixar')) ?>
+                        </a>
+                    </div>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+        <?= $block->getChildHtml('pager') ?>
+    <?php else: ?>
+        <p><?= $escaper->escapeHtml(__('Ninguém publicou nada ainda. Que tal ser a primeira criação da galeria?')) ?></p>
+        <a class="action primary" href="<?= $escaper->escapeUrl($block->getUrl('nuvem-runner.html')) ?>">Criar o meu</a>
+    <?php endif; ?>
+</section>

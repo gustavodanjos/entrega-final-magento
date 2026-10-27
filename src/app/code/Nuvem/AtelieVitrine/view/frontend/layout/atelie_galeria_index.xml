@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" layout="1column"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <block class="Nuvem\AtelieVitrine\Block\Gallery" name="nuvem.gallery" template="Nuvem_AtelieVitrine::gallery.phtml">
+                <block class="Magento\Theme\Block\Html\Pager" name="nuvem.gallery.pager" as="pager">
+                    <arguments>
+                        <argument name="path" xsi:type="string">galeria</argument>
+                    </arguments>
+                </block>
+            </block>
+        </referenceContainer>
+    </body>
+</page>
