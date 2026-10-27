@@ -139,8 +139,8 @@
         display: inline-flex;
         align-items: center;
         padding: 7px 16px;
-        background: fade(@nuvem-branco, 12%);
-        border: 1px solid fade(@nuvem-branco, 35%);
+        background: @nuvem-magenta;
+        border: 1px solid @nuvem-magenta;
         border-radius: @nuvem-raio-pilula;
         color: @nuvem-branco;
         font-family: 'Nunito', sans-serif;
@@ -148,9 +148,14 @@
         font-weight: 700;
         text-decoration: none;
 
+        &:visited {
+            color: @nuvem-branco;
+        }
+
         &:hover,
         &:focus {
-            background: fade(@nuvem-rosa, 25%);
+            background: darken(@nuvem-magenta, 7%);
+            border-color: darken(@nuvem-magenta, 7%);
             color: @nuvem-branco;
             text-decoration: none;
         }
@@ -167,6 +172,71 @@
 
         .atelie-creation-card {
             padding: 20px;
+        }
+    }
+}
+
+
+// F5.1 - Save creation integrated with the new studio
+.atelie-save-creation {
+    margin-top: 32px;
+    padding: 24px 0;
+
+    .atelie-section-label {
+        margin: 0 0 20px;
+        color: @nuvem-grafite;
+        font-family: 'Quicksand', sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .atelie-save-form {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+
+        label {
+            color: @nuvem-grafite;
+            font-weight: 700;
+        }
+
+        input.input-text {
+            width: 100%;
+            min-height: 48px;
+            box-sizing: border-box;
+            border: 1px solid @nuvem-bruma;
+            border-radius: 12px;
+        }
+
+        button.action.primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 52px;
+            margin: 8px 0 0;
+            padding: 12px 28px;
+            background: @nuvem-branco;
+            border: 2px solid @nuvem-magenta;
+            border-radius: @nuvem-raio-pilula;
+            color: @nuvem-magenta;
+            font-family: 'Nunito', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            box-shadow: none;
+            transition: background .2s ease, color .2s ease;
+
+            &:hover,
+            &:focus {
+                background: @nuvem-magenta;
+                border-color: @nuvem-magenta;
+                color: @nuvem-branco;
+            }
+
+            &:disabled {
+                opacity: .6;
+                cursor: not-allowed;
+            }
         }
     }
 }
