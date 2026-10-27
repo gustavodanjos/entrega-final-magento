@@ -41,6 +41,14 @@
                    template="Magento_Theme::html/footer.phtml"
                    before="-"/>
         </referenceContainer>
+        <referenceBlock name="footer_links">
+            <block class="Magento\Framework\View\Element\Html\Link" name="nuvem.footer.how.its.made">
+                <arguments>
+                    <argument name="label" xsi:type="string" translate="true">Como é feito</argument>
+                    <argument name="path" xsi:type="string">como-e-feito</argument>
+                </arguments>
+            </block>
+        </referenceBlock>
         <move element="footer_links" destination="nuvem.footer"/>
         <referenceBlock name="store_switcher" remove="true"/>
         <referenceBlock name="copyright" remove="true"/>
