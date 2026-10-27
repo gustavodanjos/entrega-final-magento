@@ -5,5 +5,8 @@
         <route id="atelie" frontName="atelie">
             <module name="Nuvem_AtelieVitrine"/>
         </route>
+        <route id="galeria" frontName="galeria">
+            <module name="Nuvem_AtelieVitrine"/>
+        </route>
     </router>
 </config>
