@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_PageBuilder:etc/content_type.xsd">
+
+    <type name="nuvem_creations"
+          label="Vitrine de Criações"
+          component="Magento_PageBuilder/js/content-type"
+          preview_component="Magento_PageBuilder/js/content-type/preview"
+          master_component="Magento_PageBuilder/js/content-type/master"
+          form="pagebuilder_nuvem_creations_form"
+          menu_section="add_content"
+          icon="icon-pagebuilder-nuvem-creations"
+          sortOrder="25"
+          translate="label">
+
+        <children default_policy="deny"/>
+
+        <appearances>
+            <appearance name="default"
+                        default="true"
+                        preview_template="Nuvem_AtelieVitrine/content-type/nuvem-creations/default/preview"
+                        master_template="Nuvem_AtelieVitrine/content-type/nuvem-creations/default/master"
+                        reader="Magento_PageBuilder/js/master-format/read/configurable">
+
+                <elements>
+                    <element name="main">
+                        <attribute name="name" source="data-content-type"/>
+                        <attribute name="appearance" source="data-appearance"/>
+                        <attribute name="title" source="data-showcase-title"/>
+                        <attribute name="limit" source="data-showcase-limit"/>
+                        <attribute name="order" source="data-showcase-order"/>
+                        <html name="html"
+                              preview_converter="Magento_PageBuilder/js/converter/attribute/preview/store-id"/>
+                        <css name="css_classes"/>
+                    </element>
+                </elements>
+
+                <converters>
+                    <converter name="widget_directive"
+                               component="Nuvem_AtelieVitrine/js/content-type/nuvem-creations/mass-converter/widget-directive">
+                        <config>
+                            <item name="html_variable" value="html"/>
+                        </config>
+                    </converter>
+                </converters>
+
+            </appearance>
+        </appearances>
+    </type>
+</config>
