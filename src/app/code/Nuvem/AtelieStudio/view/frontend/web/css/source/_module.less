@@ -312,6 +312,13 @@ form#product_addtocart_form,
             outline: none;
             box-shadow: 0 0 0 2px rgba(163, 48, 122, 0.2);
         }
+
+        &:focus-visible {
+            border-color: @nuvem-magenta;
+            outline: 3px solid @nuvem-magenta;
+            outline-offset: 2px;
+            box-shadow: none;
+        }
     }
 
     // Input customizado para Gravação
@@ -332,12 +339,20 @@ form#product_addtocart_form,
         color: @nuvem-grafite;
         letter-spacing: 0.05em;
         padding: 0 56px 0 16px;
+        scroll-margin-bottom: 120px;
         transition: border-color 0.2s, background-color 0.2s, opacity 0.2s;
 
         &:focus {
             border-color: @nuvem-magenta;
             outline: none;
             box-shadow: 0 0 0 2px rgba(163, 48, 122, 0.2);
+        }
+
+        &:focus-visible {
+            border-color: @nuvem-magenta;
+            outline: 3px solid @nuvem-magenta;
+            outline-offset: 2px;
+            box-shadow: none;
         }
 
         &:disabled {
@@ -500,13 +515,13 @@ form#product_addtocart_form,
     }
 
     &:focus-visible .atelie-swatch__color {
-        outline: 3px solid @nuvem-magenta;
-        outline-offset: 2px;
+        outline: 3px solid @nuvem-magenta !important;
+        outline-offset: 3px !important;
     }
 
     &.is-blocked:focus-visible .atelie-swatch__color {
-        outline: 2px solid @nuvem-grafite;
-        outline-offset: 2px;
+        outline: 3px solid @nuvem-grafite !important;
+        outline-offset: 3px !important;
     }
 
     &__circle-wrap {
@@ -731,27 +746,30 @@ form#product_addtocart_form,
 }
 
 // ------------------------------------------------------------
-//  Responsividade (Desktop >= 1024px & Mobile)
+//  Responsividade · Variáveis e Mixins Nativos do Luma (.media-width)
 // ------------------------------------------------------------
-@media (min-width: 1024px) {
-    .atelie-studio-wrapper {
-        flex-direction: row;
-        gap: 60px;
-        align-items: flex-start;
-    }
 
-    .atelie-studio__stage {
-        flex: 0 0 55%;
-        max-width: 55%;
-    }
-
-    .atelie-studio {
-        flex: 1 1 45%;
-        max-width: calc(45% - 60px);
-    }
+// Mobile Geral (<= 767px / @screen__m)
+.media-width(@extremum, @break) when (@extremum = 'max') and (@break = @screen__m) {
+    .atelie-mobile-rules();
 }
 
-@media (max-width: 767px) {
+// Mobile Compacto / 360px (<= 479px / @screen__xs)
+.media-width(@extremum, @break) when (@extremum = 'max') and (@break = @screen__xs) {
+    .atelie-compact-mobile-rules();
+}
+
+// Desktop (>= 1024px / @screen__l)
+.media-width(@extremum, @break) when (@extremum = 'min') and (@break = @screen__l) {
+    .atelie-desktop-rules();
+}
+
+// Definição dos blocos de regras reutilizáveis
+.atelie-mobile-rules() {
+    .atelie-studio-wrapper {
+        padding-bottom: 96px;
+    }
+
     .atelie-studio {
         &__title {
             font-size: 26px;
@@ -770,7 +788,182 @@ form#product_addtocart_form,
             flex: 1 1 auto;
             width: 100%;
         }
+
+        &__laser {
+            width: 100%;
+        }
+
+        &__laser-input {
+            scroll-margin-bottom: 120px;
+        }
+
+        // Barra inferior fixa de compra e espelho de preço
+        &__actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            background: rgba(251, 250, 255, 0.98);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 -4px 18px rgba(46, 42, 59, 0.15);
+            padding: 12px 16px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+            margin: 0;
+            box-sizing: border-box;
+            z-index: 900;
+        }
     }
+
+    // Regra Inegociável: Quando o teclado virtual está aberto ou o campo laser está em foco,
+    // a barra de ações reverte para fluxo estático, NUNCA sobrepondo nem cobrindo o campo de gravação!
+    .atelie-studio-wrapper.has-virtual-keyboard-open,
+    .atelie-studio.has-virtual-keyboard-open,
+    .atelie-studio-wrapper:has(.atelie-studio__laser-input:focus),
+    .atelie-studio:has(.atelie-studio__laser-input:focus) {
+        padding-bottom: 0;
+
+        .atelie-studio__actions {
+            position: static;
+            box-shadow: none;
+            background: transparent;
+            padding: 12px 0 0;
+        }
+    }
+}
+
+.atelie-compact-mobile-rules() {
+    .atelie-studio-wrapper {
+        overflow-x: hidden;
+        max-width: 100%;
+        gap: 16px;
+    }
+
+    .atelie-studio__stage {
+        min-height: 220px;
+        padding: 16px 12px;
+        border-radius: 16px;
+
+        &::before {
+            width: 180px;
+            height: 180px;
+        }
+        &::after {
+            width: 160px;
+            height: 160px;
+        }
+    }
+
+    .atelie-studio {
+        max-width: 100%;
+        overflow-x: hidden;
+
+        &__title {
+            font-size: 22px;
+        }
+
+        &__price-value {
+            font-size: 24px;
+        }
+
+        // Abas em carrossel horizontal deslizável sem scrollbar feia nem empilhamento vertical
+        &__tabs {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 6px;
+            margin: 4px 0 10px;
+
+            &::-webkit-scrollbar {
+                display: none;
+            }
+        }
+
+        &__tab {
+            flex: 0 0 auto;
+            white-space: nowrap;
+            padding: 6px 14px;
+            font-size: 13px;
+            min-height: 38px;
+        }
+
+        // Amostras: grid de 3 colunas perfeitamente ajustado para 360px
+        &__options {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px 8px;
+        }
+    }
+
+    .atelie-swatch {
+        &__circle-wrap {
+            width: 56px;
+            height: 56px;
+        }
+
+        &__color {
+            width: 56px;
+            height: 56px;
+        }
+
+        &__name {
+            font-size: 12px;
+        }
+
+        &__price {
+            font-size: 11px;
+        }
+
+        &__tooltip {
+            max-width: 260px;
+            font-size: 11.5px;
+            padding: 10px 12px;
+        }
+    }
+}
+
+.atelie-desktop-rules() {
+    .atelie-studio-wrapper {
+        flex-direction: row;
+        gap: 60px;
+        align-items: flex-start;
+        padding-bottom: 0;
+    }
+
+    .atelie-studio__stage {
+        flex: 0 0 55%;
+        max-width: 55%;
+        min-height: 520px;
+        position: sticky;
+        top: 24px;
+    }
+
+    .atelie-studio {
+        flex: 1 1 45%;
+        max-width: calc(45% - 60px);
+
+        &__actions {
+            position: static;
+            background: transparent;
+            box-shadow: none;
+            padding: 12px 0 0;
+        }
+    }
+}
+
+// Media queries puras com pixels absolutos (garantia 100% à prova de falhas em qualquer browser)
+@media only screen and (max-width: 767px) {
+    .atelie-mobile-rules();
+}
+
+@media only screen and (max-width: 480px) {
+    .atelie-compact-mobile-rules();
+}
+
+@media only screen and (min-width: 1024px) {
+    .atelie-desktop-rules();
 }
 
 // Salvaguarda: garantir visibilidade do cabeçalho
@@ -785,28 +978,77 @@ form#product_addtocart_form,
     transition: fill 0.3s ease, stroke 0.3s ease;
 }
 
-// F3.6 — Preview SVG thumbnail in cart table (prevent absolute positioning collision with options list)
-.cart.table {
-    .product-item-photo {
-        display: table-cell;
-        vertical-align: top;
-        min-width: 130px;
-        max-width: 165px;
-        width: 165px;
-        padding-right: 15px;
+// F3.6 & F3.8 — Preview SVG thumbnail in cart table (prevent absolute positioning collision on mobile & desktop)
+@media only screen and (max-width: 767px) {
+    .cart.table-wrapper,
+    .cart.table {
+        .item .col.item,
+        .item-info .col.item {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            padding: 16px 15px 12px 15px !important;
+            min-height: 0 !important;
 
-        .product-image-photo {
-            position: static !important;
-            display: block;
-            width: 100% !important;
-            max-width: 165px !important;
-            height: auto !important;
+            .product-item-photo {
+                position: static !important;
+                display: block !important;
+                float: none !important;
+                width: 140px !important;
+                max-width: 140px !important;
+                margin: 0 0 12px 0 !important;
+                padding: 0 !important;
+
+                .product-image-photo {
+                    position: static !important;
+                    display: block !important;
+                    width: 100% !important;
+                    height: auto !important;
+                    max-width: 100% !important;
+                }
+            }
+
+            .product-item-details {
+                display: block !important;
+                width: 100% !important;
+                padding: 0 !important;
+
+                .product-item-name {
+                    display: block;
+                    margin-bottom: 8px;
+                }
+            }
         }
     }
+}
 
-    .product-item-details {
-        display: table-cell;
-        vertical-align: top;
+@media only screen and (min-width: 768px) {
+    .cart.table-wrapper,
+    .cart.table {
+        .item .col.item,
+        .item-info .col.item {
+            .product-item-photo {
+                display: table-cell !important;
+                vertical-align: top !important;
+                min-width: 140px !important;
+                max-width: 175px !important;
+                width: 165px !important;
+                padding-right: 20px !important;
+
+                .product-image-photo {
+                    position: static !important;
+                    display: block !important;
+                    width: 100% !important;
+                    max-width: 175px !important;
+                    height: auto !important;
+                }
+            }
+
+            .product-item-details {
+                display: table-cell !important;
+                vertical-align: top !important;
+            }
+        }
     }
 }
 
