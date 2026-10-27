@@ -101,6 +101,28 @@ class GalleryTest extends TestCase
         self::assertSame('/signed-preview', $block->getPreviewUrl($creation));
     }
 
+    public function testExistingSeedCreationsAreNeverUpdatedOrRepublished(): void
+    {
+        $factory = $this->createMock(\Nuvem\AtelieVitrine\Model\SavedCreationFactory::class);
+        $factory->expects(self::never())->method('create');
+        $repository = $this->getMockBuilder(\Nuvem\AtelieVitrine\Model\SavedCreationRepository::class)
+            ->disableOriginalConstructor()->getMock();
+        $creation = $this->getMockBuilder(SavedCreation::class)->disableOriginalConstructor()->getMock();
+        $repository->expects(self::exactly(16))->method('getByHash')->willReturn($creation);
+        $repository->expects(self::never())->method('save');
+        $serializer = $this->createMock(\Nuvem\Atelie\Model\ConfigurationSerializer::class);
+        $serializer->expects(self::never())->method('unserialize');
+        $validator = $this->createMock(\Nuvem\Atelie\Api\ConfigurationValidatorInterface::class);
+        $validator->expects(self::never())->method('validate');
+        $patch = new \Nuvem\AtelieVitrine\Setup\Patch\Data\SeedPublicGallery(
+            $factory,
+            $repository,
+            $serializer,
+            $validator
+        );
+        self::assertSame($patch, $patch->apply());
+    }
+
     private function createGallery(Collection $collection, array $parameters): Gallery
     {
         $factory = $this->createMock(CollectionFactory::class);
