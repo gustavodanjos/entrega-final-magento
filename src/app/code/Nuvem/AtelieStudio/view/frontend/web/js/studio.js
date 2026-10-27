@@ -409,12 +409,14 @@ define([
                 if (self._isApplyingHistory) {
                     return;
                 }
-                if (self._laserDebounceTimer) {
+                if (typeof clearTimeout !== 'undefined' && self._laserDebounceTimer) {
                     clearTimeout(self._laserDebounceTimer);
                 }
-                self._laserDebounceTimer = setTimeout(function () {
-                    self.pushSnapshot();
-                }, 400);
+                if (typeof setTimeout !== 'undefined') {
+                    self._laserDebounceTimer = setTimeout(function () {
+                        self.pushSnapshot();
+                    }, 400);
+                }
             });
 
             this.selections = {};
