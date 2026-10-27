@@ -1,4 +1,12 @@
 <div class="atelie-studio" data-bind="css: { 'has-virtual-keyboard-open': isLaserFocused }">
+    <!-- ko if: sharedNotice -->
+    <div class="atelie-studio__notice atelie-studio__notice--shared" role="status" aria-live="polite">
+        <span class="atelie-studio__notice-icon" aria-hidden="true">ℹ</span>
+        <span class="atelie-studio__notice-text" data-bind="text: sharedNotice"></span>
+        <button type="button" class="atelie-studio__notice-close" data-bind="click: dismissSharedNotice" aria-label="Fechar aviso">×</button>
+    </div>
+    <!-- /ko -->
+
     <header class="atelie-studio__header">
         <div class="atelie-studio__title-wrap">
             <!-- ko ifnot: editing -->
