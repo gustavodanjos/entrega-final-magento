@@ -8,13 +8,27 @@ declare(strict_types=1);
 namespace Nuvem\AtelieVitrine\Model;
 
 use Magento\Framework\Model\AbstractModel;
+use Magento\Framework\DataObject\IdentityInterface;
 use Nuvem\AtelieVitrine\Model\ResourceModel\SavedCreation as SavedCreationResource;
 
 /**
  * Saved customer creation model.
  */
-class SavedCreation extends AbstractModel
+class SavedCreation extends AbstractModel implements IdentityInterface
 {
+
+    public const CACHE_TAG = 'nuvem_atelie_public_creations';
+
+    /**
+     * Return the cache identities for saved creations.
+     *
+     * @return string[]
+     */
+    public function getIdentities(): array
+    {
+        return [self::CACHE_TAG];
+    }
+
     /**
      * Initialize the resource model.
      *
