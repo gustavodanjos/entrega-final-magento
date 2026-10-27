@@ -141,90 +141,6 @@
             min-width: 0;
         }
     }
-
-    .nuvem-showcase {
-        margin-bottom: 48px;
-        scroll-margin-top: 24px;
-
-        &__heading {
-            margin-bottom: 16px;
-
-            h2 {
-                font-size: 30px;
-                line-height: 38px;
-                margin: 0 0 8px;
-            }
-
-            p {
-                color: @nuvem-grafite-suave;
-                font-size: 13px;
-                line-height: 20px;
-                margin: 0;
-            }
-        }
-
-        &__grid {
-            display: grid;
-            gap: 16px;
-            grid-template-columns: minmax(0, 1fr);
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-    }
-
-    .nuvem-creation {
-        background: @nuvem-branco;
-        border: 1.5px solid @nuvem-bruma;
-        border-radius: @nuvem-raio-card;
-        margin: 0;
-        min-width: 0;
-        padding: 8px;
-
-        &__image {
-            align-items: center;
-            border-radius: @nuvem-raio-msg;
-            display: flex;
-            min-height: 128px;
-            padding: 8px;
-
-            &--rose {
-                background: @nuvem-nevoa;
-            }
-
-            &--mint {
-                background: @nuvem-menta;
-            }
-
-            &--lavender {
-                background: @nuvem-lavanda;
-            }
-
-            &--vanilla {
-                background: @nuvem-baunilha;
-            }
-
-            img {
-                display: block;
-                height: auto;
-                width: 100%;
-            }
-        }
-
-        h3 {
-            font-family: @font-family__base;
-            font-size: 16px;
-            line-height: 24px;
-            margin: 16px 8px 4px;
-        }
-
-        p {
-            color: @nuvem-grafite-suave;
-            font-size: 13px;
-            line-height: 20px;
-            margin: 0 8px 8px;
-        }
-    }
 }
 
 .media-width(@extremum, @break) when (@extremum = 'min') and (@break = @screen__m) {
@@ -248,18 +164,6 @@
         &__cta,
         &__cta.action.primary {
             width: auto;
-        }
-    }
-
-    .nuvem-showcase {
-        &__grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        @media (min-width: @screen__l) {
-            &__grid {
-                grid-template-columns: repeat(4, minmax(0, 1fr));
-            }
         }
     }
 }
