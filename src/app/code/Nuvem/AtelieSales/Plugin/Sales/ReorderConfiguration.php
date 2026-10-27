@@ -6,6 +6,7 @@ namespace Nuvem\AtelieSales\Plugin\Sales;
 use Magento\Framework\DataObject;
 use Magento\Framework\Message\ManagerInterface;
 use Magento\Sales\Api\Data\OrderItemInterface;
+use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\Reorder\Data\ReorderOutput;
 use Magento\Sales\Model\Reorder\OrderInfoBuyRequestGetter;
 use Magento\Sales\Model\Reorder\Reorder;
@@ -13,16 +14,10 @@ use Nuvem\Atelie\Model\Product\Type\Atelie;
 
 class ReorderConfiguration
 {
-    private bool $hasAtelieItems = false;
-
-    public function __construct(private readonly ManagerInterface $messageManager)
-    {
-    }
-
-    public function beforeExecute(Reorder $subject, string $orderNumber, string $storeId): array
-    {
-        $this->hasAtelieItems = false;
-        return [$orderNumber, $storeId];
+    public function __construct(
+        private readonly ManagerInterface $messageManager,
+        private readonly OrderFactory $orderFactory
+    ) {
     }
 
     public function afterGetInfoBuyRequest(
@@ -34,7 +29,6 @@ class ReorderConfiguration
             return $result;
         }
 
-        $this->hasAtelieItems = true;
         $configuration = $result->getData('atelie')
             ?? $result->getData(Atelie::CUSTOM_OPTION_CONFIGURACAO)
             ?? $orderItem->getProductOptionByCode(Atelie::CUSTOM_OPTION_CONFIGURACAO)
@@ -48,14 +42,28 @@ class ReorderConfiguration
         return $result;
     }
 
-    public function afterExecute(Reorder $subject, ReorderOutput $result): ReorderOutput
-    {
-        if ($this->hasAtelieItems) {
+    public function afterExecute(
+        Reorder $subject,
+        ReorderOutput $result,
+        string $orderNumber,
+        string $storeId
+    ): ReorderOutput {
+        if ($result->getErrors() === []) {
+            return $result;
+        }
+
+        $order = $this->orderFactory->create()->loadByIncrementIdAndStoreId($orderNumber, $storeId);
+        foreach ($order->getAllItems() as $item) {
+            if ($item->getProductType() !== Atelie::TYPE_CODE) {
+                continue;
+            }
+
             foreach ($result->getErrors() as $error) {
                 $this->messageManager->addErrorMessage($error->getMessage());
             }
+            break;
         }
-        $this->hasAtelieItems = false;
+
         return $result;
     }
 }
