@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="customer_login">
+        <observer name="nuvem_merge_guest_creation_likes" instance="Nuvem\AtelieVitrine\Observer\MergeGuestLikes"/>
+    </event>
+</config>
