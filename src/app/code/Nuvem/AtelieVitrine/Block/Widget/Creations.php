@@ -11,6 +11,7 @@ use Magento\Framework\DataObject\IdentityInterface;
 use Magento\Framework\View\Element\Template;
 use Magento\Framework\View\Element\Template\Context;
 use Magento\Widget\Block\BlockInterface;
+use Nuvem\AtelieStudio\Api\PreviewInterface;
 use Nuvem\AtelieVitrine\Model\SavedCreation;
 use Nuvem\AtelieVitrine\Model\SavedCreationRepository;
 
@@ -28,11 +29,13 @@ class Creations extends Template implements BlockInterface, IdentityInterface
      *
      * @param Context $context Template context.
      * @param SavedCreationRepository $creationRepository Creation repository.
+     * @param PreviewInterface $preview Configured sneaker preview.
      * @param array $data Additional block data.
      */
     public function __construct(
         Context $context,
         private readonly SavedCreationRepository $creationRepository,
+        private readonly PreviewInterface $preview,
         array $data = []
     ) {
         parent::__construct($context, $data);
@@ -72,6 +75,17 @@ class Creations extends Template implements BlockInterface, IdentityInterface
     public function getShowcaseTitle(): string
     {
         return trim((string) $this->getData('title'));
+    }
+
+    /**
+     * Build the signed preview URL for a saved creation.
+     *
+     * @param SavedCreation $creation Saved creation.
+     * @return string
+     */
+    public function getPreviewUrl(SavedCreation $creation): string
+    {
+        return $this->preview->getUrl((string) $creation->getData('configuracao'));
     }
 
     /**
