@@ -33,4 +33,7 @@
         <plugin name="nuvem_atelie_sales_preview_image"
                 type="Nuvem\AtelieSales\Plugin\Checkout\Model\Cart\PreviewImageProvider"/>
     </type>
+    <type name="Magento\Sales\Model\Reorder\OrderInfoBuyRequestGetter">
+        <plugin name="nuvem_atelie_reorder_configuration" type="Nuvem\AtelieSales\Plugin\Sales\ReorderConfiguration"/>
+    </type>
 </config>
