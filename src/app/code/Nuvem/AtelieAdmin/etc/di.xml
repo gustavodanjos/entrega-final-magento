@@ -20,4 +20,28 @@
     </type>
     <preference for="Nuvem\Atelie\Api\AtelieCatalogInterface"
                 type="Nuvem\AtelieAdmin\Model\Catalog\CachedCatalog"/>
+    <virtualType name="NuvemAtelieProductionGridCollection"
+                 type="Magento\Framework\View\Element\UiComponent\DataProvider\SearchResult">
+        <arguments>
+            <argument name="mainTable" xsi:type="string">nuvem_atelie_ficha</argument>
+            <argument name="resourceModel" xsi:type="string">Nuvem\AtelieAdmin\Model\ResourceModel\Production</argument>
+            <argument name="identifierName" xsi:type="string">ficha_id</argument>
+        </arguments>
+    </virtualType>
+    <virtualType name="NuvemAtelieComponentGridCollection"
+                 type="Magento\Framework\View\Element\UiComponent\DataProvider\SearchResult">
+        <arguments>
+            <argument name="mainTable" xsi:type="string">nuvem_atelie_componente</argument>
+            <argument name="resourceModel" xsi:type="string">Nuvem\Atelie\Model\ResourceModel\Component</argument>
+            <argument name="identifierName" xsi:type="string">componente_id</argument>
+        </arguments>
+    </virtualType>
+    <type name="Magento\Framework\View\Element\UiComponent\DataProvider\CollectionFactory">
+        <arguments>
+            <argument name="collections" xsi:type="array">
+                <item name="nuvem_atelie_production_listing_data_source" xsi:type="string">NuvemAtelieProductionGridCollection</item>
+                <item name="nuvem_atelie_component_listing_data_source" xsi:type="string">NuvemAtelieComponentGridCollection</item>
+            </argument>
+        </arguments>
+    </type>
 </config>

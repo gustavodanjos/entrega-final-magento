@@ -75,17 +75,15 @@
             line-height: 1;
         }
 
-        &__cloud {
-            position: absolute;
-            left: 28px;
-            bottom: 28px;
-            width: 88px;
-            height: 32px;
-            background: @nuvem-baunilha;
-            border-radius: 999px;
-            box-shadow:
-                22px -10px 0 0 @nuvem-baunilha,
-                44px 0 0 0 @nuvem-baunilha;
+        &__image {
+            position: relative;
+            z-index: 1;
+            display: block;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 620 / 290;
+            margin-top: 12px;
+            object-fit: contain;
         }
 
         &__circle {

@@ -26,6 +26,10 @@ $title = $block->getShowcaseTitle();
             ?>
 
             <article class="atelie-showcase__card">
+                <img class="atelie-showcase__image"
+                     src="<?= $escaper->escapeUrl($block->getPreviewUrl($creation)) ?>"
+                     alt="<?= $escaper->escapeHtmlAttr(__('Tênis %1', $name)) ?>"
+                     width="620" height="290" loading="lazy">
                 <h3>
                     <a href="<?= $escaper->escapeUrl(
                         $block->getCreationUrl($creation)
