@@ -39,4 +39,7 @@
         <plugin name="nuvem_atelie_sales_plain_option_text"
                 type="Nuvem\AtelieSales\Plugin\Sales\OptionText"/>
     </type>
+    <type name="Magento\Sales\Model\Reorder\Reorder">
+        <plugin name="nuvem_atelie_reorder_messages" type="Nuvem\AtelieSales\Plugin\Sales\ReorderConfiguration"/>
+    </type>
 </config>
