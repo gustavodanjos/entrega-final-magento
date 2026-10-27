@@ -56,7 +56,12 @@ interface ComponentStockInterface
      * @return void
      * @throws \Magento\Framework\Exception\LocalizedException when the component does not exist or the quantity is not positive
      */
-    public function return(string $componentCode, int $qty, ?int $orderId = null, ?int $orderItemId = null): void;
+    public function return(
+        string $componentCode,
+        int $qty,
+        ?int $orderId = null,
+        ?int $orderItemId = null
+    ): void;
 
     /**
      * Set the stock of a component to an absolute quantity.

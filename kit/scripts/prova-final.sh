@@ -20,7 +20,7 @@ CARGA="${CARGA:-200}"               # requisições na prova de carga
 PARALELO_CARGA="${PARALELO_CARGA:-20}"
 PRECO_VALIDA="${PRECO_VALIDA:-589.40}"
 NAO_INTERATIVO="${NAO_INTERATIVO:-0}"
-SO="${SO:-}"                        # rodar só uma etapa: api | graphql | corrida | carga
+SO="${SO:-}"                        # rodar só uma etapa: api | disponibilidade | graphql | corrida | carga
 
 REST="$BASE_URL/rest/$STORE/V1"
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -44,9 +44,9 @@ done
 req(){ # req METODO URL [JSON] -> corpo em $TMP/body, imprime o HTTP code
   local m="$1" u="$2" d="${3:-}"
   if [ -n "$d" ]; then
-    "${CURL[@]}" -o "$TMP/body" -w '%{http_code}' -X "$m" -H 'Content-Type: application/json' -d "$d" "$u"
+    "${CURL[@]}" -D "$TMP/headers" -o "$TMP/body" -w '%{http_code}' -X "$m" -H 'Content-Type: application/json' -d "$d" "$u"
   else
-    "${CURL[@]}" -o "$TMP/body" -w '%{http_code}' -X "$m" "$u"
+    "${CURL[@]}" -D "$TMP/headers" -o "$TMP/body" -w '%{http_code}' -X "$m" "$u"
   fi
 }
 corpo(){ head -c 400 "$TMP/body" | tr '\n' ' '; }
@@ -89,6 +89,37 @@ endereco(){
      + (if $rid=="" then {} else {region_id: ($rid|tonumber)} end)) as $a
     | {addressInformation:{shipping_address:$a, billing_address:$a,
        shipping_carrier_code:"flatrate", shipping_method_code:"flatrate"}}'
+}
+
+verifica_disponibilidade(){
+  local code
+  code=$(req GET "$REST/atelie/disponibilidade/NUVEM-RUNNER")
+  if [ "$code" = "200" ] && jq -e '
+    type == "array" and length > 0 and all(.[];
+      type == "object" and
+      keys == ["componente", "disponivel", "ultimas_unidades"] and
+      (.componente | type == "string" and length > 0) and
+      (.disponivel | type == "boolean") and
+      (.ultimas_unidades | type == "boolean")) and
+    ([.. | objects | keys[] | select(test("qty|estoque|quantidade"; "i"))] | length == 0)
+  ' "$TMP/body" >/dev/null 2>&1; then
+    passou "API pública devolve somente componente e flags booleanos, sem quantidade"
+  else
+    falhou "Contrato de disponibilidade inválido (HTTP $code)" "$(corpo)"
+  fi
+  if tr -d '\r' < "$TMP/headers" | awk '
+    tolower($0) ~ /^cache-control:/ {
+      value=tolower($0)
+      if (value ~ /no-store/ && value ~ /no-cache/ && value ~ /must-revalidate/ && value ~ /max-age=0/) control=1
+    }
+    tolower($0) ~ /^pragma: *no-cache *$/ { pragma=1 }
+    tolower($0) ~ /^expires:/ { expires=1 }
+    END { exit !(control && pragma && expires) }
+  '; then
+    passou "Disponibilidade pública tem cabeçalhos contra cache"
+  else
+    falhou "Disponibilidade pública sem os cabeçalhos contra cache esperados"
+  fi
 }
 
 printf '\033[1mAteliê Nuvem · Prova final\033[0m   %s\n' "$BASE_URL"
@@ -136,10 +167,12 @@ linhas=$(qtd_linhas "$cart"); total=$(itens "$cart" | jq '[.[].qty] | add')
 if [ "$linhas" = "2" ] && [ "$total" = "3" ]; then passou "Mesma configuração soma quantidade, configuração diferente abre linha nova"
 else falhou "Esperava 2 linhas e 3 pares, veio $linhas linhas e $total pares"; fi
 
-req GET "$REST/atelie/disponibilidade/NUVEM-RUNNER" >/dev/null
-vaza=$(jq '[.. | objects | keys[]] | map(select(test("qty|estoque|quantidade";"i"))) | length' "$TMP/body" 2>/dev/null || echo erro)
-if [ "$vaza" = "0" ]; then passou "API pública de disponibilidade não expõe quantidade em estoque"
-else falhou "A API de disponibilidade expõe quantidade ou não respondeu" "$(corpo)"; fi
+verifica_disponibilidade
+fi
+
+if [ "$SO" = "disponibilidade" ]; then
+  titulo "Disponibilidade pública"
+  verifica_disponibilidade
 fi
 
 # ================================================================ 2. GraphQL
