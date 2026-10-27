@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">nuvem_atelie_production_listing.nuvem_atelie_production_listing_data_source</item>
+        </item>
+    </argument>
+    <settings>
+        <spinner>production_columns</spinner>
+        <deps><dep>nuvem_atelie_production_listing.nuvem_atelie_production_listing_data_source</dep></deps>
+    </settings>
+    <dataSource name="nuvem_atelie_production_listing_data_source" component="Magento_Ui/js/grid/provider">
+        <settings>
+            <storageConfig><param name="indexField" xsi:type="string">ficha_id</param></storageConfig>
+            <updateUrl path="mui/index/render"/>
+        </settings>
+        <aclResource>Nuvem_AtelieAdmin::production</aclResource>
+        <dataProvider class="Magento\Framework\View\Element\UiComponent\DataProvider\DataProvider"
+                      name="nuvem_atelie_production_listing_data_source">
+            <settings>
+                <requestFieldName>ficha_id</requestFieldName>
+                <primaryFieldName>ficha_id</primaryFieldName>
+            </settings>
+        </dataProvider>
+    </dataSource>
+    <listingToolbar name="listing_top">
+        <settings><sticky>true</sticky></settings>
+        <bookmark name="bookmarks"/>
+        <columnsControls name="columns_controls"/>
+        <filters name="listing_filters"/>
+        <massaction name="listing_massaction">
+            <action name="fila">
+                <settings>
+                    <url path="nuvem_atelieadmin/production/massStatus"><param name="status">fila</param></url>
+                    <type>fila</type>
+                    <label translate="true">Na fila</label>
+                    <confirm>
+                        <title translate="true">Alterar status das fichas</title>
+                        <message translate="true">Alterar o status das fichas selecionadas?</message>
+                    </confirm>
+                </settings>
+            </action>
+            <action name="produzindo">
+                <settings>
+                    <url path="nuvem_atelieadmin/production/massStatus"><param name="status">produzindo</param></url>
+                    <type>produzindo</type>
+                    <label translate="true">Produzindo</label>
+                    <confirm>
+                        <title translate="true">Alterar status das fichas</title>
+                        <message translate="true">Alterar o status das fichas selecionadas?</message>
+                    </confirm>
+                </settings>
+            </action>
+            <action name="pronta">
+                <settings>
+                    <url path="nuvem_atelieadmin/production/massStatus"><param name="status">pronta</param></url>
+                    <type>pronta</type>
+                    <label translate="true">Pronta</label>
+                    <confirm>
+                        <title translate="true">Alterar status das fichas</title>
+                        <message translate="true">Alterar o status das fichas selecionadas?</message>
+                    </confirm>
+                </settings>
+            </action>
+            <action name="enviada">
+                <settings>
+                    <url path="nuvem_atelieadmin/production/massStatus"><param name="status">enviada</param></url>
+                    <type>enviada</type>
+                    <label translate="true">Enviada</label>
+                    <confirm>
+                        <title translate="true">Alterar status das fichas</title>
+                        <message translate="true">Alterar o status das fichas selecionadas?</message>
+                    </confirm>
+                </settings>
+            </action>
+        </massaction>
+        <paging name="listing_paging"/>
+    </listingToolbar>
+    <columns name="production_columns">
+        <selectionsColumn name="ids"><settings><indexField>ficha_id</indexField></settings></selectionsColumn>
+        <column name="ficha_id">
+            <settings><filter>textRange</filter><sorting>desc</sorting><label translate="true">Ficha</label></settings>
+        </column>
+        <column name="order_id">
+            <settings><filter>textRange</filter><label translate="true">ID do pedido</label></settings>
+        </column>
+        <column name="order_item_id">
+            <settings><filter>textRange</filter><label translate="true">Item do pedido</label></settings>
+        </column>
+        <column name="status" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <options class="Nuvem\AtelieAdmin\Model\Source\ProductionStatus"/>
+                <filter>select</filter><dataType>select</dataType><label translate="true">Status</label>
+            </settings>
+        </column>
+        <column name="created_at" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <settings><filter>dateRange</filter><dataType>date</dataType><label translate="true">Criada em</label></settings>
+        </column>
+        <column name="updated_at" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <settings><filter>dateRange</filter><dataType>date</dataType><label translate="true">Atualizada em</label></settings>
+        </column>
+        <column name="email_sent_at" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <settings><filter>dateRange</filter><dataType>date</dataType><label translate="true">E-mail enviado em</label></settings>
+        </column>
+        <actionsColumn name="actions" class="Nuvem\AtelieAdmin\Ui\Component\Listing\Column\ProductionActions">
+            <settings><indexField>ficha_id</indexField><label translate="true">Ações</label></settings>
+        </actionsColumn>
+    </columns>
+</listing>

@@ -13,11 +13,18 @@
         },
         "index": {
             "NUVEM_ATELIE_MOVIMENTACAO_COMPONENTE_ID": true,
-            "NUVEM_ATELIE_MOVIMENTACAO_ORDER_ID": true
+            "NUVEM_ATELIE_MOVIMENTACAO_ORDER_ID": true,
+            "NUVEM_ATELIE_MOVIMENTACAO_QUOTE_ID_COMPONENTE_ID": true
         },
         "constraint": {
             "PRIMARY": true,
             "FK_0DA222CCE04E26BED21430EB4DEDB616": true
+        }
+    },
+    "quote": {
+        "column": {
+            "atelie_stock_attempt_id": true,
+            "atelie_stock_attempt_state": true
         }
     }
 }

@@ -11,27 +11,54 @@ use Magento\Framework\Serialize\Serializer\Json;
 use Magento\Framework\UrlInterface;
 use Magento\Framework\View\Element\Block\ArgumentInterface;
 use Magento\Store\Model\ScopeInterface;
+use Magento\Framework\Api\SearchCriteriaBuilder;
 use Nuvem\Atelie\Api\AtelieCatalogInterface;
+use Psr\Log\LoggerInterface;
+use Nuvem\Atelie\Api\ComponentRepositoryInterface;
 use Nuvem\Atelie\Model\Config;
 
 class Estudio implements ArgumentInterface
 {
+    /**
+     * @param Registry $registry
+     * @param AtelieCatalogInterface $atelieCatalog
+     * @param ComponentRepositoryInterface $componentRepository
+     * @param SearchCriteriaBuilder $searchCriteriaBuilder
+     * @param ScopeConfigInterface $scopeConfig
+     * @param UrlInterface $urlBuilder
+     * @param PriceCurrencyInterface $priceCurrency
+     * @param Json $jsonSerializer
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         private readonly Registry $registry,
         private readonly AtelieCatalogInterface $atelieCatalog,
+        private readonly ComponentRepositoryInterface $componentRepository,
+        private readonly SearchCriteriaBuilder $searchCriteriaBuilder,
         private readonly ScopeConfigInterface $scopeConfig,
         private readonly UrlInterface $urlBuilder,
         private readonly PriceCurrencyInterface $priceCurrency,
-        private readonly Json $jsonSerializer
+        private readonly Json $jsonSerializer,
+        private readonly LoggerInterface $logger
     ) {
     }
 
+    /**
+     * Get the current product from the registry.
+     *
+     * @return Product|null
+     */
     public function getProduct(): ?Product
     {
         $product = $this->registry->registry('current_product');
         return $product instanceof Product ? $product : null;
     }
 
+    /**
+     * Build the canonical studio data for the front-end.
+     *
+     * @return array
+     */
     public function getStudioData(): array
     {
         $product = $this->getProduct();
@@ -57,43 +84,88 @@ class Estudio implements ArgumentInterface
         $sizeMin = (int) ($catalog['tamanho_min'] ?? 34);
         $sizeMax = (int) ($catalog['tamanho_max'] ?? 44);
         $sizes = range($sizeMin, $sizeMax);
-        $defaultSize = in_array(38, $sizes, true) ? 38 : $sizes[0];
 
-        $initialSelections = [];
-        foreach ($catalog['grupos'] ?? [] as $group) {
-            $defaultComponentCode = null;
-            foreach ($group['componentes'] ?? [] as $component) {
-                if (!empty($component['padrao'])) {
-                    $defaultComponentCode = $component['codigo'];
-                    break;
+        // 1. Restaurar do carrinho (edição) se existir
+        $initialSelections = null;
+        $initialSize = null;
+        $initialEngraving = null;
+
+        $preconfigured = $product->getPreconfiguredValues();
+        $atelieData = $preconfigured ? $preconfigured->getData('atelie') : null;
+
+        if (is_array($atelieData) && !empty($atelieData['selecoes'])) {
+            $initialSelections = $atelieData['selecoes'];
+            $initialSize = isset($atelieData['tamanho']) ? (int) $atelieData['tamanho'] : null;
+            $initialEngraving = isset($atelieData['gravacao']) && $atelieData['gravacao'] !== ''
+                ? (string) $atelieData['gravacao']
+                : null;
+        }
+
+        // 2. Fallback: padrões
+        if ($initialSelections === null) {
+            $initialSelections = [];
+            foreach ($catalog['grupos'] ?? [] as $group) {
+                $defaultComponentCode = null;
+                foreach ($group['componentes'] ?? [] as $component) {
+                    if (!empty($component['padrao'])) {
+                        $defaultComponentCode = $component['codigo'];
+                        break;
+                    }
+                }
+                if (!$defaultComponentCode && !empty($group['componentes'][0]['codigo'])) {
+                    $defaultComponentCode = $group['componentes'][0]['codigo'];
+                }
+
+                if ($defaultComponentCode) {
+                    $initialSelections[] = [
+                        'grupo' => $group['codigo'],
+                        'componente' => $defaultComponentCode,
+                    ];
                 }
             }
-            if (!$defaultComponentCode && !empty($group['componentes'][0]['codigo'])) {
-                $defaultComponentCode = $group['componentes'][0]['codigo'];
-            }
-
-            if ($defaultComponentCode) {
-                $initialSelections[] = [
-                    'grupo' => $group['codigo'],
-                    'componente' => $defaultComponentCode,
-                ];
-            }
         }
+
+        if ($initialSize === null) {
+            $initialSize = in_array(38, $sizes, true) ? 38 : $sizes[0];
+        }
+
+        // 3. Enriquecer componentes com estoque (para estado "esgotado" no front)
+        $estoqueMap = $this->getEstoqueMap();
+        $gruposEnriquecidos = $catalog['grupos'] ?? [];
+        foreach ($gruposEnriquecidos as &$grupoRef) {
+            foreach ($grupoRef['componentes'] as &$componenteRef) {
+                $codigo = $componenteRef['codigo'] ?? '';
+                $estoque = $estoqueMap[$codigo] ?? 0;
+                // F2.5: nunca expor quantidade exata. Apenas disponibilidade.
+                $componenteRef['disponivel'] = $estoque > 0;
+            }
+            unset($componenteRef);
+        }
+        unset($grupoRef);
 
         $basePrice = 0.0;
         if ($product) {
-            $basePrice = (float) (
-                $product->getFinalPrice()
-                ?: $product->getPrice()
-                ?: $product->getData('price')
-                ?: ($product->getPriceInfo() ? $product->getPriceInfo()->getPrice('final_price')->getAmount()->getValue() : 0.0)
-            );
-        }
-        if ($basePrice <= 0 && !empty($catalog['preco_base'])) {
-            $basePrice = (float) $catalog['preco_base'];
+            // Base do modelo, SEM custom options de configuração.
+            // getFinalPrice() em contexto de edição de carrinho já inclui
+            // os adicionais da configuração — somar de novo no JS duplicaria.
+            $basePrice = (float) ($catalog['preco_base'] ?? 0);
+            if ($basePrice <= 0) {
+                $basePrice = (float) (
+                    $product->getPrice()
+                    ?: $product->getData('price')
+                    ?: 0.0
+                );
+            }
+            if ($basePrice <= 0 && $product->getPriceInfo()) {
+                $basePrice = (float) $product->getPriceInfo()
+                    ->getPrice('regular_price')
+                    ->getValue();
+            }
         }
         if ($basePrice <= 0) {
-            $basePrice = 449.90;
+            $this->logger->warning(
+                'Atelie studio: base price could not be resolved for SKU ' . $product->getSku()
+            );
         }
 
         return [
@@ -111,14 +183,16 @@ class Estudio implements ArgumentInterface
                 ],
             ],
             'configuracao_inicial' => [
-                'tamanho' => $defaultSize,
-                'gravacao' => null,
+                'tamanho' => $initialSize,
+                'gravacao' => $initialEngraving,
                 'selecoes' => $initialSelections,
             ],
-            'grupos' => $catalog['grupos'] ?? [],
+            'grupos' => $gruposEnriquecidos,
             'regras' => $catalog['regras'] ?? [],
             'urls' => [
-                'disponibilidade' => $this->urlBuilder->getUrl('atelie/estoque/disponibilidade'),
+                'disponibilidade' => $this->urlBuilder->getUrl(
+                    'rest/default/V1/atelie/disponibilidade/' . ($catalog['sku'] ?? $product->getSku())
+                ),
                 'validar' => $this->urlBuilder->getUrl('atelie/configuracao/validar'),
                 'preview' => $this->urlBuilder->getUrl('atelie/preview/render'),
                 'adicionar_carrinho' => $this->urlBuilder->getUrl('checkout/cart/add'),
@@ -126,6 +200,12 @@ class Estudio implements ArgumentInterface
         ];
     }
 
+    /**
+     * Merge the studio data into the jsLayout for Magento_Ui.
+     *
+     * @param array|string $jsLayout
+     * @return string
+     */
     public function getMergedJsLayout(array|string $jsLayout = []): string
     {
         if (is_string($jsLayout)) {
@@ -152,8 +232,36 @@ class Estudio implements ArgumentInterface
         return (string) json_encode($jsLayout, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
+    /**
+     * Get the studio data as a JSON string.
+     *
+     * @return string
+     */
     public function getStudioJson(): string
     {
         return (string) json_encode($this->getStudioData(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+    /**
+     * Mapa código => estoque, para o front representar o estado "esgotado".
+     *
+     * @return array<string, int>
+     */
+    private function getEstoqueMap(): array
+    {
+        $map = [];
+        try {
+            $criteria = $this->searchCriteriaBuilder
+                ->setPageSize(1000)
+                ->create();
+            $results = $this->componentRepository->getList($criteria);
+            foreach ($results->getItems() as $component) {
+                $map[$component->getCodigo()] = $component->getEstoque();
+            }
+        } catch (\Exception $e) {
+            $this->logger->warning(
+                'Atelie studio: failed to load component stock: ' . $e->getMessage()
+            );
+        }
+        return $map;
     }
 }

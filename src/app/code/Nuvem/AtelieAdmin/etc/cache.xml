@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Cache/etc/cache.xsd">
+    <type name="nuvem_atelie_catalog" instance="Nuvem\AtelieAdmin\Model\Cache\Type\Catalog">
+        <label>Catálogo do Ateliê</label>
+        <description>Grupos, componentes e regras por SKU e loja.</description>
+    </type>
+</config>

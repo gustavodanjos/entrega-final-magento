@@ -1,0 +1,140 @@
+& when (@media-common = true) {
+    .nuvem-lavanda-bar {
+        background-color: @nuvem-lavanda;
+        color: @nuvem-grafite;
+        text-align: center;
+
+        .nuvem-aviso-topo {
+            .lib-font-size(13);
+            line-height: 20px;
+            margin: 0;
+            padding: 8px 16px;
+        }
+    }
+
+    .page-header .panel.wrapper .nuvem-bem-vindo {
+        font-weight: 700;
+    }
+
+    .nuvem-navigation {
+        .level0 > .level-top {
+            box-sizing: border-box;
+            min-height: 44px;
+
+            &,
+            span {
+                text-transform: none;
+            }
+        }
+
+        &__pending {
+            color: @nuvem-grafite-suave;
+            cursor: default;
+            display: block;
+            padding: 8px 40px 8px 15px;
+        }
+    }
+
+    .nuvem-navigation a:focus-visible,
+    .nuvem-hero a:focus-visible,
+    .nuvem-footer a:focus-visible {
+        outline: 3px solid @nuvem-magenta;
+        outline-offset: 4px;
+    }
+
+    .page-footer {
+        background-color: @nuvem-nevoa;
+    }
+
+    .nuvem-footer {
+        &__colunas {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        &__marca {
+            max-width: 380px;
+        }
+
+        &__logo {
+            color: @nuvem-grafite;
+            font-family: @heading__font-family__base;
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 30px;
+            margin: 0 0 8px;
+        }
+
+        &__sobre {
+            color: @nuvem-grafite-suave;
+            line-height: 24px;
+            margin: 0;
+        }
+
+        &__titulo {
+            color: @nuvem-grafite;
+            font-family: @heading__font-family__base;
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 30px;
+            margin: 0 0 16px;
+        }
+
+        &__copyright {
+            border-top: 1px solid @nuvem-bruma;
+            color: @nuvem-grafite-suave;
+            display: block;
+            .lib-font-size(13);
+            line-height: 20px;
+            margin-top: 32px;
+            padding-top: 16px;
+            text-align: center;
+        }
+    }
+}
+
+//  Desktop
+.media-width(@extremum, @break) when (@extremum = 'min') and (@break = @screen__m) {
+    .page-header {
+        margin-bottom: 0;
+
+        .logo {
+            width: 208px;
+
+            img {
+                width: 100%;
+            }
+        }
+    }
+
+    .nav-sections {
+        background: @nuvem-fundo;
+        border-bottom: 1px solid @nuvem-bruma;
+        margin-bottom: 0;
+    }
+
+    .nuvem-navigation {
+        background: @nuvem-fundo;
+
+        .level0 > .level-top {
+            color: @nuvem-grafite;
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 48px;
+            padding: 0 24px;
+        }
+
+        .level0 > [aria-disabled='true'] {
+            color: @nuvem-grafite-suave;
+        }
+    }
+
+    .nuvem-footer {
+        &__colunas {
+            flex-direction: row;
+            gap: 64px;
+            justify-content: space-between;
+        }
+    }
+}

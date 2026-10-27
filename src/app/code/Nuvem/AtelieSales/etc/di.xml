@@ -2,9 +2,29 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Nuvem\AtelieSales\Api\ComponentStockInterface"
-                type="Nuvem\AtelieSales\Model\ProvisionalComponentStock"/>
+                type="Nuvem\AtelieSales\Model\ComponentStock"/>
+    <preference for="Nuvem\AtelieSales\Api\PublicAvailabilityInterface"
+                type="Nuvem\AtelieSales\Model\PublicAvailability"/>
+    <preference for="Nuvem\AtelieSales\Api\ReturnComponentStockInterface"
+                type="Nuvem\AtelieSales\Model\ComponentStock"/>
+    <preference for="Nuvem\AtelieSales\Api\QuoteComponentStockInterface"
+                type="Nuvem\AtelieSales\Model\ComponentStock"/>
+    <preference for="Nuvem\AtelieSales\Api\AvailabilityManagementInterface"
+                type="Nuvem\AtelieSales\Model\AvailabilityManagement"/>
     <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
                 type="Nuvem\AtelieSales\Model\PriceCalculator"/>
+    <type name="Magento\Quote\Model\ResourceModel\Quote">
+        <plugin name="nuvem_atelie_sales_protect_stock_attempt"
+                type="Nuvem\AtelieSales\Plugin\Quote\ProtectStockAttempt"/>
+    </type>
+    <type name="Magento\Quote\Model\QuoteManagement">
+        <plugin name="nuvem_atelie_sales_compensate_failed_submission"
+                type="Nuvem\AtelieSales\Plugin\QuoteManagement\CompensateFailedSubmission"/>
+    </type>
+    <type name="Magento\Sales\Model\Service\OrderService">
+        <plugin name="nuvem_atelie_sales_commit_stock_reservation"
+                type="Nuvem\AtelieSales\Plugin\Order\CommitStockReservation"/>
+    </type>
     <type name="Magento\Framework\Webapi\ServiceInputProcessor">
         <plugin name="nuvem_atelie_sales_strip_tampered_price"
                 type="Nuvem\AtelieSales\Plugin\Webapi\StripTamperedPricePlugin"/>
@@ -12,5 +32,8 @@
     <type name="Magento\Checkout\Model\Cart\ImageProvider">
         <plugin name="nuvem_atelie_sales_preview_image"
                 type="Nuvem\AtelieSales\Plugin\Checkout\Model\Cart\PreviewImageProvider"/>
+    </type>
+    <type name="Magento\Sales\Model\Reorder\OrderInfoBuyRequestGetter">
+        <plugin name="nuvem_atelie_reorder_configuration" type="Nuvem\AtelieSales\Plugin\Sales\ReorderConfiguration"/>
     </type>
 </config>
