@@ -2,9 +2,10 @@
 /** @var \Nuvem\AtelieVitrine\Block\Gallery $block */
 /** @var \Magento\Framework\Escaper $escaper */
 $creations = $block->getCreations();
+$likedOnly = (bool) $block->getData('liked_only');
 $likeConfig = [
     'Nuvem_AtelieVitrine/js/gallery-likes' => [
-        'likedOnly' => false,
+        'likedOnly' => $likedOnly,
         'stateUrl' => $block->getUrl('galeria/like/state', ['_nosid' => true]),
         'saveUrl' => $block->getUrl('galeria/like/save', ['_nosid' => true])
     ]
@@ -16,10 +17,12 @@ $likeConfig = [
     <nav class="nuvem-gallery__sort" aria-label="<?= $escaper->escapeHtmlAttr(__('Ordenar criações')) ?>">
         <?php foreach (['recent' => 'Mais recentes', 'popular' => 'Mais curtidas'] as $order => $label): ?>
             <a href="<?= $escaper->escapeUrl($block->getOrderUrl($order)) ?>"
-               <?= $block->getOrder() === $order ? 'aria-current="true"' : '' ?>>
+               <?= !$likedOnly && $block->getOrder() === $order ? 'aria-current="true"' : '' ?>>
                 <?= $escaper->escapeHtml($label) ?>
             </a>
         <?php endforeach; ?>
+        <a href="<?= $escaper->escapeUrl($block->getUrl('galeria/index/liked')) ?>"
+           <?= $likedOnly ? 'aria-current="page"' : '' ?>><?= $escaper->escapeHtml(__('Curtidas por mim')) ?></a>
     </nav>
     <p class="nuvem-gallery__message" data-like-message role="status" aria-live="polite"></p>
     <?php if ($creations->getSize()): ?>
@@ -51,7 +54,9 @@ $likeConfig = [
         </ul>
         <?= $block->getChildHtml('pager') ?>
     <?php else: ?>
-        <p><?= $escaper->escapeHtml(__('Ninguém publicou nada ainda. Que tal ser a primeira criação da galeria?')) ?></p>
+        <p><?= $escaper->escapeHtml($likedOnly
+            ? __('Você ainda não curtiu nenhuma criação. Encontre um par que combina com você!')
+            : __('Ninguém publicou nada ainda. Que tal ser a primeira criação da galeria?')) ?></p>
         <a class="action primary" href="<?= $escaper->escapeUrl($block->getUrl('nuvem-runner.html')) ?>">Criar o meu</a>
     <?php endif; ?>
 </section>
