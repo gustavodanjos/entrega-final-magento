@@ -14,6 +14,11 @@ $jsLayout = $viewModel
 
     <!-- Coluna Esquerda: Palco da Pré-visualização SVG ao Vivo (F3.3) -->
     <div class="atelie-studio__stage">
+        <div class="atelie-studio__stage-header">
+            <span class="atelie-studio__stage-title"><?= $escaper->escapeHtml(__('Pré-visualização ao vivo')) ?></span>
+            <span class="atelie-studio__stage-subtitle"><?= $escaper->escapeHtml(__('Cada clique repinta a camada certa do SVG')) ?></span>
+        </div>
+
         <div class="atelie-studio__svg">
             <svg xmlns="http://www.w3.org/2000/svg"
                  viewBox="0 0 620 290"
@@ -99,6 +104,31 @@ $jsLayout = $viewModel
                           data-bind="text: engravingPreviewText"></text>
                 </g>
             </svg>
+        </div>
+
+        <!-- Barra de Ações do Palco: Desfazer, Refazer e Surpreenda-me (Match 100% Mockup) -->
+        <div class="atelie-studio__stage-actions" role="toolbar" aria-label="<?= $escaper->escapeHtmlAttr(__('Ações de personalização e histórico')) ?>">
+            <button type="button"
+                    class="atelie-stage-btn atelie-btn-undo"
+                    data-bind="click: undo, enable: canUndo"
+                    title="<?= $escaper->escapeHtmlAttr(__('Desfazer alteração (Ctrl+Z)')) ?>"
+                    aria-label="<?= $escaper->escapeHtmlAttr(__('Desfazer última alteração')) ?>">
+                <span><?= $escaper->escapeHtml(__('Desfazer')) ?></span>
+            </button>
+            <button type="button"
+                    class="atelie-stage-btn atelie-btn-redo"
+                    data-bind="click: redo, enable: canRedo"
+                    title="<?= $escaper->escapeHtmlAttr(__('Refazer alteração (Ctrl+Y)')) ?>"
+                    aria-label="<?= $escaper->escapeHtmlAttr(__('Refazer alteração')) ?>">
+                <span><?= $escaper->escapeHtml(__('Refazer')) ?></span>
+            </button>
+            <button type="button"
+                    class="atelie-stage-btn atelie-btn-surprise"
+                    data-bind="click: surpriseMe"
+                    title="<?= $escaper->escapeHtmlAttr(__('Montar combinação aleatória compatível com o catálogo')) ?>"
+                    aria-label="<?= $escaper->escapeHtmlAttr(__('Surpreenda-me: sortear combinação válida')) ?>">
+                <span><?= $escaper->escapeHtml(__('Surpreenda-me')) ?></span>
+            </button>
         </div>
     </div>
 

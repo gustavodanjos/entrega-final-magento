@@ -83,6 +83,7 @@ define([
             this.initSelectionObservables(catalog, rawConfig.configuracao_inicial || {});
             this.initComputed();
             this.autoResolveBlockedSelections();
+            this.initHistory();
             this.initDocumentListeners();
             this.initAvailabilityPolling();
             this.initA11ySanitization();
@@ -155,6 +156,38 @@ define([
             this._documentKeyHandler = function (event) {
                 if (event.key === 'Escape' && self.activeTooltip()) {
                     self.activeTooltip(null);
+                    return;
+                }
+
+                // Atalhos Ctrl+Z / Cmd+Z (Desfazer) e Ctrl+Y / Cmd+Shift+Z (Refazer)
+                var isCtrlOrCmd = event.ctrlKey || event.metaKey;
+                if (!isCtrlOrCmd) {
+                    return;
+                }
+
+                var tag = (event.target && event.target.tagName) ? event.target.tagName.toLowerCase() : '';
+                if (tag === 'input' || tag === 'textarea' || (event.target && event.target.isContentEditable)) {
+                    return;
+                }
+
+                var key = event.key ? event.key.toLowerCase() : '';
+                if (key === 'z') {
+                    if (event.shiftKey) {
+                        if (self.canRedo && self.canRedo()) {
+                            event.preventDefault();
+                            self.redo();
+                        }
+                    } else {
+                        if (self.canUndo && self.canUndo()) {
+                            event.preventDefault();
+                            self.undo();
+                        }
+                    }
+                } else if (key === 'y') {
+                    if (self.canRedo && self.canRedo()) {
+                        event.preventDefault();
+                        self.redo();
+                    }
                 }
             };
             document.addEventListener('keydown', this._documentKeyHandler);
@@ -231,6 +264,7 @@ define([
             return this.studioData
                 || this.configurador
                 || (this.config && (this.config.studioData || this.config.configurador))
+                || (this.initialConfig && (this.initialConfig.studioData || this.initialConfig.configurador || (this.initialConfig.config && this.initialConfig.config.studioData)))
                 || {};
         },
 
@@ -362,8 +396,18 @@ define([
 
             var gravacaoInicial = cfgInicial.gravacao || '';
             this.laserText = ko.observable(gravacaoInicial ? String(gravacaoInicial) : '');
+            this._laserDebounceTimer = null;
             this.laserText.subscribe(function () {
                 self.actionError('');
+                if (self._isApplyingHistory) {
+                    return;
+                }
+                if (self._laserDebounceTimer) {
+                    clearTimeout(self._laserDebounceTimer);
+                }
+                self._laserDebounceTimer = setTimeout(function () {
+                    self.pushSnapshot();
+                }, 400);
             });
 
             this.selections = {};
@@ -790,10 +834,18 @@ define([
 
             this.activeTooltip(null);
             if (this.selections[grupoCodigo]) {
-                this.selections[grupoCodigo](option.codigo);
-                this.autoResolveBlockedSelections();
-                if (this.engravingBlocked()) {
-                    this.laserText('');
+                var prevCode = this.selections[grupoCodigo]();
+                if (prevCode !== option.codigo) {
+                    if (this._laserDebounceTimer) {
+                        clearTimeout(this._laserDebounceTimer);
+                        this._laserDebounceTimer = null;
+                    }
+                    this.selections[grupoCodigo](option.codigo);
+                    this.autoResolveBlockedSelections();
+                    if (this.engravingBlocked()) {
+                        this.laserText('');
+                    }
+                    this.pushSnapshot();
                 }
             }
         },
@@ -856,6 +908,11 @@ define([
 
         onLaserBlur: function () {
             this.isLaserFocused(false);
+            if (this._laserDebounceTimer) {
+                clearTimeout(this._laserDebounceTimer);
+                this._laserDebounceTimer = null;
+            }
+            this.pushSnapshot();
         },
 
         /**
@@ -1048,7 +1105,15 @@ define([
 
         selectSize: function (size) {
             this.actionError('');
-            this.selectedSize(parseInt(size, 10));
+            var parsed = parseInt(size, 10);
+            if (this.selectedSize() !== parsed) {
+                if (this._laserDebounceTimer) {
+                    clearTimeout(this._laserDebounceTimer);
+                    this._laserDebounceTimer = null;
+                }
+                this.selectedSize(parsed);
+                this.pushSnapshot();
+            }
         },
 
         /**
@@ -1455,10 +1520,379 @@ define([
         },
 
         /**
+         * F3.9: Inicializa a máquina de estados de histórico e os computeds reativos de Undo/Redo.
+         */
+        initHistory: function () {
+            var self = this;
+            this._isApplyingHistory = false;
+            this.history = ko.observableArray([]);
+            this.historyIndex = ko.observable(-1);
+
+            this.canUndo = ko.pureComputed(function () {
+                var idx = self.historyIndex();
+                return typeof idx === 'number' && idx > 0;
+            });
+
+            this.canRedo = ko.pureComputed(function () {
+                var h = self.history();
+                var idx = self.historyIndex();
+                return typeof idx === 'number' && idx >= 0 && Array.isArray(h) && idx < (h.length - 1);
+            });
+
+            this.undo = this.undo.bind(this);
+            this.redo = this.redo.bind(this);
+            this.surpriseMe = this.surpriseMe.bind(this);
+
+            var initial = this.createSnapshot();
+            this.history([initial]);
+            this.historyIndex(0);
+        },
+
+        /**
+         * F3.9: Captura um snapshot imutável do estado atual { selecoes, tamanho, laserText }.
+         *
+         * @return {Object}
+         */
+        createSnapshot: function () {
+            var self = this;
+            var selecoes = {};
+            if (this.grupos) {
+                var gruposList = this.grupos();
+                for (var i = 0; i < gruposList.length; i++) {
+                    var g = gruposList[i];
+                    var code = self.selections && self.selections[g.codigo] ? self.selections[g.codigo]() : null;
+                    if (code) {
+                        selecoes[g.codigo] = code;
+                    }
+                }
+            }
+            return {
+                selecoes: Object.freeze ? Object.freeze(Object.assign({}, selecoes)) : Object.assign({}, selecoes),
+                tamanho: this.selectedSize ? this.selectedSize() : null,
+                laserText: this.laserText ? String(this.laserText() || '') : ''
+            };
+        },
+
+        /**
+         * F3.9: Compara dois snapshots para evitar registrar estados idênticos consecutivos.
+         *
+         * @param {Object} snapA
+         * @param {Object} snapB
+         * @return {Boolean}
+         */
+        areSnapshotsEqual: function (snapA, snapB) {
+            if (!snapA || !snapB) {
+                return false;
+            }
+            if (snapA.tamanho !== snapB.tamanho) {
+                return false;
+            }
+            if (snapA.laserText !== snapB.laserText) {
+                return false;
+            }
+            var selA = snapA.selecoes || {};
+            var selB = snapB.selecoes || {};
+            var keysA = Object.keys(selA);
+            var keysB = Object.keys(selB);
+            if (keysA.length !== keysB.length) {
+                return false;
+            }
+            for (var i = 0; i < keysA.length; i++) {
+                var k = keysA[i];
+                if (selA[k] !== selB[k]) {
+                    return false;
+                }
+            }
+            return true;
+        },
+
+        /**
+         * F3.9: Adiciona um novo snapshot ao histórico.
+         * Descarta ramificações futuras se o ponteiro estiver no meio da lista (árvore linear padrão).
+         *
+         * @param {Object} [snapshot]
+         */
+        pushSnapshot: function (snapshot) {
+            if (this._isApplyingHistory) {
+                return;
+            }
+            var newSnapshot = snapshot || this.createSnapshot();
+            var history = this.history();
+            var currentIndex = this.historyIndex();
+
+            if (currentIndex >= 0 && currentIndex < history.length) {
+                if (this.areSnapshotsEqual(history[currentIndex], newSnapshot)) {
+                    return;
+                }
+            }
+
+            var nextHistory = history.slice(0, currentIndex + 1);
+            nextHistory.push(newSnapshot);
+
+            this.history(nextHistory);
+            this.historyIndex(nextHistory.length - 1);
+        },
+
+        /**
+         * F3.9: Restaura fielmente um snapshot nos observáveis do Knockout.
+         *
+         * @param {Object} snapshot
+         */
+        restoreSnapshot: function (snapshot) {
+            if (!snapshot) {
+                return;
+            }
+            this._isApplyingHistory = true;
+            try {
+                var self = this;
+                if (snapshot.selecoes && this.grupos) {
+                    var gruposList = this.grupos();
+                    for (var i = 0; i < gruposList.length; i++) {
+                        var g = gruposList[i];
+                        var code = snapshot.selecoes[g.codigo];
+                        if (code && self.selections && self.selections[g.codigo]) {
+                            self.selections[g.codigo](code);
+                        }
+                    }
+                }
+                if (snapshot.tamanho !== undefined && snapshot.tamanho !== null && this.selectedSize) {
+                    this.selectedSize(snapshot.tamanho);
+                }
+                if (snapshot.laserText !== undefined && this.laserText) {
+                    this.laserText(snapshot.laserText);
+                }
+                this.actionError('');
+                this.activeTooltip(null);
+            } finally {
+                this._isApplyingHistory = false;
+            }
+        },
+
+        /**
+         * F3.9: Desfaz a última ação de personalização.
+         */
+        undo: function () {
+            if (this._laserDebounceTimer) {
+                clearTimeout(this._laserDebounceTimer);
+                this._laserDebounceTimer = null;
+            }
+            if (!this.canUndo || !this.canUndo()) {
+                return;
+            }
+            var newIndex = this.historyIndex() - 1;
+            if (newIndex >= 0 && newIndex < this.history().length) {
+                this.historyIndex(newIndex);
+                this.restoreSnapshot(this.history()[newIndex]);
+            }
+        },
+
+        /**
+         * F3.9: Refaz a ação previamente desfeita.
+         */
+        redo: function () {
+            if (this._laserDebounceTimer) {
+                clearTimeout(this._laserDebounceTimer);
+                this._laserDebounceTimer = null;
+            }
+            if (!this.canRedo || !this.canRedo()) {
+                return;
+            }
+            var newIndex = this.historyIndex() + 1;
+            if (newIndex >= 0 && newIndex < this.history().length) {
+                this.historyIndex(newIndex);
+                this.restoreSnapshot(this.history()[newIndex]);
+            }
+        },
+
+        /**
+         * F3.9: Embaralha uma lista utilizando o algoritmo Fisher-Yates.
+         *
+         * @param {Array} array
+         * @return {Array}
+         */
+        shuffleArray: function (array) {
+            var arr = array.slice();
+            for (var i = arr.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = temp;
+            }
+            return arr;
+        },
+
+        /**
+         * F3.9: Validação de consistência parcial para poda antecipada de ramos conflitantes.
+         *
+         * @param {Object} currentMap - Mapa grupoCodigo -> componente
+         * @return {Boolean}
+         */
+        isPartialCombinationValid: function (currentMap) {
+            var self = this;
+            var chosenList = [];
+            var keys = Object.keys(currentMap);
+            for (var k = 0; k < keys.length; k++) {
+                chosenList.push(currentMap[keys[k]]);
+            }
+
+            function isCodeSelected(code) {
+                return chosenList.some(function (opt) {
+                    return self.normalize(opt.codigo) === self.normalize(code);
+                });
+            }
+
+            function isFinishSelected(finish) {
+                return chosenList.some(function (opt) {
+                    return self.normalize(opt.acabamento) === self.normalize(finish);
+                });
+            }
+
+            var regras = (this.catalog && this.catalog.regras) || [];
+            for (var r = 0; r < regras.length; r++) {
+                var regra = regras[r];
+                var tipo = regra.tipo;
+                var origem = regra.origem;
+                var alvoTipo = regra.alvoTipo;
+                var alvo = regra.alvo;
+
+                if (tipo === 'bloqueia') {
+                    if (alvoTipo === 'componente') {
+                        if (isCodeSelected(origem) && isCodeSelected(alvo)) {
+                            return false;
+                        }
+                    } else if (alvoTipo === 'acabamento') {
+                        if (isCodeSelected(origem) && isFinishSelected(alvo)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        },
+
+        /**
+         * F3.9: Validação final estrita da combinação completa.
+         * Avalia todas as regras dinâmicas (bloqueia e exige) via computeInvalidSelections.
+         *
+         * @param {Object} currentMap - Mapa grupoCodigo -> componente
+         * @return {Boolean}
+         */
+        isCompleteCombinationValid: function (currentMap) {
+            var chosenList = [];
+            var keys = Object.keys(currentMap);
+            for (var k = 0; k < keys.length; k++) {
+                chosenList.push(currentMap[keys[k]]);
+            }
+
+            var invalid = this.computeInvalidSelections(chosenList);
+            return Object.keys(invalid || {}).length === 0;
+        },
+
+        /**
+         * F3.9: Algoritmo de backtracking com descarte para evitar becos sem saída.
+         * Percorre recursivamente os grupos ordenados e retrocede caso um ramo falhe.
+         *
+         * @param {Number} groupIndex
+         * @param {Object} currentMap
+         * @param {Array} grupos
+         * @return {Object|null}
+         */
+        backtrackRandomCombination: function (groupIndex, currentMap, grupos) {
+            if (groupIndex === grupos.length) {
+                return this.isCompleteCombinationValid(currentMap) ? currentMap : null;
+            }
+
+            var self = this;
+            var grupo = grupos[groupIndex];
+            var allComponents = grupo.componentes || [];
+            var candidates = [];
+
+            for (var c = 0; c < allComponents.length; c++) {
+                var comp = allComponents[c];
+                if (!self.isEsgotado(comp.codigo)) {
+                    candidates.push(comp);
+                }
+            }
+
+            if (candidates.length === 0) {
+                return null;
+            }
+
+            var randomizedCandidates = this.shuffleArray(candidates);
+
+            for (var i = 0; i < randomizedCandidates.length; i++) {
+                var candidate = randomizedCandidates[i];
+                currentMap[grupo.codigo] = candidate;
+
+                if (this.isPartialCombinationValid(currentMap)) {
+                    var solution = this.backtrackRandomCombination(groupIndex + 1, currentMap, grupos);
+                    if (solution) {
+                        return solution;
+                    }
+                }
+
+                delete currentMap[grupo.codigo];
+            }
+
+            return null;
+        },
+
+        /**
+         * F3.9: Monta um tênis aleatório que NUNCA viola as regras de compatibilidade do catálogo.
+         * Grava o estado resultante como um ponto único no histórico de desfazer.
+         */
+        surpriseMe: function () {
+            if (this._laserDebounceTimer) {
+                clearTimeout(this._laserDebounceTimer);
+                this._laserDebounceTimer = null;
+            }
+
+            var self = this;
+            var grupos = this.grupos ? this.grupos() : [];
+            if (!grupos || grupos.length === 0) {
+                return;
+            }
+
+            var solution = this.backtrackRandomCombination(0, {}, grupos);
+            if (!solution) {
+                this.actionError('Não foi possível gerar uma combinação automática com as opções disponíveis em estoque.');
+                return;
+            }
+
+            this._isApplyingHistory = true;
+            try {
+                // Aplica seleções dos grupos
+                grupos.forEach(function (g) {
+                    if (solution[g.codigo] && self.selections && self.selections[g.codigo]) {
+                        self.selections[g.codigo](solution[g.codigo].codigo);
+                    }
+                });
+
+                // Verifica se a nova combinação bloqueia a gravação a laser
+                if (this.engravingBlocked && this.engravingBlocked()) {
+                    this.laserText('');
+                }
+
+                this.actionError('');
+                this.activeTooltip(null);
+            } finally {
+                this._isApplyingHistory = false;
+            }
+
+            // Registra ponto único no histórico de desfazer
+            this.pushSnapshot();
+        },
+
+        /**
          * Destrói timers e remove event listeners ao desmontar o componente.
          */
         destroy: function () {
             this.stopPolling();
+            if (this._laserDebounceTimer) {
+                clearTimeout(this._laserDebounceTimer);
+                this._laserDebounceTimer = null;
+            }
             if (typeof document !== 'undefined') {
                 if (this._visibilityHandler) {
                     document.removeEventListener('visibilitychange', this._visibilityHandler);
