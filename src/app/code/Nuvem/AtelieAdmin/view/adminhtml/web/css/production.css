@@ -1,0 +1,47 @@
+.nuvem-production-sheet__details {
+    display: grid;
+    grid-template-columns: minmax(140px, 200px) 1fr;
+    gap: 8px 16px;
+}
+.nuvem-production-sheet__details dt { font-weight: 600; }
+.nuvem-production-sheet__details dd { margin: 0; }
+.nuvem-production-sheet__preview {
+    display: block;
+    width: 100%;
+    max-width: 620px;
+    height: auto;
+    margin: 24px 0;
+}
+.nuvem-production-sheet__components { width: 100%; }
+.nuvem-production-sheet__components td,
+.nuvem-production-sheet__components th {
+    padding: 8px;
+    overflow-wrap: anywhere;
+}
+@media print {
+    body * { visibility: hidden !important; }
+    .nuvem-production-sheet,
+    .nuvem-production-sheet * { visibility: visible !important; }
+    .menu-wrapper,
+    .page-header,
+    .page-footer,
+    .page-title-wrapper,
+    .page-main-actions,
+    .notices-wrapper,
+    .messages { display: none !important; }
+    .page-wrapper { margin: 0 !important; }
+    .page-content { padding: 0 !important; }
+    .nuvem-production-sheet {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        color: #000;
+    }
+    .nuvem-production-sheet a[href]::after { content: none !important; }
+    .nuvem-production-sheet__preview {
+        max-width: 480px;
+        break-inside: avoid;
+    }
+    .nuvem-production-sheet tr { break-inside: avoid; }
+}

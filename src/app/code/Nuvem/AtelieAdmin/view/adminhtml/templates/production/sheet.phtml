@@ -1,0 +1,60 @@
+<?php
+$sheet = $block->getSheet();
+$snapshot = $block->getSnapshot();
+$engraving = (string) ($snapshot['gravacao'] ?? '');
+?>
+<div class="page-main-actions">
+    <div class="page-actions">
+        <a class="action-default" href="<?= $escaper->escapeUrl($block->getUrl('*/*/index')) ?>">
+            <?= $escaper->escapeHtml(__('Voltar')) ?>
+        </a>
+        <button type="button" class="action-primary"
+                data-mage-init='{"Nuvem_AtelieAdmin/js/production/print":{}}'>
+            <?= $escaper->escapeHtml(__('Imprimir ficha')) ?>
+        </button>
+    </div>
+</div>
+<article class="nuvem-production-sheet">
+    <h1><?= $escaper->escapeHtml(__('Ficha de produção #%1', $sheet['ficha_id'])) ?></h1>
+    <dl class="nuvem-production-sheet__details">
+        <dt><?= $escaper->escapeHtml(__('Pedido')) ?></dt>
+        <dd><?= $escaper->escapeHtml((string) ($snapshot['order_increment_id'] ?? $sheet['order_id'])) ?></dd>
+        <dt><?= $escaper->escapeHtml(__('Item do pedido')) ?></dt>
+        <dd><?= $escaper->escapeHtml((string) $sheet['order_item_id']) ?></dd>
+        <dt><?= $escaper->escapeHtml(__('Status')) ?></dt>
+        <dd><?= $escaper->escapeHtml($block->getStatusLabel()) ?></dd>
+        <dt><?= $escaper->escapeHtml(__('Produto')) ?></dt>
+        <dd><?= $escaper->escapeHtml((string) ($snapshot['nome'] ?? '')) ?>
+            — <?= $escaper->escapeHtml((string) ($snapshot['sku'] ?? '')) ?></dd>
+        <dt><?= $escaper->escapeHtml(__('Quantidade de pares')) ?></dt>
+        <dd><?= $escaper->escapeHtml((string) ($snapshot['quantidade'] ?? '')) ?></dd>
+        <dt><?= $escaper->escapeHtml(__('Tamanho')) ?></dt>
+        <dd><?= $escaper->escapeHtml((string) ($snapshot['tamanho'] ?? '')) ?></dd>
+        <dt><?= $escaper->escapeHtml(__('Gravação')) ?></dt>
+        <dd><?= $escaper->escapeHtml($engraving !== '' ? $engraving : (string) __('Sem gravação')) ?></dd>
+        <dt><?= $escaper->escapeHtml(__('Criada em (UTC)')) ?></dt>
+        <dd><?= $escaper->escapeHtml((string) $sheet['created_at']) ?></dd>
+    </dl>
+    <img class="nuvem-production-sheet__preview"
+         src="<?= $escaper->escapeUrl($block->getPreviewUrl()) ?>"
+         alt="<?= $escaper->escapeHtmlAttr(__('Pré-visualização da configuração do pedido')) ?>"/>
+    <h2><?= $escaper->escapeHtml(__('Componentes')) ?></h2>
+    <table class="data-grid nuvem-production-sheet__components">
+        <thead>
+            <tr>
+                <?php foreach (['Grupo', 'Componente', 'Código', 'Cor', 'Acabamento'] as $label): ?>
+                    <th><?= $escaper->escapeHtml(__($label)) ?></th>
+                <?php endforeach; ?>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($snapshot['selecoes'] as $selection): ?>
+                <tr>
+                    <?php foreach (['grupo_nome', 'nome', 'componente', 'cor_hex', 'acabamento'] as $field): ?>
+                        <td><?= $escaper->escapeHtml((string) ($selection[$field] ?? '')) ?></td>
+                    <?php endforeach; ?>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</article>

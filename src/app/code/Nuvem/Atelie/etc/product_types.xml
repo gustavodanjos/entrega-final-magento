@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © Nuvem Calçados. All rights reserved.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Catalog:etc/product_types.xsd">
+    <type name="atelie"
+          label="Ateliê Product"
+          modelInstance="Nuvem\Atelie\Model\Product\Type\Atelie"
+          composite="false"
+          isQty="false"
+          canUseQtyDecimals="false"
+          sortOrder="70">
+        <priceModel instance="Nuvem\AtelieSales\Model\Product\Price" />
+        <indexerModel instance="Nuvem\Atelie\Model\ResourceModel\Product\Indexer\Price\AtelieProductPrice" />
+        <customAttributes>
+            <attribute name="refundable" value="true"/>
+        </customAttributes>
+    </type>
+</config>

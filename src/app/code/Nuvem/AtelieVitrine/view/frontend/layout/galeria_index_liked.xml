@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" layout="1column"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <block class="Nuvem\AtelieVitrine\Block\LikedGallery" name="nuvem.gallery.liked"
+                   template="Nuvem_AtelieVitrine::gallery.phtml" cacheable="false">
+                <block class="Magento\Theme\Block\Html\Pager" name="nuvem.gallery.liked.pager" as="pager"
+                       template="Nuvem_AtelieVitrine::gallery/pager.phtml">
+                    <arguments>
+                        <argument name="path" xsi:type="string">galeria/index/liked</argument>
+                    </arguments>
+                </block>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

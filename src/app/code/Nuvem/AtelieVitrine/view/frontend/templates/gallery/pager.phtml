@@ -1,0 +1,142 @@
+<?php
+/**
+ * Copyright © Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+
+/**
+ * Pager template
+ *
+ * @var \Magento\Theme\Block\Html\Pager $block
+ * @var \Magento\Framework\Escaper $escaper
+ * @var \Magento\Framework\Locale\LocaleFormatter $localeFormatter
+ */
+
+?>
+<?php if ($block->getCollection()->getSize()): ?>
+
+    <?php if ($block->getUseContainer()): ?>
+    <div class="pager">
+    <?php endif ?>
+
+        <?php if ($block->getShowAmounts()): ?>
+        <p class="toolbar-amount">
+            <span class="toolbar-number">
+            <?php if ($block->getLastPageNum()>1): ?>
+                <?= $escaper->escapeHtml(
+                    __(
+                        'Exibindo %1–%2 de %3 criações',
+                        $localeFormatter->formatNumber($block->getFirstNum()),
+                        $localeFormatter->formatNumber($block->getLastNum()),
+                        $localeFormatter->formatNumber($block->getTotalNum())
+                    )
+                ) ?>
+            <?php elseif ($block->getTotalNum() == 1): ?>
+                <?= $escaper->escapeHtml(__('%1 criação', $localeFormatter->formatNumber($block->getTotalNum()))) ?>
+            <?php else: ?>
+                <?= $escaper->escapeHtml(__('%1 criações', $localeFormatter->formatNumber($block->getTotalNum()))) ?>
+            <?php endif; ?>
+            </span>
+        </p>
+        <?php endif ?>
+
+        <?php if ($block->getLastPageNum()>1): ?>
+        <div class="pages">
+            <strong class="label pages-label" id="paging-label"><?= $escaper->escapeHtml(__('Página')) ?></strong>
+            <ul class="items pages-items" aria-labelledby="paging-label">
+            <?php if (!$block->isFirstPage()): ?>
+                <li class="item pages-item-previous">
+                    <?php $text = $block->getAnchorTextForPrevious() ? $block->getAnchorTextForPrevious() : '';?>
+                    <a class="<?= $escaper->escapeHtmlAttr($text ? 'link ' : 'action ') ?> previous"
+                       href="<?= $escaper->escapeUrl($block->getPreviousPageUrl()) ?>"
+                       title="<?= $escaper->escapeHtmlAttr($text ? $text : __('Anterior')) ?>">
+                        <span class="label"><?= $escaper->escapeHtml(__('Página')) ?></span>
+                        <span><?= $escaper->escapeHtml($text ? $text : __('Anterior')) ?></span>
+                    </a>
+                </li>
+            <?php endif;?>
+
+            <?php if ($block->canShowFirst()): ?>
+                <li class="item">
+                    <a class="page first" href="<?= $escaper->escapeUrl($block->getFirstPageUrl()) ?>">
+                        <span class="label"><?= $escaper->escapeHtml(__('Página')) ?></span>
+                        <span><?= $escaper->escapeHtml($localeFormatter->formatNumber(1)) ?></span>
+                    </a>
+                </li>
+            <?php endif;?>
+
+            <?php if ($block->canShowPreviousJump()): ?>
+                <li class="item">
+                    <a class="page previous jump"
+                       title=""
+                       aria-label="<?= $escaper->escapeHtmlAttr(__(
+                           'Ir para a página %1',
+                           $localeFormatter->formatNumber($block->getPreviousJumpPage())
+                       )) ?>"
+                       href="<?= $escaper->escapeUrl($block->getPreviousJumpUrl()) ?>">
+                        <span>...</span>
+                    </a>
+                </li>
+            <?php endif;?>
+
+            <?php foreach ($block->getFramePages() as $_page): ?>
+                <?php if ($block->isPageCurrent($_page)): ?>
+                    <li class="item current">
+                        <strong class="page">
+                            <span class="label"><?= $escaper->escapeHtml(__('Página atual')) ?></span>
+                            <span><?= $escaper->escapeHtml($localeFormatter->formatNumber($_page)) ?></span>
+                        </strong>
+                    </li>
+                <?php else: ?>
+                    <li class="item">
+                        <a href="<?= $escaper->escapeUrl($block->getPageUrl($_page)) ?>" class="page">
+                            <span class="label"><?= $escaper->escapeHtml(__('Página')) ?></span>
+                            <span><?= $escaper->escapeHtml($localeFormatter->formatNumber($_page)) ?></span>
+                        </a>
+                    </li>
+                <?php endif;?>
+            <?php endforeach;?>
+
+            <?php if ($block->canShowNextJump()): ?>
+                <li class="item">
+                    <a class="page next jump"
+                       title=""
+                       aria-label="<?= $escaper->escapeHtmlAttr(__(
+                           'Ir para a página %1',
+                           $localeFormatter->formatNumber($block->getNextJumpPage())
+                       )) ?>"
+                       href="<?= $escaper->escapeUrl($block->getNextJumpUrl()) ?>">
+                        <span>...</span>
+                    </a>
+                </li>
+            <?php endif;?>
+
+            <?php if ($block->canShowLast()): ?>
+              <li class="item">
+                  <a class="page last" href="<?= $escaper->escapeUrl($block->getLastPageUrl()) ?>">
+                      <span class="label"><?= $escaper->escapeHtml(__('Página')) ?></span>
+                      <span><?= $escaper->escapeHtml($localeFormatter->formatNumber($block->getLastPageNum())) ?></span>
+                  </a>
+              </li>
+            <?php endif;?>
+
+            <?php if (!$block->isLastPage()): ?>
+                <li class="item pages-item-next">
+                    <?php $text = $block->getAnchorTextForNext() ? $block->getAnchorTextForNext() : '';?>
+                    <a class="<?= /* @noEscape */ $text ? 'link ' : 'action ' ?> next"
+                       href="<?= $escaper->escapeUrl($block->getNextPageUrl()) ?>"
+                       title="<?= $escaper->escapeHtmlAttr($text ? $text : __('Próxima')) ?>">
+                        <span class="label"><?= $escaper->escapeHtml(__('Página')) ?></span>
+                        <span><?= $escaper->escapeHtml($text ? $text : __('Próxima')) ?></span>
+                    </a>
+                </li>
+            <?php endif;?>
+            </ul>
+        </div>
+        <?php endif; ?>
+
+    <?php if ($block->getUseContainer()): ?>
+    </div>
+    <?php endif ?>
+
+<?php endif ?>

@@ -2,9 +2,9 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
     <preference for="Nuvem\Atelie\Api\AtelieCatalogInterface"
-                type="Nuvem\Atelie\Model\ProvisionalAtelieCatalog"/>
+                type="Nuvem\Atelie\Model\AtelieCatalog"/>
     <preference for="Nuvem\Atelie\Api\ConfigurationValidatorInterface"
-                type="Nuvem\Atelie\Model\ProvisionalConfigurationValidator"/>
+                type="Nuvem\Atelie\Model\ConfigurationValidator"/>
     <preference for="Nuvem\Atelie\Api\PriceCalculatorInterface"
                 type="Nuvem\Atelie\Model\ProvisionalPriceCalculator"/>
     <preference for="Nuvem\Atelie\Api\Data\ConfigurationInterface"
@@ -13,4 +13,61 @@
                 type="Nuvem\Atelie\Model\Selection"/>
     <preference for="Nuvem\Atelie\Api\Data\ValidationResultInterface"
                 type="Nuvem\Atelie\Model\ValidationResult"/>
+    <preference for="Nuvem\Atelie\Api\CatalogImporterInterface"
+                type="Nuvem\Atelie\Model\Import\CatalogImporter"/>
+    <preference for="Nuvem\Atelie\Api\Data\CatalogImportResultInterface"
+                type="Nuvem\Atelie\Model\Import\CatalogImportResult"/>
+
+    <!-- Repositories -->
+    <preference for="Nuvem\Atelie\Api\GroupRepositoryInterface"
+                type="Nuvem\Atelie\Model\GroupRepository"/>
+    <preference for="Nuvem\Atelie\Api\ComponentRepositoryInterface"
+                type="Nuvem\Atelie\Model\ComponentRepository"/>
+    <preference for="Nuvem\Atelie\Api\RuleRepositoryInterface"
+                type="Nuvem\Atelie\Model\RuleRepository"/>
+
+    <type name="Nuvem\Atelie\Model\GroupRepository">
+        <arguments>
+            <argument name="collectionProcessor" xsi:type="object">Magento\Framework\Api\SearchCriteria\CollectionProcessor</argument>
+        </arguments>
+    </type>
+    <type name="Nuvem\Atelie\Model\ComponentRepository">
+        <arguments>
+            <argument name="collectionProcessor" xsi:type="object">Magento\Framework\Api\SearchCriteria\CollectionProcessor</argument>
+        </arguments>
+    </type>
+    <type name="Nuvem\Atelie\Model\RuleRepository">
+        <arguments>
+            <argument name="collectionProcessor" xsi:type="object">Magento\Framework\Api\SearchCriteria\CollectionProcessor</argument>
+        </arguments>
+    </type>
+
+    <type name="Magento\CatalogInventory\Model\StockState">
+        <plugin name="check_atelie_quote_item_qty"
+                type="Nuvem\Atelie\Plugin\CatalogInventory\StockState\CheckAtelieQuoteItemQtyPlugin"
+                sortOrder="-10"/>
+    </type>
+
+    <virtualType name="Nuvem\Atelie\Model\ResourceModel\Product\Indexer\Price\AtelieProductPrice"
+                 type="Magento\Catalog\Model\ResourceModel\Product\Indexer\Price\SimpleProductPrice">
+        <arguments>
+            <argument name="productType" xsi:type="string">atelie</argument>
+        </arguments>
+    </virtualType>
+
+    <type name="Magento\Quote\Model\Quote\Item\Repository">
+        <arguments>
+            <argument name="cartItemProcessors" xsi:type="array">
+                <item name="atelie" xsi:type="object">\Nuvem\Atelie\Model\CartItemProcessor\Proxy</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <type name="Magento\Framework\Console\CommandList">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="nuvem_atelie_catalogo_importar" xsi:type="object">Nuvem\Atelie\Console\Command\ImportCatalogCommand</item>
+            </argument>
+        </arguments>
+    </type>
 </config>

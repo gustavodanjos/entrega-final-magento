@@ -7,7 +7,16 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
     <module name="Nuvem_AtelieAdmin">
         <sequence>
+            <module name="Magento_Cron"/>
             <module name="Nuvem_Atelie"/>
+            <module name="Nuvem_AtelieSales"/>
+            <module name="Nuvem_AtelieStudio"/>
+            <module name="Magento_Ui"/>
+            <module name="Magento_Email"/>
+            <module name="Magento_Amqp"/>
+            <module name="Magento_MessageQueue"/>
+            <module name="Magento_Quote"/>
+            <module name="Magento_Sales"/>
         </sequence>
     </module>
 </config>

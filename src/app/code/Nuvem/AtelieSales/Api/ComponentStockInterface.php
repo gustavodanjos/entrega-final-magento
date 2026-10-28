@@ -33,6 +33,8 @@ interface ComponentStockInterface
      * On error nothing changes: stock is only released for real components with
      * a positive quantity.
      *
+     * The caller is responsible for preventing duplicate compensation.
+     *
      * @param string $componentCode component code (e.g. "SOL-LUA-HOLO")
      * @param int $qty units to release, must be positive
      * @param int|null $orderId
@@ -54,7 +56,12 @@ interface ComponentStockInterface
      * @return void
      * @throws \Magento\Framework\Exception\LocalizedException when the component does not exist or the quantity is not positive
      */
-    public function return(string $componentCode, int $qty, ?int $orderId = null, ?int $orderItemId = null): void;
+    public function return(
+        string $componentCode,
+        int $qty,
+        ?int $orderId = null,
+        ?int $orderItemId = null
+    ): void;
 
     /**
      * Set the stock of a component to an absolute quantity.

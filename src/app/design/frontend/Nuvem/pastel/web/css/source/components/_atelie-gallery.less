@@ -1,0 +1,178 @@
+& when (@media-common = true) {
+    .nuvem-gallery {
+        color: @nuvem-grafite;
+        &__intro { max-width: 640px; margin-bottom: 24px; }
+        &__sort { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+        &__sort a, &__remix {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-height: 44px; padding: 0 20px; border-radius: @nuvem-raio-pilula;
+            background: @nuvem-nevoa; color: @nuvem-grafite; font-weight: 700;
+        }
+        &__sort a[aria-current] { background: @nuvem-lavanda; }
+        a:focus-visible { outline: 2px solid @nuvem-magenta; outline-offset: 3px; }
+        &__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 0; list-style: none; }
+        &__card {
+            min-width: 0; padding: 12px; border: 1px solid @nuvem-bruma;
+            border-radius: @nuvem-raio-card; background: @nuvem-branco;
+            img { display: block; width: 100%; height: auto; background: @nuvem-nevoa; border-radius: @nuvem-raio-msg; }
+            h2 { margin: 16px 0 12px; font-size: 18px; overflow-wrap: anywhere; }
+        }
+        &__card:nth-child(4n + 2) img { background: @nuvem-menta; }
+        &__card:nth-child(4n + 3) img { background: @nuvem-lavanda; }
+        &__card:nth-child(4n + 4) img { background: @nuvem-baunilha; }
+        &__details { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+        &__details span { color: @nuvem-grafite-suave; }
+        &__remix { background: @nuvem-lavanda; }
+    }
+}
+.media-width(@extremum, @break) when (@extremum = 'min') and (@break = @screen__m) {
+    .nuvem-gallery__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (min-width: @screen__l) {
+        .nuvem-gallery__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+}
+
+& when (@media-common = true) {
+    .nuvem-gallery {
+        font-size: 1.6rem;
+        line-height: 1.5;
+
+        &__sort {
+            gap: 8px;
+        }
+
+        &__sort a,
+        &__remix {
+            border: 1.5px solid @nuvem-bruma;
+            text-decoration: none;
+        }
+
+        &__sort a:hover,
+        &__remix:hover {
+            background: @nuvem-lavanda;
+            color: @nuvem-grafite;
+        }
+
+        &__grid {
+            gap: 24px;
+        }
+
+        &__card {
+            padding: 16px;
+            border-width: 1.5px;
+        }
+
+        &__message:empty {
+            display: none;
+        }
+
+        &__message {
+            color: @nuvem-coral;
+        }
+
+        &__like {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 44px;
+            min-height: 44px;
+            margin: 0;
+            padding: 8px;
+            border: 1.5px solid @nuvem-bruma;
+            border-radius: @nuvem-raio-pilula;
+            background: @nuvem-branco;
+            color: @nuvem-grafite;
+            box-shadow: none;
+
+            svg {
+                fill: none;
+                stroke: currentColor;
+                stroke-width: 1.5;
+            }
+
+            &[aria-pressed='true'] {
+                color: @nuvem-magenta;
+                border-color: @nuvem-magenta;
+
+                svg {
+                    fill: currentColor;
+                }
+            }
+
+            &:hover {
+                background: @nuvem-nevoa;
+            }
+
+            &:focus-visible {
+                outline: 2px solid @nuvem-magenta;
+                outline-offset: 4px;
+            }
+        }
+
+        .pager {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 24px;
+            font-size: 1.3rem;
+            line-height: 2rem;
+
+            .toolbar-amount {
+                margin: 0;
+                padding: 0;
+                color: @nuvem-grafite-suave;
+            }
+
+            .pages-items {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .pages .item {
+                margin: 0;
+                font-size: 1.6rem;
+                line-height: 1.5;
+            }
+
+            .pages a.page,
+            .pages strong.page,
+            .pages .action {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 44px;
+                min-height: 44px;
+                width: 44px;
+                height: 44px;
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                border: 1.5px solid @nuvem-bruma;
+                border-radius: @nuvem-raio-pilula;
+                background: @nuvem-branco;
+                color: @nuvem-grafite;
+                box-shadow: none;
+                text-decoration: none;
+            }
+
+            .pages strong.page {
+                border-color: @nuvem-lavanda;
+                background: @nuvem-lavanda;
+            }
+
+            .pages a:hover,
+            .pages .action:hover {
+                background: @nuvem-nevoa;
+            }
+
+            .pages a:focus-visible {
+                outline: 2px solid @nuvem-magenta;
+                outline-offset: 4px;
+            }
+        }
+    }
+}

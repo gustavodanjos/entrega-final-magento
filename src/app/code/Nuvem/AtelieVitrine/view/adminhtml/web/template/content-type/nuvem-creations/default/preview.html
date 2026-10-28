@@ -1,0 +1,21 @@
+<div attr="data.main.attributes"
+     css="data.main.css"
+     class="pagebuilder-content-type nuvem-creations-preview"
+     event="{ mouseover: onMouseOver, mouseout: onMouseOut }, mouseoverBubble: false">
+
+    <render args="getOptions().template"></render>
+
+    <strong data-bind="text: contentType.dataStore.get('title') || 'Vitrine de Criações'"></strong>
+
+    <p>
+        Quantidade:
+        <span data-bind="text: contentType.dataStore.get('limit') || 6"></span>
+    </p>
+
+    <p>
+        Ordenação:
+        <span data-bind="text: contentType.dataStore.get('order') || 'recent'"></span>
+    </p>
+
+    <small>As criações públicas serão renderizadas na loja.</small>
+</div>

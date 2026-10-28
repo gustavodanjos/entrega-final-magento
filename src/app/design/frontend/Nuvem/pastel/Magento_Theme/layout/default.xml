@@ -7,5 +7,50 @@
                 <argument name="logo_file" xsi:type="string">images/logo-nuvem-atelie.svg</argument>
             </arguments>
         </referenceBlock>
+
+        <referenceBlock name="catalog.topnav" remove="true"/>
+        <referenceBlock name="store.menu">
+            <block class="Magento\Framework\View\Element\Template"
+                   name="nuvem.topnav"
+                   template="Magento_Theme::html/topmenu.phtml">
+                <block class="Magento\Cms\Block\BlockByIdentifier" name="nuvem.navigation">
+                    <arguments>
+                        <argument name="identifier" xsi:type="string">nuvem-menu</argument>
+                    </arguments>
+                </block>
+            </block>
+        </referenceBlock>
+
+        <referenceContainer name="page.wrapper">
+            <container name="nuvem.lavanda.bar"
+                       htmlTag="div"
+                       htmlClass="nuvem-lavanda-bar"
+                       before="header.container"
+                       label="Faixa Lavanda Nuvem">
+                <block class="Magento\Cms\Block\BlockByIdentifier" name="nuvem.lavanda.bar.mensagem">
+                    <arguments>
+                        <argument name="identifier" xsi:type="string">nuvem-aviso-topo</argument>
+                    </arguments>
+                </block>
+            </container>
+        </referenceContainer>
+
+        <referenceContainer name="footer">
+            <block class="Magento\Theme\Block\Html\Footer"
+                   name="nuvem.footer"
+                   template="Magento_Theme::html/footer.phtml"
+                   before="-"/>
+        </referenceContainer>
+        <referenceBlock name="footer_links">
+            <block class="Magento\Framework\View\Element\Html\Link" name="nuvem.footer.how.its.made">
+                <arguments>
+                    <argument name="label" xsi:type="string" translate="true">Como é feito</argument>
+                    <argument name="path" xsi:type="string">como-e-feito</argument>
+                </arguments>
+            </block>
+        </referenceBlock>
+        <move element="footer_links" destination="nuvem.footer"/>
+        <referenceBlock name="store_switcher" remove="true"/>
+        <referenceBlock name="copyright" remove="true"/>
     </body>
 </page>

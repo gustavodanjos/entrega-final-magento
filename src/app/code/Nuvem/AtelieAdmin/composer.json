@@ -9,7 +9,18 @@
     "require": {
         "php": "~8.2.0||~8.3.0||~8.4.0",
         "magento/framework": "*",
-        "nuvem/module-atelie": "*"
+        "nuvem/module-atelie": "*",
+        "magento/framework-message-queue": "*",
+        "magento/module-message-queue": "*",
+        "magento/module-amqp": "*",
+        "magento/module-sales": "*",
+        "magento/module-quote": "*",
+        "magento/module-email": "*",
+        "magento/module-cron": "*",
+        "nuvem/module-atelie-sales": "*",
+        "magento/module-ui": "*",
+        "symfony/console": "*",
+        "nuvem/module-atelie-studio": "*"
     },
     "autoload": {
         "files": [
