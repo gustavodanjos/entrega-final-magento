@@ -1,95 +1,154 @@
-![Quality](https://github.com/gustavodanjos/entrega-final-magento/actions/workflows/quality.yml/badge.svg?branch=main)
+<div align="center">
 
-# Ateliê Nuvem — Entrega Final (Magento Open Source)
+# Ateliê Nuvem — Projeto Magento
 
-Ambiente local do projeto da equipe, executado com Docker.
+![Magento](https://img.shields.io/badge/Magento_Open_Source-2.4.8-EE672F?logo=magento&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
+![Docker](https://img.shields.io/badge/Ambiente-Docker-2496ED?logo=docker&logoColor=white)
+[![Quality](https://github.com/gustavodanjos/entrega-final-magento/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/gustavodanjos/entrega-final-magento/actions/workflows/quality.yml)
+
+> Uma loja em que a cliente cria seu tênis, acompanha a personalização em tempo real e compra uma combinação que a fábrica consegue produzir.
+
+Projeto final do Programa de Estágio Webjump em Magento 2.
+
+</div>
+
+---
 
 ## Índice
 
 - [Sobre o projeto](#sobre-o-projeto)
-- [Estrutura do repositório](#estrutura-do-repositório)
-- [Versões do ambiente](#versões-do-ambiente)
-- [Como executar o projeto](#como-executar-o-projeto)
-- [Regras do Time](#regras-do-time)
-- [Padrões de Código e Desenvolvimento](#padrões-de-código-e-desenvolvimento)
+- [Funcionalidades](#funcionalidades)
+- [Stack de tecnologia](#stack-de-tecnologia)
+- [Arquitetura](#arquitetura)
+- [Como executar](#como-executar)
+- [Testes e qualidade](#testes-e-qualidade)
+- [Decisões técnicas e visuais](#decisões-técnicas-e-visuais)
+- [Escopo e limitações](#escopo-e-limitações)
+- [Padrões e colaboração](#padrões-e-colaboração)
+- [Documentação técnica](#documentação-técnica)
+- [Equipe](#equipe)
 
 ## Sobre o projeto
 
-**Cliente:** Nuvem Calçados (Franca, SP). Projeto fictício, exigência real.
+O **Ateliê Nuvem** foi desenvolvido para a **Nuvem Calçados**, uma marca fictícia de Franca/SP, como desafio final do programa de estágio. O trabalho foi organizado na Sprint 9, durante as semanas 18 e 19.
 
-A Nuvem quer uma loja Magento 2 onde a cliente monta o próprio tênis num estúdio visual, vê cada peça mudar de cor na hora, entende por que algumas combinações não existem, paga o preço certo e recebe o par em casa. A fábrica recebe uma ficha de produção por par vendido e o marketing monta a vitrine pelo Page Builder.
+O briefing apresenta uma fábrica que recebe personalizações por WhatsApp, calcula preços manualmente e controla peças em caderno. A proposta transforma esse processo em uma experiência integrada: a cliente escolhe as peças do tênis, o sistema valida as combinações e calcula o preço, e a fábrica recebe os dados necessários para a produção.
 
-## Versões do ambiente
+O desenvolvimento partiu de um briefing, de um manual de marca e de mockups fornecidos. A equipe integrou cinco frentes em um mesmo repositório, com contratos compartilhados entre os módulos.
 
-- **Magento Open Source:** `2.4.8` (fixado em `src/composer.json` e `src/composer.lock`)
-- **PHP:** imagem `markoshust/magento-php:8.4-fpm-2`
-- **Nginx:** `markoshust/magento-nginx:1.28-0`
-- **OpenSearch:** `markoshust/magento-opensearch:3-0`
-- **MariaDB:** `mariadb:11.4`
-- **RabbitMQ:** `markoshust/magento-rabbitmq:4.2-0`
-- **Valkey:** `valkey/valkey:8.1-alpine`
+## Funcionalidades
 
-As imagens e versões dos serviços são definidas por `compose.versions.yaml`, gerado pelos scripts do projeto. O Docker Compose usado na máquina de cada integrante pode ter uma versão diferente.
+| Jornada | Recursos |
+| :--- | :--- |
+| **Personalizar** | Estúdio com preview SVG em camadas, escolha de componentes, tamanho e gravação conforme o modelo, preço atualizado e explicações para combinações bloqueadas. |
+| **Comprar** | Tipo de produto `atelie`, validação no servidor, configuração no carrinho e nos documentos de venda, edição e recompra. |
+| **Controlar estoque** | Disponibilidade por componente, reserva transacional na finalização, registro de movimentações e devolução por cancelamento ou reembolso aplicável. |
+| **Produzir** | Administração de componentes e regras, permissões para a fábrica, fichas de produção e processamento assíncrono por fila. |
+| **Compartilhar** | Criações salvas na conta, publicação de criações, galeria e vitrine com Page Builder. |
+| **Integrar** | Operações GraphQL para catálogo, disponibilidade, validação e adição ao carrinho; REST para disponibilidade e integração da configuração ao carrinho Magento. |
 
-## Como executar o projeto
+O catálogo inicial do kit contém **dois modelos, sete grupos, 31 componentes e cinco regras de fabricação**. Os dados de referência ficam em [`kit/dados/`](kit/dados/).
 
-Siga as etapas 1 a 5 em ordem para subir o ambiente do zero. As etapas 6 a 12 cobrem dados de demonstração, uso diário e solução de problemas.
+## Stack de tecnologia
 
-### 1. Pré-requisitos
+| Camada | Tecnologia |
+| :--- | :--- |
+| Plataforma | Magento Open Source **2.4.8** |
+| Backend | PHP **8.4**, Composer e serviços Magento |
+| Frontend | Tema `Nuvem/pastel`, herdado do Luma; LESS, RequireJS e Knockout |
+| Conteúdo | CMS e Page Builder |
+| APIs | REST e GraphQL |
+| Banco de dados | MariaDB **11.4** |
+| Busca | OpenSearch, imagem `markoshust/magento-opensearch:3-0` |
+| Cache | Valkey **8.1** |
+| Mensageria | RabbitMQ, imagem `markoshust/magento-rabbitmq:4.2-0` |
+| Servidor web | Nginx, imagem `markoshust/magento-nginx:1.28-0` |
+| Ambiente | Docker e Docker Compose, com scripts do docker-magento |
+| Qualidade | PHPUnit, PHPCS com padrão Magento2 e GitHub Actions |
 
-- Git, Docker e Docker Compose instalados e funcionando.
-- Chaves de acesso do Magento Marketplace (public key e private key) para instalar as dependências privadas do Composer.
-- Memória suficiente para executar os serviços do ambiente (recomendado reservar pelo menos 6 GB para o Docker).
-- Portas necessárias livres.
-- **Windows com WSL2:** clone e execute o projeto dentro do sistema de arquivos Linux do WSL, não em `/mnt/c`.
+As versões do Magento estão fixadas em `src/composer.json` e `src/composer.lock`. As imagens dos serviços são definidas em `compose.versions.yaml`.
 
-### 2. Clonar o projeto
+## Arquitetura
+
+O projeto divide as responsabilidades em seis módulos que compartilham a mesma instalação Magento.
+
+| Módulo | Responsabilidade |
+| :--- | :--- |
+| `Nuvem_Atelie` | Catálogo de componentes, regras, validação, contratos e tipo de produto. |
+| `Nuvem_AtelieSales` | Preço, estoque, carrinho, pedidos e apresentação da configuração nos documentos. |
+| `Nuvem_AtelieStudio` | Estúdio de personalização e geração de previews. |
+| `Nuvem_AtelieAdmin` | Administração, permissões, produção, fila e cache do catálogo. |
+| `Nuvem_AtelieVitrine` | Criações salvas, galeria, widgets e conteúdo da loja. |
+| `Nuvem_AtelieGraphQl` | Schema e resolvers para integrações GraphQL. |
+
+```text
+entrega-final-magento/
+├── src/
+│   ├── app/code/Nuvem/                 # Seis módulos do projeto
+│   └── app/design/frontend/Nuvem/pastel/ # Tema da loja
+├── bin/                               # Comandos do ambiente Docker
+├── compose/                           # Suporte à configuração dos serviços
+├── docs/                              # Contratos e documentação técnica
+├── kit/                               # Dados, marca, SVGs e prova de API
+└── .github/workflows/                  # Automação de qualidade
+```
+
+### Fluxo de compra e produção
+
+```mermaid
+flowchart TD
+    A[Cliente personaliza no estúdio] --> B[Servidor valida e calcula o preço]
+    B --> C[Configuração acompanha o carrinho]
+    C --> D[Checkout reserva os componentes]
+    D --> E[Pedido é persistido]
+    E --> F[Pendência de produção é registrada]
+    F --> G[Cron publica na fila]
+    G --> H[Consumidor gera ficha e envia e-mail]
+```
+
+O estoque é disputado na finalização da compra. Adicionar um tênis ao carrinho não reserva suas peças. Se a compra falhar, o tratamento transacional considera a etapa da falha para preservar o saldo e os pedidos já persistidos.
+
+## Como executar
+
+### Pré-requisitos
+
+- Git, Docker e Docker Compose.
+- Chaves pública e privada do Magento Marketplace para instalar dependências pelo Composer.
+- Portas dos serviços disponíveis e memória para executar o ambiente; recomenda-se reservar pelo menos 6 GB para o Docker.
+- No Windows com WSL2, repositório dentro do sistema de arquivos Linux.
+
+### 1. Clonar e iniciar o ambiente
 
 ```bash
 git clone https://github.com/gustavodanjos/entrega-final-magento.git
 cd entrega-final-magento
-```
-
-### 3. Iniciar os containers pela primeira vez
-
-```bash
 bin/start --no-dev
 bin/copytocontainer --all
 ```
 
-Use `--no-dev` na primeira inicialização para evitar problemas com arquivos de volume ainda não copiados para os containers.
+O modo `--no-dev` é usado na primeira inicialização para permitir a cópia inicial dos arquivos aos containers.
 
-### 4. Instalar as dependências PHP
-
-Configure as chaves do Magento Marketplace no Composer quando solicitado e execute:
+### 2. Instalar dependências e o Magento
 
 ```bash
 bin/composer install
-```
-
-O comando instala as dependências definidas em `src/composer.json` e `src/composer.lock`. A primeira execução pode demorar.
-
-**Não versione chaves de acesso.** Não faça commit de `src/auth.json` nem de `src/app/etc/env.php`.
-
-### 5. Instalar o Magento
-
-```bash
 bin/setup final-project.test
 ```
 
-O script prepara a instalação local e pode solicitar permissão para adicionar o domínio ao arquivo de hosts do sistema.
+Configure as chaves do Marketplace quando solicitado pelo Composer. Não versione `src/auth.json` nem `src/app/etc/env.php`.
 
-Se o domínio não resolver automaticamente, adicione a seguinte linha ao arquivo de hosts da máquina:
+O setup pode solicitar permissão para configurar o domínio local. Caso necessário, adicione ao arquivo de hosts:
 
 ```text
 127.0.0.1 final-project.test
 ```
 
-No Windows com WSL2, adicione-a também ao arquivo `C:\Windows\System32\drivers\etc\hosts` do Windows, caso o navegador seja executado no Windows.
+No WSL2, configure também o arquivo de hosts do Windows se o navegador estiver sendo executado nele.
 
-### 6. Instalar os produtos de demonstração (Sample Data)
+### 3. Preparar os dados e acessar
 
-O projeto declara os pacotes de Sample Data no Composer, mas isso, por si só, **não garante que os dados de demonstração tenham sido carregados no banco**. Depois que a instalação inicial do Magento terminar, execute:
+Os módulos usam data patches para criar dados e configurações do Ateliê durante a instalação e os upgrades. Para carregar também os Sample Data do Magento declarados no Composer:
 
 ```bash
 bin/magento sampledata:deploy
@@ -98,215 +157,129 @@ bin/magento indexer:reindex
 bin/magento cache:flush
 ```
 
-Confirme que existem produtos no catálogo antes de começar a desenvolver funcionalidades que dependem deles.
+| Acesso local | Endereço / credencial padrão |
+| :--- | :--- |
+| Loja | https://final-project.test |
+| Administração | https://final-project.test/admin |
+| Usuário | `john.smith` |
+| Senha | `password123` |
 
-### 7. Acessar a loja
+As credenciais são os padrões locais de `env/magento.env` e podem ser alteradas na configuração do ambiente.
 
-- **Loja:** https://final-project.test
-- **Admin:** https://final-project.test/admin
-- **Usuário local padrão:** `john.smith`
-- **Senha local padrão:** `password123`
+### 4. Processar a produção
 
-As credenciais vêm de `env/magento.env` e são apenas valores padrão para o ambiente local. Não reutilize essas credenciais em ambientes públicos ou de produção.
-
-### 8. Comandos do dia a dia
+A geração das fichas depende do cron e do consumidor de mensagens. Consulte os consumidores disponíveis e inicie o correspondente à produção:
 
 ```bash
-# Iniciar o ambiente
+bin/magento queue:consumers:list
+bin/magento queue:consumers:start nuvem.atelie.production
+```
+
+O consumidor permanece em execução. Para disparar uma rodada do cron manualmente em desenvolvimento:
+
+```bash
+bin/magento cron:run
+```
+
+### Comandos do dia a dia
+
+```bash
 bin/start
-
-# Parar os containers sem apagar os dados
 bin/stop
-
-# Atualizar dependências depois de mudanças no Composer
-bin/composer install
-
-# Aplicar atualizações de módulos e do banco
-bin/magento setup:upgrade
-
-# Reindexar e limpar o cache
-bin/magento indexer:reindex
 bin/magento cache:flush
-```
-
-Evite `bin/removeall`: ele remove o ambiente e pode apagar dados necessários, incluindo o banco local.
-
-### 9. Depois de atualizar a branch
-
-Após `git pull`, confira os arquivos alterados e execute os comandos necessários:
-
-```bash
-# Se composer.json ou composer.lock mudou
-bin/composer install
-
-# Se houve alterações de módulos ou estrutura do banco
-bin/magento setup:upgrade
-
-# Se src/app/etc/config.php mudou
-bin/magento app:config:import
-
-# Ao final
-bin/magento cache:flush
-```
-
-Não é necessário executar todos os comandos cegamente a cada `git pull`; use os que correspondem às alterações recebidas.
-
-### 10. Fluxo de trabalho da equipe
-
-Crie uma branch para cada tarefa e abra um Pull Request. Não desenvolva diretamente na `main`. O padrão de nome das branches está em [Nomenclatura de Branch](#nomenclatura-de-branch) e as regras de revisão em [Pull Requests e revisão](#pull-requests-e-revisão).
-
-```bash
-git switch main
-git pull origin main
-git switch -c feat/f2.1-short-description
-```
-
-Antes de enviar as alterações:
-
-```bash
-git status
-git diff --check
-git add <arquivos>
-git commit -m "<type>: <short description in English>"
-git push -u origin feat/f2.1-short-description
-```
-
-Diretrizes:
-
-- Código personalizado deve ficar em `src/app/code/Nuvem/` ou `src/app/design/frontend/Nuvem/`.
-- `src/composer.json`, `src/composer.lock` e `src/app/etc/config.php` fazem parte do repositório.
-- Não faça commit de `src/auth.json`, `src/app/etc/env.php`, senhas, chaves ou outros segredos.
-- Se adicionar uma dependência Composer, valide e versione as mudanças necessárias em `composer.json` e `composer.lock`.
-- O banco de dados local não é compartilhado pelo Git. Combine com a equipe antes de exportar ou importar dumps; não commite dumps com dados sensíveis.
-
-### 11. Problemas comuns
-
-#### Uma porta já está em uso
-
-Encerre o processo ou o outro projeto que está usando a porta e tente iniciar novamente. Não encerre serviços do sistema sem antes confirmar que estão ocupando a porta necessária.
-
-#### O Magento abre com erro 502/500 logo após iniciar
-
-Confira se os containers estão saudáveis e aguarde os serviços de banco de dados e busca terminarem a inicialização:
-
-```bash
 bin/docker-compose ps
 bin/docker-compose logs --tail=100
 ```
 
-#### O Admin solicita autenticação de dois fatores e não permite entrar
+Após atualizar a branch, execute `bin/composer install` se as dependências mudaram, `bin/magento setup:upgrade` para atualizações de módulos e `bin/magento app:config:import` quando houver alterações aplicáveis em `config.php`.
 
-Somente no ambiente local de desenvolvimento, se a equipe decidiu desabilitar o 2FA, execute:
+Se a loja retornar 502/500 ao iniciar, confira os logs e aguarde os serviços de banco e busca ficarem disponíveis. Se o domínio não abrir, confira o arquivo de hosts. Evite `bin/removeall` no uso diário: ele pode apagar os dados locais.
 
-```bash
-bin/magento module:disable Magento_AdminAdobeImsTwoFactorAuth Magento_TwoFactorAuth
-bin/magento cache:flush
-```
+## Testes e qualidade
 
-#### A loja abre, mas não existem produtos
-
-Os módulos de Sample Data instalados via Composer não significam que os dados já foram gravados no banco. Execute a etapa [6. Instalar os produtos de demonstração](#6-instalar-os-produtos-de-demonstração-sample-data) e confira se o banco utilizado é o do ambiente local correto.
-
-#### O Git informa arquivos de volume ausentes ao trocar de modo
-
-Se for necessário alternar entre o modo `--no-dev` e o modo de desenvolvimento, sincronize os arquivos do container conforme necessário e reinicie o ambiente:
+Com as dependências instaladas e os arquivos sincronizados no container, execute na raiz do repositório:
 
 ```bash
-bin/copyfromcontainer --all
-bin/restart
+# Testes PHPUnit
+bin/clinotty vendor/bin/phpunit -c phpunit.xml.dist
+
+# Padrão de código Magento2
+bin/clinotty vendor/bin/phpcs app/code/Nuvem
 ```
 
-### 12. Verificação rápida
+O [workflow Quality](.github/workflows/quality.yml) executa PHPCS e PHPUnit. Há também testes JavaScript e cenários de integração no repositório; eles não são etapas explícitas desse workflow.
 
-```bash
-bin/magento --version
-bin/magento setup:db:status
-bin/docker-compose ps
-```
+A prova de API possui etapas de REST, GraphQL, concorrência e carga. As instruções e dependências estão no [kit](kit/README.md). Os cenários de estoque alteram dados: prepare um **banco isolado**, seguindo o [roteiro de integração](src/app/code/Nuvem/AtelieSales/Test/Integration/README.md), antes de executar a corrida.
 
-## Regras do Time
+### Evidência histórica de concorrência
 
-### Frentes de Trabalho
+Na execução HTTP registrada em **23/10/2026**, na revisão `39eaf42`, **40 tentativas para dez unidades produziram dez pedidos e 30 recusas por estoque, sem respostas 5xx**. O relatório também registra a conciliação do estoque com as movimentações.
 
-Cada frente é responsável pela sua própria pasta no repositório, evitando que duas pessoas editem o mesmo arquivo simultaneamente. A distribuição foi definida por sorteio.
+Esse resultado pertence à execução documentada e não representa uma nova validação da versão atual. Consulte a [evidência e o procedimento de reprodução](src/app/code/Nuvem/AtelieSales/Test/Integration/README.md#evidence--2026-10-23).
 
-| Frente   | Responsável     | Foco                                              |
-| :------- | :-------------- | :------------------------------------------------ |
-| Frente 1 | @samuelcosta-pd | Núcleo: tipo de produto, regras e API de carrinho |
-| Frente 2 | @gustavodanjos  | Preço, estoque e pedido                           |
-| Frente 3 | @jhonatanLobo   | O estúdio                                         |
-| Frente 4 | @AntonniSMoraes | Bastidores                                        |
-| Frente 5 | @Emiliano-Souza | Vitrine e integrações                             |
+## Decisões técnicas e visuais
 
-A Frente 0 (repositório, ambiente e regras do time) é responsabilidade de todos. O dono de cada módulo está registrado em [`docs/CODEOWNERS`](docs/CODEOWNERS).
+- **Tipo de produto próprio:** integra configuração e regras de fabricação ao ciclo de compra. As peças são componentes da fábrica, sem exigir um produto Magento independente para cada peça ou combinação.
+- **Servidor como autoridade:** o navegador oferece resposta imediata para preço e restrições; a compra passa pela validação e pelo cálculo do backend.
+- **Estoque por componente:** atualizações condicionais, transações e registro de movimentações tratam concorrência e falhas do checkout.
+- **Produção assíncrona:** uma outbox registra a pendência antes da publicação na fila, permitindo retomar o processamento. A ficha é identificada por item de pedido.
+- **Cache conforme o dado:** catálogo compartilhado usa tags de invalidação, informações da cliente usam customer data e disponibilidade é consultada separadamente, sem cache da resposta.
+- **Identidade a partir do material fornecido:** o tema usa os mockups e o manual de marca como referência, com tokens em LESS e fontes Quicksand e Nunito locais. O preview usa SVG em camadas para representar as escolhas.
 
-### Pull Requests e revisão
+## Escopo e limitações
 
-- Ninguém dá push direto na `main`. Todo trabalho vai por branch e Pull Request.
-- A `main` é protegida: o PR exige 1 aprovação, e o merge só acontece depois da revisão de outra frente, sempre de outra frente.
-- O autor do PR não aprova o próprio PR.
-- Antes de abrir o PR, rode `kit/scripts/prova-final.sh` e preencha no template o resultado ("Rodei a prova-final.sh e o resultado foi \_\_\_").
-- O template do PR (`docs/pull_request_template.md`) inclui o checklist de marca. Preencha todos os itens.
-- O código da Nuvem fica somente em `src/app/code/Nuvem/` e `src/app/design/frontend/Nuvem/`.
+| Ponto | Situação |
+| :--- | :--- |
+| Pagamento e frete | Demonstração com Check/Money Order e Flat Rate, conforme o briefing. |
+| Ambiente | Execução local com Docker; infraestrutura de produção não faz parte da entrega. |
+| Personalização visual | Preview SVG; 3D, realidade aumentada e upload de imagens ficaram fora do escopo. |
+| Produção e e-mail | Exigem cron, consumidor e transporte de e-mail configurados. O controle de envio não garante entrega exatamente uma vez em toda falha possível. |
+| REST previsto no backlog | As rotas `/V1/atelie/configurador/:sku` e `/V1/atelie/validar` não foram localizadas na versão consultada. O GraphQL oferece operações correspondentes. |
+| Fontes do preview | O tema possui fontes locais, mas o SVG gerado no servidor contém referência ao Google Fonts. |
+| Validação | Não se atribuem à versão atual resultados de instalação limpa, cobertura, Lighthouse ou prova final sem uma execução correspondente. |
 
-### Nomenclatura de Branch
+## Padrões e colaboração
+
+O trabalho foi dividido em cinco frentes, com fundação e contratos compartilhados. Cada tarefa segue em uma branch própria e passa por Pull Request com revisão de outra frente.
+
+Código, nomes de arquivos e mensagens de commit usam inglês. A documentação pode ser escrita em português. As diretrizes incluem KISS, DRY, YAGNI e separação entre apresentação, serviços de negócio e persistência.
 
 ```text
+# Branch
 <type>/<task-id>-<short-description-in-english>
-```
 
-Os tipos são os mesmos dos [Conventional Commits](#commits-conventional-commits): `feat`, `fix`, `docs`, `refactor`, `test`, `chore` e `style`.
-
-Exemplos (ilustrativos; use o ID real da tarefa no backlog):
-
-```text
-chore/f0.1-repository-and-team-rules
-feat/f1.1-studio-svg-preview
-fix/f1.1-studio-mobile-layout
-feat/f2.3-price-calculator-service
-test/f2.4-rule-validator-unit-tests
-docs/f0.1-readme-team-rules
-```
-
-## Padrões de Código e Desenvolvimento
-
-### Idioma e Nomenclatura
-
-Todo o código (variáveis, classes, métodos, nomes de arquivos e mensagens de commit) é mantido **obrigatoriamente em inglês**, seguindo a convenção corporativa e garantindo que qualquer desenvolvedor consiga entender o repositório. A documentação (como este README) pode ser em português.
-
-### Clean Code
-
-Estas regras devem ser seguidas em todo o desenvolvimento:
-
-- **KISS** (_Keep It Simple, Stupid_): soluções simples e diretas são preferidas a abstrações desnecessárias.
-- **DRY** (_Don't Repeat Yourself_): lógica duplicada deve ser extraída para Services ou helpers reutilizáveis.
-- **YAGNI** (_You Aren't Gonna Need It_): nenhuma funcionalidade é adicionada sem demanda real e justificada.
-- **Separation of Concerns**: templates `.phtml` e layout XML cuidam da apresentação, Blocks e ViewModels fornecem os dados, e Services/Models concentram a lógica de negócio.
-- **Responsabilidade Única**: cada método ou classe tem um único motivo para existir e mudar.
-
-### Commits (Conventional Commits)
-
-Todos os commits seguem o padrão **Conventional Commits**, com mensagem em inglês:
-
-```text
+# Commit
 <type>(<optional scope>): <short description in English>
 ```
 
-| Tipo       | Uso                                             |
-| :--------- | :---------------------------------------------- |
-| `feat`     | Nova funcionalidade ou componente               |
-| `fix`      | Correção de bug                                 |
-| `docs`     | Alteração somente em documentação               |
-| `refactor` | Melhoria de código sem alterar comportamento    |
-| `test`     | Adição ou correção de testes                    |
-| `chore`    | Configuração, build ou tarefas auxiliares       |
-| `style`    | Formatação, espaçamento (sem impacto funcional) |
-
-**Exemplos:**
+Exemplos:
 
 ```text
-feat: add component grid to the admin panel
-fix: correct engraving validation on add to cart
-docs: document clean installation routine
-chore: configure phpunit and static analysis
+feat/f2.3-component-stock-reservation
+feat(sales): reserve components during checkout
+docs: document project architecture
 ```
+
+Os tipos usados incluem `feat`, `fix`, `docs`, `refactor`, `test`, `chore` e `style`. O código personalizado fica em `src/app/code/Nuvem/` e `src/app/design/frontend/Nuvem/`. Dependências e configurações compartilhadas são versionadas; credenciais e dados privados do ambiente ficam fora do Git.
+
+## Documentação técnica
+
+- [Kit, dados e prova de API](kit/README.md)
+- [Contrato do estúdio](docs/contrato-estudio.md)
+- [Integração de preço](docs/contrato-integracao-preco.md)
+- [Devolução de estoque](docs/f2.4-stock-returns.md)
+- [Disponibilidade pública](docs/f2.5-public-availability.md)
+- [Criações salvas](docs/f5.1-saved-creations.md)
+- [Integração e concorrência de estoque](src/app/code/Nuvem/AtelieSales/Test/Integration/README.md)
+
+## Equipe
+
+| Integrante | Frente principal | GitHub |
+| :--- | :--- | :--- |
+| Samuel | Frente 1 — Núcleo, regras e tipo de produto | [@samuelcosta-pd](https://github.com/samuelcosta-pd) |
+| Gustavo | Frente 2 — Preço, estoque e pedido | [@gustavodanjos](https://github.com/gustavodanjos) |
+| Jhonatan | Frente 3 — Estúdio | [@jhonatanLobo](https://github.com/jhonatanLobo) |
+| Antonni | Frente 4 — Administração e produção | [@AntonniSMoraes](https://github.com/AntonniSMoraes) |
+| Emiliano | Frente 5 — Vitrine e integrações | [@Emiliano-Souza](https://github.com/Emiliano-Souza) |
+
+A Frente 0, responsável pela base do projeto, ambiente e contratos, é compartilhada pela equipe.
